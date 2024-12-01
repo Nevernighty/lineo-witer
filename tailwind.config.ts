@@ -95,12 +95,26 @@ export default {
             transform: "rotate(360deg)",
           },
         },
+        "wind-flow": {
+          "0%": {
+            transform: "translateX(100%)",
+            opacity: "0",
+          },
+          "50%": {
+            opacity: "1",
+          },
+          "100%": {
+            transform: "translateX(-100%)",
+            opacity: "0",
+          },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.5s ease-out",
         "fade-in": "fade-in 0.3s ease-out",
         glow: "glow 2s ease-in-out infinite",
         spin: "spin 3s linear infinite",
+        "wind-flow": "wind-flow 3s linear infinite",
       },
       borderRadius: {
         lg: "var(--radius)",
