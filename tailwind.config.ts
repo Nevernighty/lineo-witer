@@ -87,11 +87,20 @@ export default {
             opacity: "0.5",
           },
         },
+        spin: {
+          "0%": {
+            transform: "rotate(0deg)",
+          },
+          "100%": {
+            transform: "rotate(360deg)",
+          },
+        },
       },
       animation: {
         "fade-up": "fade-up 0.5s ease-out",
         "fade-in": "fade-in 0.3s ease-out",
         glow: "glow 2s ease-in-out infinite",
+        spin: "spin 3s linear infinite",
       },
       borderRadius: {
         lg: "var(--radius)",

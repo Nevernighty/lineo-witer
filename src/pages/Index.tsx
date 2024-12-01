@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
-import { Wind, Zap, MapPin, Settings } from "lucide-react";
+import { Wind, Zap, MapPin, Settings, Recycle } from "lucide-react";
+import { WindTurbine } from "@/components/WindTurbine";
 
 const Index = () => {
   const [windSpeed, setWindSpeed] = useState<number>(0);
   const [power, setPower] = useState<number>(0);
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [generatorType, setGeneratorType] = useState<string>("medium");
 
   useEffect(() => {
     // Simulate wind speed updates
@@ -36,8 +38,9 @@ const Index = () => {
     <div className="min-h-screen p-6 animate-fade-in">
       <header className="mb-8">
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-4xl font-bold tracking-tight">
-            LINE-O WITER
+          <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
+            <Recycle className="text-stalker-accent" />
+            LINE-O <Wind className="text-stalker-accent" /> WITER
           </h1>
           <button className="stalker-button">
             <Settings className="w-4 h-4" />
@@ -61,6 +64,7 @@ const Index = () => {
               style={{ width: `${(windSpeed / 20) * 100}%` }}
             />
           </div>
+          <WindTurbine windSpeed={windSpeed} generatorType={generatorType} />
         </div>
 
         <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.2s" }}>
@@ -101,10 +105,14 @@ const Index = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="stalker-label">Generator Type</label>
-              <select className="stalker-input w-full">
-                <option>Vertical Axis Turbine</option>
-                <option>Horizontal Axis Turbine</option>
-                <option>Custom Generator</option>
+              <select 
+                className="stalker-input w-full"
+                value={generatorType}
+                onChange={(e) => setGeneratorType(e.target.value)}
+              >
+                <option value="small">Small Wind Turbine</option>
+                <option value="medium">Medium Wind Turbine</option>
+                <option value="large">Large Wind Turbine</option>
               </select>
             </div>
             <div>
