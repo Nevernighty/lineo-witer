@@ -14,7 +14,6 @@ export const WindMap = ({ location, windSpeed }: WindMapProps) => {
   useEffect(() => {
     if (!location) return;
 
-    // Initialize map
     if (!map.current && mapContainer.current) {
       mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbHNxOXBxbWowMDNqMmptbGVwOWs5NXd2In0.FhGwJMpU3K8mUgvZvh8VXw';
       
@@ -32,28 +31,6 @@ export const WindMap = ({ location, windSpeed }: WindMapProps) => {
       })
         .setLngLat([location.lon, location.lat])
         .addTo(map.current);
-
-      // Add wind particles layer
-      map.current.on('load', () => {
-        // Add a source and layer for wind particles
-        map.current?.addSource('wind', {
-          type: 'geojson',
-          data: {
-            type: 'FeatureCollection',
-            features: []
-          }
-        });
-
-        map.current?.addLayer({
-          id: 'wind-layer',
-          type: 'symbol',
-          source: 'wind',
-          layout: {
-            'icon-image': 'wind',
-            'icon-size': 1
-          }
-        });
-      });
     }
 
     // Update map center when location changes
@@ -66,7 +43,7 @@ export const WindMap = ({ location, windSpeed }: WindMapProps) => {
   }, [location]);
 
   return (
-    <div className="relative w-full h-[300px] rounded-lg overflow-hidden">
+    <div className="relative w-full h-full rounded-lg overflow-hidden">
       <div ref={mapContainer} className="absolute inset-0" />
       <div className="absolute bottom-4 left-4 bg-stalker-card/80 backdrop-blur-sm px-3 py-2 rounded text-sm">
         Wind Speed: {windSpeed} m/s

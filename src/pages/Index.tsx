@@ -52,7 +52,8 @@ const Index = () => {
         </div>
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Wind Speed Card */}
         <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.1s" }}>
           <div className="flex items-center justify-between mb-4">
             <Wind className="w-5 h-5 text-stalker-accent" />
@@ -65,9 +66,9 @@ const Index = () => {
               style={{ width: `${(windSpeed / 20) * 100}%` }}
             />
           </div>
-          <WindTurbine windSpeed={windSpeed} generatorType={generatorType} />
         </div>
 
+        {/* Power Output Card */}
         <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.2s" }}>
           <div className="flex items-center justify-between mb-4">
             <Zap className="w-5 h-5 text-stalker-accent" />
@@ -82,6 +83,7 @@ const Index = () => {
           </div>
         </div>
 
+        {/* Location Card */}
         <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.3s" }}>
           <div className="flex items-center justify-between mb-4">
             <MapPin className="w-5 h-5 text-stalker-accent" />
@@ -97,36 +99,44 @@ const Index = () => {
                   {location.lon.toFixed(4)}°E
                 </div>
               </div>
-              <WindMap location={location} windSpeed={windSpeed} />
+              <div className="h-[300px]">
+                <WindMap location={location} windSpeed={windSpeed} />
+              </div>
             </div>
           ) : (
             <div className="text-stalker-muted">Acquiring location...</div>
           )}
         </div>
 
-        <div className="stalker-card col-span-1 md:col-span-2 lg:col-span-3 animate-fade-up" style={{ animationDelay: "0.4s" }}>
+        {/* Generator Settings Card - Full Width */}
+        <div className="stalker-card col-span-1 lg:col-span-3 animate-fade-up" style={{ animationDelay: "0.4s" }}>
           <h2 className="stalker-heading">Generator Settings</h2>
-          <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="stalker-label">Generator Type</label>
-                <select 
-                  className="stalker-input w-full"
-                  value={generatorType}
-                  onChange={(e) => setGeneratorType(e.target.value)}
-                >
-                  <option value="small">Small Wind Turbine</option>
-                  <option value="medium">Medium Wind Turbine</option>
-                  <option value="large">Large Wind Turbine</option>
-                </select>
-              </div>
-              <div>
-                <label className="stalker-label">Installation Height (m)</label>
-                <input type="number" className="stalker-input w-full" defaultValue={10} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="stalker-label">Generator Type</label>
+                  <select 
+                    className="stalker-input w-full"
+                    value={generatorType}
+                    onChange={(e) => setGeneratorType(e.target.value)}
+                  >
+                    <option value="small">Small Wind Turbine</option>
+                    <option value="medium">Medium Wind Turbine</option>
+                    <option value="large">Large Wind Turbine</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="stalker-label">Installation Height (m)</label>
+                  <input type="number" className="stalker-input w-full" defaultValue={10} />
+                </div>
               </div>
             </div>
             
-            <WindTurbine windSpeed={windSpeed} generatorType={generatorType} />
+            {/* Wind Turbine Visualization */}
+            <div className="h-full">
+              <WindTurbine windSpeed={windSpeed} generatorType={generatorType} />
+            </div>
           </div>
         </div>
       </div>
