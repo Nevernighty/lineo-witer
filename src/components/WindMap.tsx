@@ -17,29 +17,43 @@ export const WindMap = ({ location, windSpeed }: WindMapProps) => {
     if (!map.current && mapContainer.current) {
       mapboxgl.accessToken = 'pk.eyJ1IjoibG92YWJsZSIsImEiOiJjbHNxOXBxbWowMDNqMmptbGVwOWs5NXd2In0.FhGwJMpU3K8mUgvZvh8VXw';
       
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: 'mapbox://styles/mapbox/dark-v11',
-        center: [location.lon, location.lat],
-        zoom: 9,
-        pitch: 45
-      });
+      try {
+        map.current = new mapboxgl.Map({
+          container: mapContainer.current,
+          style: 'mapbox://styles/mapbox/dark-v11',
+          center: [location.lon, location.lat],
+          zoom: 9,
+          pitch: 45
+        });
 
-      // Add marker for location
-      new mapboxgl.Marker({
-        color: "#39FF14"
-      })
-        .setLngLat([location.lon, location.lat])
-        .addTo(map.current);
+        // Add marker for location
+        new mapboxgl.Marker({
+          color: "#39FF14"
+        })
+          .setLngLat([location.lon, location.lat])
+          .addTo(map.current);
+      } catch (error) {
+        console.error('Error initializing map:', error);
+      }
     }
 
     // Update map center when location changes
     if (map.current) {
-      map.current.flyTo({
-        center: [location.lon, location.lat],
-        essential: true
-      });
+      try {
+        map.current.flyTo({
+          center: [location.lon, location.lat],
+          essential: true
+        });
+      } catch (error) {
+        console.error('Error updating map center:', error);
+      }
     }
+
+    return () => {
+      if (map.current) {
+        map.current.remove();
+      }
+    };
   }, [location]);
 
   return (
