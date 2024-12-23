@@ -1,13 +1,16 @@
 import { useState, useEffect } from "react";
-import { Wind, Zap, MapPin, Settings, Recycle } from "lucide-react";
+import { Wind, Zap, MapPin, Settings, Recycle, QuestionMarkCircle } from "lucide-react";
 import { WindTurbine } from "@/components/WindTurbine";
 import { WindMap } from "@/components/WindMap";
+import { GeneratorSettings } from "@/components/GeneratorSettings";
+import { GENERATOR_PRESETS, type WindGeneratorSpecs } from "@/utils/windCalculations";
 
 const Index = () => {
   const [windSpeed, setWindSpeed] = useState<number>(0);
   const [power, setPower] = useState<number>(0);
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [generatorType, setGeneratorType] = useState<string>("medium");
+  const [generatorSpecs, setGeneratorSpecs] = useState<WindGeneratorSpecs>(GENERATOR_PRESETS.medium);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     // Simulate wind speed updates
@@ -43,9 +46,23 @@ const Index = () => {
             <Recycle className="text-stalker-accent" />
             LINE-O <Wind className="text-stalker-accent" /> WITER
           </h1>
-          <button className="stalker-button">
-            <Settings className="w-4 h-4" />
-          </button>
+          <div className="flex items-center gap-4">
+            {location && (
+              <div className="text-sm text-stalker-muted">
+                <div className="flex items-center gap-1">
+                  <MapPin size={14} className="text-stalker-accent" />
+                  {location.lat.toFixed(4)}°N
+                </div>
+                <div className="flex items-center gap-1">
+                  <MapPin size={14} className="text-stalker-accent" />
+                  {location.lon.toFixed(4)}°E
+                </div>
+              </div>
+            )}
+            <button className="stalker-button" onClick={() => setSettingsOpen(true)}>
+              <Settings className="w-4 h-4" />
+            </button>
+          </div>
         </div>
         <div className="stalker-badge animate-glow">
           MONITORING ACTIVE
@@ -115,11 +132,14 @@ const Index = () => {
             <div className="space-y-6">
               <div className="grid grid-cols-1 gap-4">
                 <div>
-                  <label className="stalker-label">Generator Type</label>
+                  <div className="flex items-center gap-2">
+                    <label className="stalker-label">Generator Type</label>
+                    <QuestionMarkCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                  </div>
                   <select 
                     className="stalker-input w-full"
-                    value={generatorType}
-                    onChange={(e) => setGeneratorType(e.target.value)}
+                    value={generatorSpecs.type}
+                    onChange={(e) => setGeneratorSpecs(GENERATOR_PRESETS[e.target.value])}
                   >
                     <option value="small">Small Wind Turbine</option>
                     <option value="medium">Medium Wind Turbine</option>
@@ -127,19 +147,38 @@ const Index = () => {
                   </select>
                 </div>
                 <div>
-                  <label className="stalker-label">Installation Height (m)</label>
-                  <input type="number" className="stalker-input w-full" defaultValue={10} />
+                  <div className="flex items-center gap-2">
+                    <label className="stalker-label">Installation Height (m)</label>
+                    <QuestionMarkCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                  </div>
+                  <input 
+                    type="number" 
+                    className="stalker-input w-full" 
+                    value={generatorSpecs.height}
+                    onChange={(e) => setGeneratorSpecs({
+                      ...generatorSpecs,
+                      height: parseFloat(e.target.value) || generatorSpecs.height
+                    })}
+                  />
                 </div>
               </div>
             </div>
             
             {/* Wind Turbine Visualization */}
             <div className="h-full">
-              <WindTurbine windSpeed={windSpeed} generatorType={generatorType} />
+              <WindTurbine windSpeed={windSpeed} generatorSpecs={generatorSpecs} />
             </div>
           </div>
         </div>
       </div>
+
+      {/* Settings Dialog */}
+      <GeneratorSettings
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        currentSettings={generatorSpecs}
+        onSettingsChange={setGeneratorSpecs}
+      />
     </div>
   );
 };
