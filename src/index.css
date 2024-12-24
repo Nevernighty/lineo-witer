@@ -37,6 +37,20 @@
 }
 
 @layer base {
+  :root[data-ui-size="small"] {
+    font-size: 14px;
+  }
+  
+  :root[data-ui-size="medium"] {
+    font-size: 16px;
+  }
+  
+  :root[data-ui-size="large"] {
+    font-size: 18px;
+  }
+}
+
+@layer base {
   * {
     @apply border-border;
   }

@@ -1,44 +1,59 @@
 export interface WindGeneratorSpecs {
-  type: 'small' | 'medium' | 'large';
+  type: string;
+  design: string;
   height: number;
   diameter: number;
   efficiency: number;
   cutInSpeed: number;
-  cutOutSpeed: number;
   ratedSpeed: number;
   ratedPower: number;
+  sustainabilityFocus: string;
 }
 
 export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
-  small: {
-    type: 'small',
-    height: 10,
-    diameter: 3,
-    efficiency: 0.35,
+  "GE Haliade-X": {
+    type: "Horizontal Axis",
+    design: "GE Haliade-X 14",
+    height: 150,
+    diameter: 220,
+    efficiency: 0.63,
     cutInSpeed: 3,
-    cutOutSpeed: 25,
-    ratedSpeed: 12,
-    ratedPower: 1500
+    ratedSpeed: 13.5,
+    ratedPower: 14000000,
+    sustainabilityFocus: "Reduced rare-earth metals, recyclable blades"
   },
-  medium: {
-    type: 'medium',
-    height: 20,
-    diameter: 7,
-    efficiency: 0.40,
-    cutInSpeed: 3.5,
-    cutOutSpeed: 25,
+  "Siemens Gamesa": {
+    type: "Horizontal Axis",
+    design: "Siemens Gamesa SG 14-222 DD",
+    height: 150,
+    diameter: 222,
+    efficiency: 0.61,
+    cutInSpeed: 3,
     ratedSpeed: 13,
-    ratedPower: 5000
+    ratedPower: 14000000,
+    sustainabilityFocus: "94% recyclable components"
   },
-  large: {
-    type: 'large',
-    height: 40,
-    diameter: 15,
-    efficiency: 0.45,
-    cutInSpeed: 4,
-    cutOutSpeed: 25,
-    ratedSpeed: 14,
-    ratedPower: 10000
+  "Vestas": {
+    type: "Horizontal Axis",
+    design: "Vestas V236-15.0 MW",
+    height: 150,
+    diameter: 236,
+    efficiency: 0.60,
+    cutInSpeed: 3,
+    ratedSpeed: 13.5,
+    ratedPower: 15000000,
+    sustainabilityFocus: "Carbon-neutral production focus"
+  },
+  "Tree Vent": {
+    type: "Vertical Axis",
+    design: "Tree Vent (Inspired by Aeroleaf)",
+    height: 15,
+    diameter: 2,
+    efficiency: 0.40,
+    cutInSpeed: 2,
+    ratedSpeed: 9,
+    ratedPower: 500000,
+    sustainabilityFocus: "Aesthetic integration in public spaces"
   }
 };
 
