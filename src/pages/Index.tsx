@@ -9,7 +9,7 @@ const Index = () => {
   const [windSpeed, setWindSpeed] = useState<number>(0);
   const [power, setPower] = useState<number>(0);
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
-  const [generatorSpecs, setGeneratorSpecs] = useState<WindGeneratorSpecs>(GENERATOR_PRESETS.medium);
+  const [generatorSpecs, setGeneratorSpecs] = useState<WindGeneratorSpecs>(GENERATOR_PRESETS["GE Haliade-X 14"]);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
@@ -43,8 +43,15 @@ const Index = () => {
       <header className="mb-8">
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
-            <Recycle className="text-stalker-accent" />
-            LINE-O <Wind className="text-stalker-accent" /> WITER
+            <Recycle 
+              className="text-stalker-accent animate-spin hover:animate-[spin_1s_linear_infinite] transition-all" 
+              style={{ animationDuration: '3s' }}
+            />
+            LINE-O 
+            <Wind 
+              className="text-stalker-accent animate-[wiggle_2s_ease-in-out_infinite] hover:animate-[wiggle_0.5s_ease-in-out_infinite]" 
+            />
+            WITER
           </h1>
           <div className="flex items-center gap-4">
             {location && (
@@ -184,4 +191,3 @@ const Index = () => {
 };
 
 export default Index;
-

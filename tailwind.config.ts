@@ -108,6 +108,10 @@ export default {
             opacity: "0",
           },
         },
+        wiggle: {
+          "0%, 100%": { transform: "rotate(-3deg)" },
+          "50%": { transform: "rotate(3deg)" }
+        }
       },
       animation: {
         "fade-up": "fade-up 0.5s ease-out",
@@ -115,6 +119,7 @@ export default {
         glow: "glow 2s ease-in-out infinite",
         spin: "spin 3s linear infinite",
         "wind-flow": "wind-flow 3s linear infinite",
+        wiggle: "wiggle 1s ease-in-out infinite",
       },
       borderRadius: {
         lg: "var(--radius)",

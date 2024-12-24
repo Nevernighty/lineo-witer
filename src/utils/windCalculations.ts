@@ -1,85 +1,91 @@
 export interface WindGeneratorSpecs {
   type: string;
-  design: string;
   height: number;
-  diameter: number;
   efficiency: number;
-  cutInSpeed: number;
-  ratedSpeed: number;
   ratedPower: number;
+  rotorDiameter: number;
+  cutInSpeed: number;
+  cutOutSpeed: number;
+  optimalWindSpeed: number;
   sustainabilityFocus: string;
 }
 
 export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
-  "GE Haliade-X": {
+  "GE Haliade-X 14": {
     type: "Horizontal Axis",
-    design: "GE Haliade-X 14",
     height: 150,
-    diameter: 220,
     efficiency: 0.63,
+    ratedPower: 14000000, // 14 MW in watts
+    rotorDiameter: 220,
     cutInSpeed: 3,
-    ratedSpeed: 13.5,
-    ratedPower: 14000000,
+    cutOutSpeed: 25,
+    optimalWindSpeed: 13.5,
     sustainabilityFocus: "Reduced rare-earth metals, recyclable blades"
   },
-  "Siemens Gamesa": {
-    type: "Horizontal Axis",
-    design: "Siemens Gamesa SG 14-222 DD",
-    height: 150,
-    diameter: 222,
-    efficiency: 0.61,
+  "small": {
+    type: "Small Wind Turbine",
+    height: 30,
+    efficiency: 0.4,
+    ratedPower: 5000, // 5 kW in watts
+    rotorDiameter: 10,
     cutInSpeed: 3,
-    ratedSpeed: 13,
-    ratedPower: 14000000,
-    sustainabilityFocus: "94% recyclable components"
+    cutOutSpeed: 25,
+    optimalWindSpeed: 12,
+    sustainabilityFocus: "Compact design, suitable for residential use"
   },
-  "Vestas": {
-    type: "Horizontal Axis",
-    design: "Vestas V236-15.0 MW",
-    height: 150,
-    diameter: 236,
-    efficiency: 0.60,
+  "medium": {
+    type: "Medium Wind Turbine",
+    height: 50,
+    efficiency: 0.5,
+    ratedPower: 20000, // 20 kW in watts
+    rotorDiameter: 15,
     cutInSpeed: 3,
-    ratedSpeed: 13.5,
-    ratedPower: 15000000,
-    sustainabilityFocus: "Carbon-neutral production focus"
+    cutOutSpeed: 25,
+    optimalWindSpeed: 13,
+    sustainabilityFocus: "Balanced performance for small communities"
   },
-  "Tree Vent": {
-    type: "Vertical Axis",
-    design: "Tree Vent (Inspired by Aeroleaf)",
-    height: 15,
-    diameter: 2,
-    efficiency: 0.40,
-    cutInSpeed: 2,
-    ratedSpeed: 9,
-    ratedPower: 500000,
-    sustainabilityFocus: "Aesthetic integration in public spaces"
-  }
-};
-
-export const calculatePowerOutput = (windSpeed: number, specs: WindGeneratorSpecs): number => {
-  if (windSpeed < specs.cutInSpeed || windSpeed > specs.cutOutSpeed) {
-    return 0;
-  }
-
-  const airDensity = 1.225; // kg/m³
-  const rotorArea = Math.PI * Math.pow(specs.diameter / 2, 2);
-  
-  // Wind power formula: P = 1/2 * ρ * A * v³ * Cp
-  let power = 0.5 * airDensity * rotorArea * Math.pow(windSpeed, 3) * specs.efficiency;
-  
-  // Cap at rated power
-  return Math.min(power, specs.ratedPower);
+  "large": {
+    type: "Large Wind Turbine",
+    height: 80,
+    efficiency: 0.6,
+    ratedPower: 100000, // 100 kW in watts
+    rotorDiameter: 25,
+    cutInSpeed: 3,
+    cutOutSpeed: 25,
+    optimalWindSpeed: 14,
+    sustainabilityFocus: "High output for commercial use"
+  },
 };
 
 export const calculateHeightAdjustedWindSpeed = (
-  baseWindSpeed: number,
-  baseHeight: number,
-  targetHeight: number
+  windSpeed: number,
+  referenceHeight: number,
+  actualHeight: number
 ): number => {
-  // Wind shear coefficient (typical value for open land)
+  // Wind shear coefficient (typically 0.143 for open land)
   const alpha = 0.143;
+  return windSpeed * Math.pow(actualHeight / referenceHeight, alpha);
+};
+
+export const calculatePowerOutput = (
+  windSpeed: number,
+  specs: WindGeneratorSpecs
+): number => {
+  // Air density at sea level (kg/m³)
+  const airDensity = 1.225;
   
-  // Power law wind profile equation
-  return baseWindSpeed * Math.pow(targetHeight / baseHeight, alpha);
+  // Rotor swept area (m²)
+  const area = Math.PI * Math.pow(specs.rotorDiameter / 2, 2);
+  
+  // Check if wind speed is within operational range
+  if (windSpeed < specs.cutInSpeed || windSpeed > specs.cutOutSpeed) {
+    return 0;
+  }
+  
+  // Calculate theoretical power
+  const theoreticalPower = 0.5 * airDensity * area * Math.pow(windSpeed, 3);
+  
+  // Apply efficiency and limit to rated power
+  const actualPower = theoreticalPower * specs.efficiency;
+  return Math.min(actualPower, specs.ratedPower);
 };
