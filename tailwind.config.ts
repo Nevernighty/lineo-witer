@@ -120,6 +120,10 @@ export default {
         spin: "spin 3s linear infinite",
         "wind-flow": "wind-flow 3s linear infinite",
         wiggle: "wiggle 1s ease-in-out infinite",
+        "spin-slow": "spin 5s linear infinite",
+        "spin-hover": "spin 1s linear infinite",
+        "wiggle-slow": "wiggle 2s ease-in-out infinite",
+        "wiggle-fast": "wiggle 0.5s ease-in-out infinite",
       },
       borderRadius: {
         lg: "var(--radius)",

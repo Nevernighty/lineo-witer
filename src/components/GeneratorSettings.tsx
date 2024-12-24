@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Eye, EyeOff, HelpCircle, Globe, Ruler, Type, MapPin } from "lucide-react";
+import { Eye, EyeOff, HelpCircle } from "lucide-react";
 import { TooltipProvider, Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
-import { Input } from "@/components/ui/input";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GENERATOR_PRESETS, type WindGeneratorSpecs } from "@/utils/windCalculations";
 
 interface GeneratorSettingsProps {
@@ -13,168 +14,203 @@ interface GeneratorSettingsProps {
   onSettingsChange: (settings: WindGeneratorSpecs) => void;
 }
 
+const tooltips = {
+  axisOrientation: "Horizontal-axis turbines are more efficient in open areas, while vertical-axis turbines work better in urban environments",
+  bladeDesign: "Three-blade designs are most common and efficient, while Savonius designs work better in low wind",
+  installationType: "Choose based on your available space and local regulations",
+  powerCategory: "Select based on your energy needs - micro for small devices, medium for full household",
+  purpose: "Grid-tied systems can sell excess power, while off-grid systems provide independence",
+  material: "Consider durability vs environmental impact"
+};
+
 export const GeneratorSettings = ({
   open,
   onOpenChange,
   currentSettings,
   onSettingsChange,
 }: GeneratorSettingsProps) => {
-  const [showSecretValues, setShowSecretValues] = useState(false);
-  const [localSettings, setLocalSettings] = useState<WindGeneratorSpecs>(currentSettings);
-  const [language, setLanguage] = useState("en");
-  const [units, setUnits] = useState("metric");
-  const [uiSize, setUiSize] = useState("medium");
-  const [showCoordinates, setShowCoordinates] = useState(false);
-
-  const handlePresetChange = (type: string) => {
-    const newSettings = GENERATOR_PRESETS[type];
-    setLocalSettings(newSettings);
-    onSettingsChange(newSettings);
-  };
-
-  const handleNumberInput = (field: keyof WindGeneratorSpecs, value: string) => {
-    const numValue = parseFloat(value);
-    if (!isNaN(numValue)) {
-      const newSettings = { ...localSettings, [field]: numValue };
-      setLocalSettings(newSettings);
-      onSettingsChange(newSettings);
-    }
-  };
-
-  const tooltips = {
-    height: "Installation height affects wind speed due to wind shear. Higher installations typically experience stronger winds.",
-    diameter: "Rotor diameter determines the swept area. Larger area captures more wind energy but requires stronger support.",
-    efficiency: "Overall system efficiency including mechanical and electrical losses.",
-    cutInSpeed: "Minimum wind speed required for power generation.",
-    ratedSpeed: "Wind speed at which rated power is achieved.",
-    ratedPower: "Maximum power output of the generator.",
-    sustainabilityFocus: "Environmental and sustainability features of the turbine design."
-  };
+  const [showHiddenValues, setShowHiddenValues] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="stalker-card max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="stalker-card max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between">
             Generator Configuration
-            <div className="flex gap-2">
-              <button
-                onClick={() => setShowSecretValues(!showSecretValues)}
-                className="text-stalker-muted hover:text-stalker-accent"
-              >
-                {showSecretValues ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
-            </div>
+            <button
+              onClick={() => setShowHiddenValues(!showHiddenValues)}
+              className="text-stalker-muted hover:text-stalker-accent"
+            >
+              {showHiddenValues ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
           </DialogTitle>
         </DialogHeader>
 
-        <div className="grid grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-4">
-            {/* Location Section */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <MapPin size={24} className="text-stalker-accent" />
-                <div>
-                  <div className="text-sm text-stalker-muted">Country: Ukraine</div>
-                  <div className="text-sm text-stalker-muted">City: Kyiv</div>
-                  <button
-                    onMouseEnter={() => setShowCoordinates(true)}
-                    onMouseLeave={() => setShowCoordinates(false)}
-                    className="text-stalker-muted hover:text-stalker-accent"
-                  >
-                    {showCoordinates ? "50.4501° N, 30.5234° E" : "**.****° *, **.****° *"}
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Interface Settings */}
+        <div className="grid grid-cols-1 gap-6">
+          <TooltipProvider>
             <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Globe size={16} className="text-stalker-muted" />
-                <Label>Language</Label>
-              </div>
-              <select
-                className="stalker-input w-full"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value)}
-              >
-                <option value="en">English</option>
-                <option value="uk">Ukrainian</option>
-              </select>
-
-              <div className="flex items-center gap-2">
-                <Ruler size={16} className="text-stalker-muted" />
-                <Label>Units</Label>
-              </div>
-              <select
-                className="stalker-input w-full"
-                value={units}
-                onChange={(e) => setUnits(e.target.value)}
-              >
-                <option value="metric">Metric (m/s, meters)</option>
-                <option value="imperial">Imperial (mph, feet)</option>
-              </select>
-
-              <div className="flex items-center gap-2">
-                <Type size={16} className="text-stalker-muted" />
-                <Label>UI Size</Label>
-              </div>
-              <select
-                className="stalker-input w-full"
-                value={uiSize}
-                onChange={(e) => setUiSize(e.target.value)}
-              >
-                <option value="small">Small</option>
-                <option value="medium">Medium</option>
-                <option value="large">Large</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-4">
-            <div className="grid gap-2">
-              <Label>Generator Type</Label>
-              <select
-                className="stalker-input w-full"
-                value={localSettings.design}
-                onChange={(e) => handlePresetChange(e.target.value)}
-              >
-                {Object.entries(GENERATOR_PRESETS).map(([key, preset]) => (
-                  <option key={key} value={key}>
-                    {preset.design} ({preset.type})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <TooltipProvider>
-              {Object.entries(tooltips).map(([key, tooltip]) => (
-                <div key={key} className="grid gap-2">
-                  <div className="flex items-center gap-2">
-                    <Label>{key.charAt(0).toUpperCase() + key.slice(1)}</Label>
-                    <Tooltip>
-                      <TooltipTrigger>
-                        <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
-                      </TooltipTrigger>
-                      <TooltipContent>
-                        <p>{tooltip}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </div>
-                  <Input
-                    type={showSecretValues ? "number" : "password"}
-                    value={localSettings[key as keyof WindGeneratorSpecs]}
-                    onChange={(e) => handleNumberInput(key as keyof WindGeneratorSpecs, e.target.value)}
-                    className="stalker-input"
-                    step="any"
-                  />
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Axis Orientation</Label>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    </TooltipTrigger>
+                    <TooltipContent>{tooltips.axisOrientation}</TooltipContent>
+                  </Tooltip>
                 </div>
-              ))}
-            </TooltipProvider>
-          </div>
+                <RadioGroup
+                  value={currentSettings.axisOrientation}
+                  onValueChange={(value: "horizontal" | "vertical") =>
+                    onSettingsChange({ ...currentSettings, axisOrientation: value })
+                  }
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="horizontal" id="horizontal" />
+                    <Label htmlFor="horizontal">Horizontal</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="vertical" id="vertical" />
+                    <Label htmlFor="vertical">Vertical</Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Blade Design</Label>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    </TooltipTrigger>
+                    <TooltipContent>{tooltips.bladeDesign}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select
+                  value={currentSettings.bladeDesign}
+                  onValueChange={(value: any) =>
+                    onSettingsChange({ ...currentSettings, bladeDesign: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select blade design" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="three-blade">Three Blade</SelectItem>
+                    <SelectItem value="two-blade">Two Blade</SelectItem>
+                    <SelectItem value="darrieus">Darrieus</SelectItem>
+                    <SelectItem value="savonius">Savonius</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Installation Type</Label>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    </TooltipTrigger>
+                    <TooltipContent>{tooltips.installationType}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select
+                  value={currentSettings.installationType}
+                  onValueChange={(value: any) =>
+                    onSettingsChange({ ...currentSettings, installationType: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select installation type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="rooftop">Rooftop</SelectItem>
+                    <SelectItem value="freestanding">Freestanding</SelectItem>
+                    <SelectItem value="hybrid">Hybrid</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Power Category</Label>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    </TooltipTrigger>
+                    <TooltipContent>{tooltips.powerCategory}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select
+                  value={currentSettings.powerCategory}
+                  onValueChange={(value: any) =>
+                    onSettingsChange({ ...currentSettings, powerCategory: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select power category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="micro">Micro</SelectItem>
+                    <SelectItem value="small">Small</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Purpose</Label>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    </TooltipTrigger>
+                    <TooltipContent>{tooltips.purpose}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select
+                  value={currentSettings.purpose}
+                  onValueChange={(value: any) =>
+                    onSettingsChange({ ...currentSettings, purpose: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select purpose" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="off-grid">Off-Grid</SelectItem>
+                    <SelectItem value="grid-tied">Grid-Tied</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                  <Label>Material</Label>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    </TooltipTrigger>
+                    <TooltipContent>{tooltips.material}</TooltipContent>
+                  </Tooltip>
+                </div>
+                <Select
+                  value={currentSettings.material}
+                  onValueChange={(value: any) =>
+                    onSettingsChange({ ...currentSettings, material: value })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select material" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="lightweight">Lightweight</SelectItem>
+                    <SelectItem value="eco-friendly">Eco-Friendly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </TooltipProvider>
         </div>
       </DialogContent>
     </Dialog>

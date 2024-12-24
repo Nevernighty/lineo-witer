@@ -2,58 +2,108 @@ export interface WindGeneratorSpecs {
   type: string;
   height: number;
   efficiency: number;
-  ratedPower: number;
   rotorDiameter: number;
   cutInSpeed: number;
   cutOutSpeed: number;
   optimalWindSpeed: number;
-  sustainabilityFocus: string;
+  axisOrientation: "horizontal" | "vertical";
+  bladeDesign: "three-blade" | "two-blade" | "darrieus" | "savonius";
+  installationType: "rooftop" | "freestanding" | "hybrid";
+  powerCategory: "micro" | "small" | "medium";
+  purpose: "off-grid" | "grid-tied";
+  material: "lightweight" | "eco-friendly";
 }
 
 export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
+  "Bergey Excel 10": {
+    type: "Horizontal Axis",
+    height: 30,
+    efficiency: 0.45,
+    rotorDiameter: 7,
+    cutInSpeed: 2.5,
+    cutOutSpeed: 25,
+    optimalWindSpeed: 12,
+    axisOrientation: "horizontal",
+    bladeDesign: "three-blade",
+    installationType: "freestanding",
+    powerCategory: "medium",
+    purpose: "grid-tied",
+    material: "eco-friendly"
+  },
+  "Windspire 1.2": {
+    type: "Vertical Axis",
+    height: 20,
+    efficiency: 0.35,
+    rotorDiameter: 2,
+    cutInSpeed: 3.5,
+    cutOutSpeed: 25,
+    optimalWindSpeed: 10,
+    axisOrientation: "vertical",
+    bladeDesign: "darrieus",
+    installationType: "rooftop",
+    powerCategory: "small",
+    purpose: "grid-tied",
+    material: "lightweight"
+  },
   "GE Haliade-X 14": {
     type: "Horizontal Axis",
     height: 150,
     efficiency: 0.63,
-    ratedPower: 14000000, // 14 MW in watts
     rotorDiameter: 220,
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 13.5,
-    sustainabilityFocus: "Reduced rare-earth metals, recyclable blades"
+    axisOrientation: "horizontal",
+    bladeDesign: "three-blade",
+    installationType: "freestanding",
+    powerCategory: "medium",
+    purpose: "grid-tied",
+    material: "eco-friendly"
   },
   "small": {
     type: "Small Wind Turbine",
     height: 30,
     efficiency: 0.4,
-    ratedPower: 5000, // 5 kW in watts
     rotorDiameter: 10,
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 12,
-    sustainabilityFocus: "Compact design, suitable for residential use"
+    axisOrientation: "horizontal",
+    bladeDesign: "three-blade",
+    installationType: "rooftop",
+    powerCategory: "micro",
+    purpose: "off-grid",
+    material: "lightweight"
   },
   "medium": {
     type: "Medium Wind Turbine",
     height: 50,
     efficiency: 0.5,
-    ratedPower: 20000, // 20 kW in watts
     rotorDiameter: 15,
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 13,
-    sustainabilityFocus: "Balanced performance for small communities"
+    axisOrientation: "horizontal",
+    bladeDesign: "three-blade",
+    installationType: "freestanding",
+    powerCategory: "small",
+    purpose: "grid-tied",
+    material: "eco-friendly"
   },
   "large": {
     type: "Large Wind Turbine",
     height: 80,
     efficiency: 0.6,
-    ratedPower: 100000, // 100 kW in watts
     rotorDiameter: 25,
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 14,
-    sustainabilityFocus: "High output for commercial use"
+    axisOrientation: "horizontal",
+    bladeDesign: "three-blade",
+    installationType: "freestanding",
+    powerCategory: "medium",
+    purpose: "grid-tied",
+    material: "eco-friendly"
   },
 };
 

@@ -14,16 +14,13 @@ export const WindTurbine = ({ windSpeed, generatorSpecs }: WindTurbineProps) => 
   const MAX_ROTATION_SPEED = 20;
 
   useEffect(() => {
-    // Calculate height-adjusted wind speed
     const adjusted = calculateHeightAdjustedWindSpeed(windSpeed, 10, generatorSpecs.height);
     setAdjustedWindSpeed(adjusted);
     
-    // Calculate power output
     const powerOutput = calculatePowerOutput(adjusted, generatorSpecs);
     setPower(powerOutput);
     
-    // Set rotation speed based on wind speed and generator type
-    const speedFactor = Math.min(adjusted / generatorSpecs.ratedSpeed, 1);
+    const speedFactor = Math.min(adjusted / generatorSpecs.optimalWindSpeed, 1);
     setRotationSpeed(MAX_ROTATION_SPEED * speedFactor);
   }, [windSpeed, generatorSpecs]);
 
