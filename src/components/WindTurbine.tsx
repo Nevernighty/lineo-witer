@@ -11,6 +11,7 @@ export const WindTurbine = ({ windSpeed, generatorSpecs }: WindTurbineProps) => 
   const [rotationSpeed, setRotationSpeed] = useState(0);
   const [adjustedWindSpeed, setAdjustedWindSpeed] = useState(windSpeed);
   const [power, setPower] = useState(0);
+  const MAX_ROTATION_SPEED = 20;
 
   useEffect(() => {
     // Calculate height-adjusted wind speed
@@ -22,9 +23,8 @@ export const WindTurbine = ({ windSpeed, generatorSpecs }: WindTurbineProps) => 
     setPower(powerOutput);
     
     // Set rotation speed based on wind speed and generator type
-    const maxSpeed = 20; // Maximum animation speed
     const speedFactor = Math.min(adjusted / generatorSpecs.ratedSpeed, 1);
-    setRotationSpeed(maxSpeed * speedFactor);
+    setRotationSpeed(MAX_ROTATION_SPEED * speedFactor);
   }, [windSpeed, generatorSpecs]);
 
   return (
@@ -73,7 +73,7 @@ export const WindTurbine = ({ windSpeed, generatorSpecs }: WindTurbineProps) => 
       {/* Interactive turbine */}
       <button 
         className="relative z-10 bg-stalker-dark/80 rounded-full p-8 hover:bg-stalker-dark transition-colors group"
-        onClick={() => setRotationSpeed(prev => prev > 0 ? 0 : maxSpeed)}
+        onClick={() => setRotationSpeed(prev => prev > 0 ? 0 : MAX_ROTATION_SPEED)}
       >
         <RotateCw 
           className="text-stalker-accent group-hover:scale-110 transition-transform" 

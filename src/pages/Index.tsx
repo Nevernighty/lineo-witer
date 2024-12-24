@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wind, Zap, MapPin, Settings, Recycle, QuestionMarkCircle } from "lucide-react";
+import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle } from "lucide-react";
 import { WindTurbine } from "@/components/WindTurbine";
 import { WindMap } from "@/components/WindMap";
 import { GeneratorSettings } from "@/components/GeneratorSettings";
@@ -134,7 +134,7 @@ const Index = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="stalker-label">Generator Type</label>
-                    <QuestionMarkCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
                   </div>
                   <select 
                     className="stalker-input w-full"
@@ -149,7 +149,7 @@ const Index = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <label className="stalker-label">Installation Height (m)</label>
-                    <QuestionMarkCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
+                    <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
                   </div>
                   <input 
                     type="number" 
@@ -184,3 +184,4 @@ const Index = () => {
 };
 
 export default Index;
+
