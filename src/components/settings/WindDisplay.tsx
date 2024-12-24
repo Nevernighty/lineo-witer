@@ -1,4 +1,4 @@
-import { WindAnimation } from "../WindAnimation";
+import WindAnimation from "../WindAnimation";
 
 interface WindDisplayProps {
   windSpeed: number;

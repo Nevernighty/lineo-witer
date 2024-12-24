@@ -1,12 +1,12 @@
 import React, { useEffect, useRef } from "react";
 
-interface WindAnimationProps {
+export interface WindAnimationProps {
   windSpeed: number;
   width?: number;
   height?: number;
 }
 
-const WindAnimation: React.FC<WindAnimationProps> = ({ 
+export const WindAnimation: React.FC<WindAnimationProps> = ({ 
   windSpeed, 
   width = 300, 
   height = 300 

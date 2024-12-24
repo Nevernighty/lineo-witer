@@ -6,6 +6,7 @@ export interface WindGeneratorSpecs {
   cutInSpeed: number;
   cutOutSpeed: number;
   optimalWindSpeed: number;
+  ratedPower: number;
   axisOrientation: "horizontal" | "vertical";
   bladeDesign: "three-blade" | "two-blade" | "darrieus" | "savonius";
   installationType: "rooftop" | "freestanding" | "hybrid";
@@ -23,12 +24,13 @@ export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
     cutInSpeed: 2.5,
     cutOutSpeed: 25,
     optimalWindSpeed: 12,
+    ratedPower: 10000,
     axisOrientation: "horizontal",
     bladeDesign: "three-blade",
     installationType: "freestanding",
     powerCategory: "medium",
     purpose: "grid-tied",
-    material: "eco-friendly"
+    material: "metal"
   },
   "Windspire 1.2": {
     type: "Vertical Axis",
@@ -38,12 +40,13 @@ export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
     cutInSpeed: 3.5,
     cutOutSpeed: 25,
     optimalWindSpeed: 10,
+    ratedPower: 1200,
     axisOrientation: "vertical",
     bladeDesign: "darrieus",
     installationType: "rooftop",
     powerCategory: "small",
     purpose: "grid-tied",
-    material: "lightweight"
+    material: "metal"
   },
   "GE Haliade-X 14": {
     type: "Horizontal Axis",
@@ -53,12 +56,13 @@ export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 13.5,
+    ratedPower: 14000000,
     axisOrientation: "horizontal",
     bladeDesign: "three-blade",
     installationType: "freestanding",
     powerCategory: "medium",
     purpose: "grid-tied",
-    material: "eco-friendly"
+    material: "composite"
   },
   "small": {
     type: "Small Wind Turbine",
@@ -68,12 +72,13 @@ export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 12,
+    ratedPower: 1000,
     axisOrientation: "horizontal",
     bladeDesign: "three-blade",
     installationType: "rooftop",
     powerCategory: "micro",
     purpose: "off-grid",
-    material: "lightweight"
+    material: "pla"
   },
   "medium": {
     type: "Medium Wind Turbine",
@@ -83,12 +88,13 @@ export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 13,
+    ratedPower: 5000,
     axisOrientation: "horizontal",
     bladeDesign: "three-blade",
     installationType: "freestanding",
     powerCategory: "small",
     purpose: "grid-tied",
-    material: "eco-friendly"
+    material: "metal"
   },
   "large": {
     type: "Large Wind Turbine",
@@ -98,12 +104,13 @@ export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 14,
+    ratedPower: 10000,
     axisOrientation: "horizontal",
     bladeDesign: "three-blade",
     installationType: "freestanding",
     powerCategory: "medium",
     purpose: "grid-tied",
-    material: "eco-friendly"
+    material: "composite"
   },
 };
 
