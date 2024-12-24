@@ -44,12 +44,11 @@ const Index = () => {
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
             <Recycle 
-              className="text-stalker-accent animate-spin hover:animate-[spin_1s_linear_infinite] transition-all" 
-              style={{ animationDuration: '5s' }}
+              className="text-stalker-accent animate-spin-slow hover:animate-spin-hover transition-all" 
             />
             LINE-O 
             <Wind 
-              className="text-stalker-accent animate-[wiggle_2s_ease-in-out_infinite] group-hover:animate-[wiggle_0.5s_ease-in-out_infinite]" 
+              className="text-stalker-accent animate-wiggle-slow group-hover:animate-wiggle-fast" 
             />
             WITER
           </h1>
@@ -185,6 +184,7 @@ const Index = () => {
         onOpenChange={setSettingsOpen}
         currentSettings={generatorSpecs}
         onSettingsChange={setGeneratorSpecs}
+        windSpeed={windSpeed}
       />
     </div>
   );

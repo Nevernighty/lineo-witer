@@ -11,7 +11,7 @@ export interface WindGeneratorSpecs {
   installationType: "rooftop" | "freestanding" | "hybrid";
   powerCategory: "micro" | "small" | "medium";
   purpose: "off-grid" | "grid-tied";
-  material: "lightweight" | "eco-friendly";
+  material: "abs" | "petg" | "pla" | "pp" | "metal" | "wood" | "carbon-fiber" | "composite";
 }
 
 export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
