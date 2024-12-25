@@ -1,4 +1,5 @@
 import { MapPin } from "lucide-react";
+import { WindMap } from "@/components/WindMap";
 
 interface LocationDisplayProps {
   location: { lat: number; lon: number } | null;

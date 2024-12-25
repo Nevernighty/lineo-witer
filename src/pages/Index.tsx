@@ -99,7 +99,7 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Location Card */}
+        {/* Location/Weather Card */}
         <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.3s" }}>
           {showWeather ? (
             <WeatherDisplay location={location} />
