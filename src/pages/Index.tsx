@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle, Weather } from "lucide-react";
+import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle, Cloud } from "lucide-react";
 import { WindTurbine } from "@/components/WindTurbine";
 import { WindMap } from "@/components/WindMap";
 import { GeneratorSettings } from "@/components/GeneratorSettings";
@@ -85,7 +85,7 @@ const Index = () => {
                       onClick={() => setShowWeather(!showWeather)}
                       className="p-1 hover:text-stalker-accent transition-colors"
                     >
-                      <Weather size={24} />
+                      <Cloud size={24} />
                     </button>
                   </div>
                   <div className="flex items-center justify-end gap-2 mb-2">
