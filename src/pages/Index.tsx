@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle } from "lucide-react";
+import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle, Weather } from "lucide-react";
 import { WindTurbine } from "@/components/WindTurbine";
 import { WindMap } from "@/components/WindMap";
 import { GeneratorSettings } from "@/components/GeneratorSettings";
@@ -11,16 +11,17 @@ const Index = () => {
   const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
   const [generatorSpecs, setGeneratorSpecs] = useState<WindGeneratorSpecs>(GENERATOR_PRESETS["GE Haliade-X 14"]);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [showWeather, setShowWeather] = useState(false);
+  const [weatherProvider, setWeatherProvider] = useState("openweather");
+  const [timeFrame, setTimeFrame] = useState("hours");
 
   useEffect(() => {
-    // Simulate wind speed updates
     const interval = setInterval(() => {
       const newSpeed = 5 + Math.random() * 10;
       setWindSpeed(Number(newSpeed.toFixed(1)));
       setPower(Number((newSpeed * 100).toFixed(0)));
     }, 3000);
 
-    // Get user location
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -53,19 +54,64 @@ const Index = () => {
             WITER
           </h1>
           <div className="flex items-center gap-4">
-            {location && (
-              <div className="text-sm text-stalker-muted">
-                <div className="flex items-center gap-1">
-                  <MapPin size={14} className="text-stalker-accent" />
-                  {location.lat.toFixed(4)}°N
+            <div className="text-sm text-stalker-muted">
+              {location && !showWeather ? (
+                <div className="text-right">
+                  <div className="mb-1">City, Oblast</div>
+                  <div className="mb-1">District</div>
+                  <div className="flex items-center justify-end gap-1">
+                    <span>{location.lat.toFixed(4)}°N, {location.lon.toFixed(4)}°E</span>
+                    <button 
+                      onClick={() => setShowWeather(!showWeather)}
+                      className="p-1 hover:text-stalker-accent transition-colors"
+                    >
+                      <MapPin size={24} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <MapPin size={14} className="text-stalker-accent" />
-                  {location.lon.toFixed(4)}°E
+              ) : (
+                <div className="text-right">
+                  <div className="flex items-center justify-end gap-4 mb-2">
+                    <select 
+                      value={weatherProvider}
+                      onChange={(e) => setWeatherProvider(e.target.value)}
+                      className="stalker-input text-sm"
+                    >
+                      <option value="openweather">OpenWeather</option>
+                      <option value="weatherapi">WeatherAPI</option>
+                      <option value="tomorrow">Tomorrow.io</option>
+                    </select>
+                    <button 
+                      onClick={() => setShowWeather(!showWeather)}
+                      className="p-1 hover:text-stalker-accent transition-colors"
+                    >
+                      <Weather size={24} />
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-end gap-2 mb-2">
+                    <button 
+                      className={`px-2 py-1 rounded ${timeFrame === 'hours' ? 'bg-stalker-accent text-stalker-dark' : 'text-stalker-muted'}`}
+                      onClick={() => setTimeFrame('hours')}
+                    >
+                      Hours
+                    </button>
+                    <button 
+                      className={`px-2 py-1 rounded ${timeFrame === 'days' ? 'bg-stalker-accent text-stalker-dark' : 'text-stalker-muted'}`}
+                      onClick={() => setTimeFrame('days')}
+                    >
+                      Days
+                    </button>
+                  </div>
+                  <div className="text-stalker-muted">
+                    Weather forecast coming soon...
+                  </div>
                 </div>
-              </div>
-            )}
-            <button className="stalker-button" onClick={() => setSettingsOpen(true)}>
+              )}
+            </div>
+            <button 
+              className="stalker-button fixed top-6 right-6 lg:static" 
+              onClick={() => setSettingsOpen(true)}
+            >
               <Settings className="w-4 h-4" />
             </button>
           </div>

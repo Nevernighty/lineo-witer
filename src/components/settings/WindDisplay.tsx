@@ -1,5 +1,3 @@
-import WindAnimation from "../WindAnimation";
-
 interface WindDisplayProps {
   windSpeed: number;
 }
@@ -7,9 +5,14 @@ interface WindDisplayProps {
 export const WindDisplay = ({ windSpeed }: WindDisplayProps) => {
   return (
     <div className="p-4 bg-stalker-dark/30 rounded-lg">
-      <WindAnimation windSpeed={windSpeed} width={400} height={300} />
-      <div className="mt-4 text-stalker-accent">
+      <div className="text-stalker-accent text-xl font-bold mb-2">
         Current Wind Speed: {windSpeed} m/s
+      </div>
+      <div className="h-2 bg-stalker-dark rounded overflow-hidden">
+        <div 
+          className="h-full bg-stalker-accent transition-all duration-300"
+          style={{ width: `${(windSpeed / 20) * 100}%` }}
+        />
       </div>
     </div>
   );
