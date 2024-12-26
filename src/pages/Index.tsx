@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { LocationDisplay } from "@/components/LocationDisplay";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { HeaderControls } from "@/components/HeaderControls";
+import WindAnimation from "@/components/WindAnimation";
 
 const Index = () => {
   const [windSpeed, setWindSpeed] = useState<number>(0);
@@ -112,12 +113,17 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Location/Weather Card */}
+        {/* Location/Weather Card with Wind Animation */}
         <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.3s" }}>
           {showWeather ? (
             <WeatherDisplay location={location} />
           ) : (
-            <LocationDisplay location={location} />
+            <>
+              <LocationDisplay location={location} />
+              <div className="mt-4 p-4 bg-stalker-dark/30 rounded-lg">
+                <WindAnimation windSpeed={windSpeed} width={300} height={200} />
+              </div>
+            </>
           )}
         </div>
 

@@ -80,7 +80,13 @@ export const MaterialSelect = ({ currentSettings, onSettingsChange }: MaterialSe
           <TooltipTrigger>
             <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 hover:opacity-100" />
           </TooltipTrigger>
-          <TooltipContent side="right" className="max-w-[300px] p-4" sideOffset={5}>
+          <TooltipContent 
+            side="right" 
+            className="max-w-[300px] p-4" 
+            sideOffset={5}
+            align="start"
+            alignOffset={-50}
+          >
             <div className="space-y-2">
               <p className="font-bold">Material Properties:</p>
               <p>Efficiency: {materialInfo[currentSettings.material as keyof typeof materialInfo].efficiency}</p>
