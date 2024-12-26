@@ -7,7 +7,6 @@ import { type WindGeneratorSpecs } from "@/utils/windCalculations";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import WindAnimation from "./WindAnimation";
 
 interface GeneratorSettingsProps {
   open: boolean;
@@ -76,61 +75,53 @@ export const GeneratorSettings = ({
           </button>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <MaterialSelect 
-              currentSettings={currentSettings}
-              onSettingsChange={onSettingsChange}
-            />
-            
-            {Object.entries(categories).map(([category, { options, description }]) => (
-              <div key={category} className="space-y-2 group">
-                <div className="flex items-center gap-2">
-                  <Label>{category}</Label>
-                  <Tooltip>
-                    <TooltipTrigger>
-                      <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 group-hover:opacity-100 transition-opacity" />
-                    </TooltipTrigger>
-                    <TooltipContent 
-                      side="right" 
-                      className="max-w-[300px] p-4"
-                      sideOffset={5}
-                      align="start"
-                      alignOffset={-50}
-                    >
-                      {description}
-                    </TooltipContent>
-                  </Tooltip>
-                </div>
-                <Select
-                  value={currentSettings[category.toLowerCase().replace(" ", "") as keyof WindGeneratorSpecs] as string}
-                  onValueChange={(value) =>
-                    onSettingsChange({
-                      ...currentSettings,
-                      [category.toLowerCase().replace(" ", "")]: value,
-                    })
-                  }
-                >
-                  <SelectTrigger className="group-hover:border-stalker-accent/30 transition-colors">
-                    <SelectValue placeholder={`Select ${category}`} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ))}
-          </div>
+        <div className="grid grid-cols-1 gap-6">
+          <MaterialSelect 
+            currentSettings={currentSettings}
+            onSettingsChange={onSettingsChange}
+          />
           
-          <div className="space-y-6">
-            <div className="p-4 bg-stalker-dark/30 rounded-lg">
-              <WindAnimation windSpeed={windSpeed} width={400} height={300} />
+          {Object.entries(categories).map(([category, { options, description }]) => (
+            <div key={category} className="space-y-2 group">
+              <div className="flex items-center gap-2">
+                <Label>{category}</Label>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <HelpCircle className="h-4 w-4 text-stalker-muted opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </TooltipTrigger>
+                  <TooltipContent 
+                    side="right" 
+                    className="max-w-[300px] p-4"
+                    sideOffset={5}
+                    align="start"
+                    alignOffset={-50}
+                  >
+                    {description}
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <Select
+                value={currentSettings[category.toLowerCase().replace(" ", "") as keyof WindGeneratorSpecs] as string}
+                onValueChange={(value) =>
+                  onSettingsChange({
+                    ...currentSettings,
+                    [category.toLowerCase().replace(" ", "")]: value,
+                  })
+                }
+              >
+                <SelectTrigger className="group-hover:border-stalker-accent/30 transition-colors">
+                  <SelectValue placeholder={`Select ${category}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {options.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </div>
+          ))}
         </div>
       </DialogContent>
     </Dialog>
