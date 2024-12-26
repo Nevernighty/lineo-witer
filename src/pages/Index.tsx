@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle, Cloud } from "lucide-react";
+import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle, Cloud, Info } from "lucide-react";
+import { Link } from "react-router-dom";
 import { WindTurbine } from "@/components/WindTurbine";
 import { WindMap } from "@/components/WindMap";
 import { GeneratorSettings } from "@/components/GeneratorSettings";
@@ -45,16 +46,28 @@ const Index = () => {
     <div className="min-h-screen p-6 animate-fade-in">
       <header className="mb-8">
         <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-2 gap-4">
-          <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
-            <Recycle 
-              className="text-stalker-accent animate-[spin_6s_linear_infinite] hover:animate-[spin_0.4s_linear_infinite] active:animate-[spin_0.2s_linear_infinite] transition-all" 
-            />
-            LINE-O 
-            <Wind 
-              className="text-stalker-accent animate-wiggle-slow group-hover:animate-wiggle-fast" 
-            />
-            WITER
-          </h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
+              <Recycle 
+                className="text-stalker-accent animate-[spin_6s_linear_infinite] hover:animate-[spin_0.4s_linear_infinite] active:animate-[spin_0.2s_linear_infinite] transition-all" 
+              />
+              LINE-O 
+              <Wind 
+                className="text-stalker-accent animate-wiggle-slow group-hover:animate-wiggle-fast" 
+              />
+              WITER
+            </h1>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Link to="/info" className="p-2 hover:text-stalker-accent transition-colors">
+                  <Info className="w-5 h-5" />
+                </Link>
+              </TooltipTrigger>
+              <TooltipContent>
+                View detailed information about wind turbines and 3D printing
+              </TooltipContent>
+            </Tooltip>
+          </div>
           <HeaderControls 
             location={location}
             showWeather={showWeather}
