@@ -1,17 +1,36 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Slider } from "@/components/ui/slider";
 
 export interface WindAnimationProps {
   windSpeed: number;
   width?: number;
   height?: number;
+  onWindSpeedChange?: (value: number) => void;
 }
 
 export const WindAnimation: React.FC<WindAnimationProps> = ({ 
   windSpeed, 
   width = 300, 
-  height = 300 
+  height = 300,
+  onWindSpeedChange 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [localWindSpeed, setLocalWindSpeed] = useState(windSpeed);
+
+  useEffect(() => {
+    const updateCanvasSize = () => {
+      if (containerRef.current && canvasRef.current) {
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        canvasRef.current.width = width;
+        canvasRef.current.height = height;
+      }
+    };
+
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    return () => window.removeEventListener('resize', updateCanvasSize);
+  }, []);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -30,22 +49,22 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
 
     const createParticles = () => {
       particles = [];
-      const particleCount = Math.min(Math.floor(windSpeed * 10), 100);
+      const particleCount = Math.min(Math.floor(localWindSpeed * 10), 100);
       
       for (let i = 0; i < particleCount; i++) {
         particles.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
           size: Math.random() * 2 + 1,
-          speedX: (windSpeed / 10) * (Math.random() + 0.5),
-          speedY: (Math.random() - 0.5) * windSpeed / 5
+          speedX: (localWindSpeed / 10) * (Math.random() + 0.5),
+          speedY: (Math.random() - 0.5) * localWindSpeed / 5
         });
       }
     };
 
     const animate = () => {
       ctx.fillStyle = "rgba(26, 31, 44, 0.2)";
-      ctx.fillRect(0, 0, width, height);
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       particles.forEach((particle, i) => {
         ctx.fillStyle = `rgba(57, 255, 20, ${0.5 + Math.random() * 0.5})`;
@@ -56,9 +75,9 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
         particles[i].x += particle.speedX;
         particles[i].y += particle.speedY;
 
-        if (particles[i].x > width) particles[i].x = 0;
-        if (particles[i].y > height) particles[i].y = 0;
-        if (particles[i].y < 0) particles[i].y = height;
+        if (particles[i].x > canvas.width) particles[i].x = 0;
+        if (particles[i].y > canvas.height) particles[i].y = 0;
+        if (particles[i].y < 0) particles[i].y = canvas.height;
       });
 
       requestAnimationFrame(animate);
@@ -66,15 +85,35 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
 
     createParticles();
     animate();
-  }, [windSpeed, width, height]);
+  }, [localWindSpeed]);
+
+  const handleWindSpeedChange = (value: number[]) => {
+    const newSpeed = value[0];
+    setLocalWindSpeed(newSpeed);
+    if (onWindSpeedChange) {
+      onWindSpeedChange(newSpeed);
+    }
+  };
 
   return (
-    <canvas
-      ref={canvasRef}
-      width={width}
-      height={height}
-      className="bg-stalker-dark/50 rounded-lg"
-    />
+    <div className="space-y-4" ref={containerRef}>
+      <div className="flex items-center gap-4">
+        <span className="text-sm text-stalker-muted">Wind Speed: {localWindSpeed.toFixed(1)} m/s</span>
+        <Slider
+          defaultValue={[windSpeed]}
+          max={20}
+          min={0}
+          step={0.1}
+          onValueChange={handleWindSpeedChange}
+          className="flex-1"
+        />
+      </div>
+      <canvas
+        ref={canvasRef}
+        className="w-full h-full bg-stalker-dark/50 rounded-lg"
+        style={{ minHeight: "200px" }}
+      />
+    </div>
   );
 };
 
