@@ -6,7 +6,7 @@ import {
   Droplets, 
   Sun, 
   TreePine, 
-  Printer3d,
+  Printer,
   Settings,
   BarChart3,
   Lightbulb,
@@ -94,7 +94,7 @@ const InfoPage = () => {
             </div>
           </InfoSection>
 
-          <InfoSection icon={Printer3d} title="3D Printing Integration">
+          <InfoSection icon={Printer} title="3D Printing Integration">
             <PrintableComponents />
             <PrintingConsiderations />
           </InfoSection>
