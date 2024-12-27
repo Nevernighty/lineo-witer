@@ -147,30 +147,42 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.fillStyle = "rgba(26, 31, 44, 0.2)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    let animationFrameId: number;
 
-    // Render obstacles
-    ObstacleRenderer({
-      ctx,
-      obstacles,
-      selectedObstacle,
-      hoveredObstacle
-    });
+    const animate = () => {
+      ctx.fillStyle = "rgba(26, 31, 44, 0.2)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Render wind particles using the WindParticleSystem component
-    return (
-      <WindParticleSystem
-        ctx={ctx}
-        canvasWidth={canvas.width}
-        canvasHeight={canvas.height}
-        windSpeed={localWindSpeed}
-        windAngle={windAngle}
-        windCurve={windCurve}
-        particleDensity={particleDensity}
-        obstacles={obstacles}
-      />
-    );
+      // Render obstacles
+      ObstacleRenderer({
+        ctx,
+        obstacles,
+        selectedObstacle,
+        hoveredObstacle
+      });
+
+      // Update and render particles
+      WindParticleSystem({
+        ctx,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        windSpeed: localWindSpeed,
+        windAngle,
+        windCurve,
+        particleDensity,
+        obstacles
+      });
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
   }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle]);
 
   return (
