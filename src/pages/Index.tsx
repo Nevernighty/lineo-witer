@@ -81,8 +81,8 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Main content grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      {/* Main content layout */}
+      <div className="flex flex-col gap-6">
         {/* Wind Speed Card */}
         <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.1s" }}>
           <div className="flex items-center justify-between mb-4">

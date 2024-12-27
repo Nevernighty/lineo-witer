@@ -142,9 +142,14 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
 
       // Draw erase radius if in erase mode
       if (mode === "erase" && interactionManagerRef.current) {
-        const { x, y } = interactionManagerRef.current.getMousePosition(
-          new MouseEvent('mousemove', { clientX: 0, clientY: 0 })
-        );
+        const mouseEvent = new MouseEvent('mousemove', {
+          clientX: 0,
+          clientY: 0,
+          bubbles: true,
+          cancelable: true,
+          view: window
+        });
+        const { x, y } = interactionManagerRef.current.getMousePosition(mouseEvent);
         interactionManagerRef.current.drawEraseRadius(ctx, x, y);
       }
       
