@@ -148,6 +148,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     if (!ctx) return;
 
     let animationFrameId: number;
+    let particleSystem: WindParticleSystem;
 
     const animate = () => {
       ctx.fillStyle = "rgba(26, 31, 44, 0.2)";
@@ -162,17 +163,20 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       });
 
       // Update and render particles
-      WindParticleSystem({
-        ctx,
-        canvasWidth: canvas.width,
-        canvasHeight: canvas.height,
-        windSpeed: localWindSpeed,
-        windAngle,
-        windCurve,
-        particleDensity,
-        obstacles
-      });
-
+      if (!particleSystem) {
+        particleSystem = new WindParticleSystem({
+          ctx,
+          canvasWidth: canvas.width,
+          canvasHeight: canvas.height,
+          windSpeed: localWindSpeed,
+          windAngle,
+          windCurve,
+          particleDensity,
+          obstacles
+        });
+      }
+      
+      particleSystem.update();
       animationFrameId = requestAnimationFrame(animate);
     };
 
