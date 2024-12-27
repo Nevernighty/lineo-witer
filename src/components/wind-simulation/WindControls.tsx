@@ -74,8 +74,8 @@ export const WindControls: React.FC<WindControlsProps> = ({
         <Label>Particle Density</Label>
         <Slider
           defaultValue={[particleDensity]}
-          max={200}
-          min={10}
+          max={500}
+          min={20}
           step={10}
           onValueChange={onParticleDensityChange}
         />
