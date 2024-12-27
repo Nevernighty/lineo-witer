@@ -1,5 +1,4 @@
-import { WindParticle, createWindParticle } from './WindParticle';
-import { Obstacle } from './types';
+import { WindParticle, Obstacle } from './types';
 
 export class ParticleSystem {
   private particles: WindParticle[] = [];
@@ -10,6 +9,8 @@ export class ParticleSystem {
   private windAngle: number;
   private windCurve: number;
   private obstacles: Obstacle[];
+  private readonly PARTICLE_LIFETIME = 200; // Frames
+  private readonly TRAIL_LENGTH = 20;
 
   constructor(
     ctx: CanvasRenderingContext2D,
@@ -32,12 +33,22 @@ export class ParticleSystem {
   }
 
   private createParticles(particleDensity: number) {
-    this.particles = Array.from({ length: particleDensity }, () =>
-      createWindParticle(this.canvasWidth, this.canvasHeight, this.windSpeed, this.windAngle)
-    );
+    this.particles = Array.from({ length: particleDensity }, () => ({
+      x: Math.random() * this.canvasWidth,
+      y: Math.random() * this.canvasHeight,
+      size: Math.random() * 2 + 1,
+      speedX: Math.cos(this.windAngle * Math.PI / 180) * this.windSpeed * (Math.random() + 0.5),
+      speedY: Math.sin(this.windAngle * Math.PI / 180) * this.windSpeed * (Math.random() + 0.5),
+      color: 'rgba(57, 255, 20, 0.8)',
+      lifetime: this.PARTICLE_LIFETIME,
+      trail: [],
+      hasCollided: false,
+      collisionTimer: 0
+    }));
   }
 
   private checkCollision(particle: WindParticle, obstacle: Obstacle): boolean {
+    const buffer = 2; // Small buffer to prevent sticking
     if (obstacle.type === "tree") {
       // Triangle collision detection for trees
       const px = particle.x;
@@ -54,65 +65,98 @@ export class ParticleSystem {
       const a2 = Math.abs((x1*(py-y3) + px*(y3-y1)+ x3*(y1-py))/2.0);
       const a3 = Math.abs((x1*(y2-py) + x2*(py-y1)+ px*(y1-y2))/2.0);
       
-      return Math.abs(area - (a1 + a2 + a3)) < 0.1;
+      return Math.abs(area - (a1 + a2 + a3)) < buffer;
     }
     
     return (
-      particle.x >= obstacle.x - 5 &&
-      particle.x <= obstacle.x + obstacle.width + 5 &&
-      particle.y >= obstacle.y - 5 &&
-      particle.y <= obstacle.y + obstacle.height + 5
+      particle.x >= obstacle.x - buffer &&
+      particle.x <= obstacle.x + obstacle.width + buffer &&
+      particle.y >= obstacle.y - buffer &&
+      particle.y <= obstacle.y + obstacle.height + buffer
     );
   }
 
   private updateParticle(particle: WindParticle) {
+    // Store current position for trail
+    if (particle.trail) {
+      particle.trail.unshift({ x: particle.x, y: particle.y });
+      if (particle.trail.length > this.TRAIL_LENGTH) {
+        particle.trail.pop();
+      }
+    }
+
     let hasCollided = false;
-    
     this.obstacles.forEach(obstacle => {
       if (this.checkCollision(particle, obstacle)) {
         hasCollided = true;
-        particle.speedX *= -0.5;
-        particle.speedY *= -0.5;
-        particle.speedY += (Math.random() - 0.5) * this.windSpeed / 2;
-        particle.speedX += (Math.random() - 0.5) * this.windSpeed / 2;
-        particle.color = `rgba(255, 100, 20, ${0.7 + Math.random() * 0.3})`;
-        particle.trailTime = 100; // Trail effect duration
+        // More natural bounce behavior
+        const normalX = Math.random() - 0.5;
+        const normalY = Math.random() - 0.5;
+        const bounceForce = 0.7;
+        
+        particle.speedX = (normalX * this.windSpeed * bounceForce) + (Math.random() - 0.5);
+        particle.speedY = (normalY * this.windSpeed * bounceForce) + (Math.random() - 0.5);
+        particle.color = 'rgba(255, 182, 193, 0.9)'; // Pastel red
+        particle.collisionTimer = 60; // Frames to keep red color
       }
     });
 
-    if (hasCollided) {
-      particle.hasCollided = true;
-    }
-
+    // Add natural wind turbulence
+    particle.speedX += (Math.random() - 0.5) * 0.1;
+    particle.speedY += (Math.random() - 0.5) * 0.1;
+    
+    // Apply wind curve
     particle.speedY += Math.sin(particle.x / this.canvasWidth * Math.PI * 2) * this.windCurve;
+
+    // Update position
     particle.x += particle.speedX;
     particle.y += particle.speedY;
 
+    // Wrap around edges
     if (particle.x > this.canvasWidth) particle.x = 0;
     if (particle.x < 0) particle.x = this.canvasWidth;
     if (particle.y > this.canvasHeight) particle.y = 0;
     if (particle.y < 0) particle.y = this.canvasHeight;
 
-    if (particle.trailTime && particle.trailTime > 0) {
-      particle.trailTime--;
+    // Update collision timer and color
+    if (particle.collisionTimer > 0) {
+      particle.collisionTimer--;
+      if (particle.collisionTimer === 0) {
+        particle.color = 'rgba(57, 255, 20, 0.8)';
+      }
+    }
+
+    // Update lifetime
+    particle.lifetime--;
+    if (particle.lifetime <= 0) {
+      // Reset particle
+      particle.x = Math.random() * this.canvasWidth;
+      particle.y = Math.random() * this.canvasHeight;
+      particle.lifetime = this.PARTICLE_LIFETIME;
+      particle.trail = [];
+      particle.hasCollided = false;
+      particle.collisionTimer = 0;
     }
   }
 
   private drawParticle(particle: WindParticle) {
+    // Draw trail
+    if (particle.trail && particle.trail.length > 1) {
+      this.ctx.beginPath();
+      this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
+      for (let i = 1; i < particle.trail.length; i++) {
+        this.ctx.lineTo(particle.trail[i].x, particle.trail[i].y);
+      }
+      this.ctx.strokeStyle = `rgba(${particle.collisionTimer > 0 ? '255, 182, 193' : '57, 255, 20'}, ${0.3 * (particle.trail.length / this.TRAIL_LENGTH)})`;
+      this.ctx.lineWidth = particle.size / 2;
+      this.ctx.stroke();
+    }
+
+    // Draw particle
     this.ctx.fillStyle = particle.color;
     this.ctx.beginPath();
     this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
     this.ctx.fill();
-
-    // Draw trail for collided particles
-    if (particle.hasCollided && particle.trailTime && particle.trailTime > 0) {
-      this.ctx.strokeStyle = `rgba(255, 100, 20, ${particle.trailTime / 100})`;
-      this.ctx.lineWidth = particle.size / 2;
-      this.ctx.beginPath();
-      this.ctx.moveTo(particle.x - particle.speedX * 5, particle.y - particle.speedY * 5);
-      this.ctx.lineTo(particle.x, particle.y);
-      this.ctx.stroke();
-    }
   }
 
   public update() {

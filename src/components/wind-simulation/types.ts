@@ -4,6 +4,11 @@ export interface WindParticle {
   size: number;
   speedX: number;
   speedY: number;
+  color: string;
+  lifetime: number;
+  trail?: { x: number; y: number }[];
+  hasCollided?: boolean;
+  collisionTimer: number;
 }
 
 export interface Obstacle {
@@ -14,13 +19,6 @@ export interface Obstacle {
   height: number;
   shape?: "L" | "T" | "regular";
   selected?: boolean;
-}
-
-export interface WindSimulationProps {
-  windSpeed: number;
-  width?: number;
-  height?: number;
-  onWindSpeedChange?: (value: number) => void;
 }
 
 export type SimulationMode = "add" | "move" | "resize" | "draw" | "erase";

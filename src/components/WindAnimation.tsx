@@ -54,7 +54,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     if (!interactionManagerRef.current) return;
     
     interactionManagerRef.current.handleMouseDown(
-      e,
+      e as React.MouseEvent<HTMLCanvasElement>,
       mode,
       obstacles,
       selectedObstacleType,
@@ -80,7 +80,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     }
 
     interactionManagerRef.current.handleMouseMove(
-      e,
+      e as React.MouseEvent<HTMLCanvasElement>,
       mode,
       obstacles,
       selectedObstacle,
