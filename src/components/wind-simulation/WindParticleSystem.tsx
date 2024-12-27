@@ -112,4 +112,4 @@ export const WindParticleSystem: React.FC<WindParticleSystemProps> = ({
   }, [canvasWidth, canvasHeight, windSpeed, windAngle, windCurve, particleDensity, obstacles, ctx]);
 
   return null;
-});
+};
