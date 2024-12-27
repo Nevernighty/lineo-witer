@@ -1,15 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Slider } from "@/components/ui/slider";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Label } from "@/components/ui/label";
-
-interface Obstacle {
-  type: "tree" | "building" | "skyscraper";
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
+import { WindControls } from "./wind-simulation/WindControls";
+import { ObstacleRenderer } from "./wind-simulation/ObstacleRenderer";
+import { WindParticleSystem } from "./wind-simulation/WindParticleSystem";
+import { Obstacle, SimulationMode } from "./wind-simulation/types";
 
 export interface WindAnimationProps {
   windSpeed: number;
@@ -18,19 +11,25 @@ export interface WindAnimationProps {
   onWindSpeedChange?: (value: number) => void;
 }
 
-export const WindAnimation: React.FC<WindAnimationProps> = ({ 
-  windSpeed, 
-  width = 300, 
+export const WindAnimation: React.FC<WindAnimationProps> = ({
+  windSpeed,
+  width = 300,
   height = 300,
-  onWindSpeedChange 
+  onWindSpeedChange
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [localWindSpeed, setLocalWindSpeed] = useState(windSpeed);
-  const [selectedObstacle, setSelectedObstacle] = useState<"tree" | "building" | "skyscraper">("tree");
+  const [windAngle, setWindAngle] = useState(0);
+  const [windCurve, setWindCurve] = useState(0.2);
+  const [particleDensity, setParticleDensity] = useState(100);
+  const [selectedObstacleType, setSelectedObstacleType] = useState<"tree" | "building" | "skyscraper">("tree");
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
+  const [selectedObstacle, setSelectedObstacle] = useState<number | null>(null);
+  const [hoveredObstacle, setHoveredObstacle] = useState<number | null>(null);
+  const [mode, setMode] = useState<SimulationMode>("add");
   const [isDrawing, setIsDrawing] = useState(false);
-  const [draggedObstacle, setDraggedObstacle] = useState<number | null>(null);
+  const [dragStart, setDragStart] = useState<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -46,161 +45,92 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     return () => window.removeEventListener('resize', updateCanvasSize);
   }, []);
 
-  const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+  const getMousePosition = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
+    if (!canvas) return { x: 0, y: 0 };
+    
     const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Add new obstacle
-    const newObstacle: Obstacle = {
-      type: selectedObstacle,
-      x,
-      y,
-      width: selectedObstacle === "tree" ? 20 : selectedObstacle === "building" ? 40 : 60,
-      height: selectedObstacle === "tree" ? 30 : selectedObstacle === "building" ? 60 : 100
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top
     };
-
-    setObstacles([...obstacles, newObstacle]);
   };
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+    const { x, y } = getMousePosition(e);
+    setDragStart({ x, y });
 
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    // Check if clicking on existing obstacle
-    const clickedObstacleIndex = obstacles.findIndex(obstacle => 
-      x >= obstacle.x && x <= obstacle.x + obstacle.width &&
-      y >= obstacle.y && y <= obstacle.y + obstacle.height
-    );
-
-    if (clickedObstacleIndex !== -1) {
-      setDraggedObstacle(clickedObstacleIndex);
-    } else {
+    if (mode === "add") {
+      const newObstacle: Obstacle = {
+        type: selectedObstacleType,
+        x,
+        y,
+        width: selectedObstacleType === "tree" ? 30 : selectedObstacleType === "building" ? 60 : 80,
+        height: selectedObstacleType === "tree" ? 40 : selectedObstacleType === "building" ? 80 : 120,
+        shape: "regular"
+      };
+      setObstacles([...obstacles, newObstacle]);
+    } else if (mode === "draw") {
       setIsDrawing(true);
     }
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!isDrawing && draggedObstacle === null) return;
-
+    const { x, y } = getMousePosition(e);
+    
+    // Update cursor style based on mode and hover state
     const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    if (draggedObstacle !== null) {
-      const newObstacles = [...obstacles];
-      newObstacles[draggedObstacle] = {
-        ...newObstacles[draggedObstacle],
-        x,
-        y
-      };
-      setObstacles(newObstacles);
+    if (canvas) {
+      if (mode === "move") {
+        canvas.style.cursor = "move";
+      } else if (mode === "resize") {
+        canvas.style.cursor = "nw-resize";
+      } else if (mode === "draw") {
+        canvas.style.cursor = "crosshair";
+      } else if (mode === "erase") {
+        canvas.style.cursor = "no-drop";
+      } else {
+        canvas.style.cursor = "default";
+      }
     }
+
+    // Handle obstacle movement
+    if (dragStart && selectedObstacle !== null && mode === "move") {
+      const dx = x - dragStart.x;
+      const dy = y - dragStart.y;
+      
+      setObstacles(obstacles.map((obstacle, index) => 
+        index === selectedObstacle
+          ? { ...obstacle, x: obstacle.x + dx, y: obstacle.y + dy }
+          : obstacle
+      ));
+      setDragStart({ x, y });
+    }
+
+    // Handle drawing
+    if (isDrawing && mode === "draw") {
+      const newObstacle: Obstacle = {
+        type: "building",
+        x,
+        y,
+        width: 20,
+        height: 20
+      };
+      setObstacles([...obstacles, newObstacle]);
+    }
+
+    // Update hovered obstacle
+    const hoveredIndex = obstacles.findIndex(obstacle =>
+      x >= obstacle.x && x <= obstacle.x + obstacle.width &&
+      y >= obstacle.y && y <= obstacle.y + obstacle.height
+    );
+    setHoveredObstacle(hoveredIndex);
   };
 
   const handleMouseUp = () => {
+    setDragStart(null);
     setIsDrawing(false);
-    setDraggedObstacle(null);
   };
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    let particles: Array<{
-      x: number;
-      y: number;
-      size: number;
-      speedX: number;
-      speedY: number;
-    }> = [];
-
-    const createParticles = () => {
-      particles = [];
-      const particleCount = Math.min(Math.floor(localWindSpeed * 10), 100);
-      
-      for (let i = 0; i < particleCount; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: Math.random() * 2 + 1,
-          speedX: (localWindSpeed / 10) * (Math.random() + 0.5),
-          speedY: (Math.random() - 0.5) * localWindSpeed / 5
-        });
-      }
-    };
-
-    const drawObstacles = () => {
-      obstacles.forEach(obstacle => {
-        ctx.fillStyle = obstacle.type === "tree" ? "#2d4a1c" : 
-                       obstacle.type === "building" ? "#4a4a4a" : "#6e6e6e";
-        ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
-      });
-    };
-
-    const checkCollision = (particle: { x: number; y: number; speedX: number; speedY: number }) => {
-      obstacles.forEach(obstacle => {
-        if (
-          particle.x >= obstacle.x - 5 && 
-          particle.x <= obstacle.x + obstacle.width + 5 &&
-          particle.y >= obstacle.y - 5 && 
-          particle.y <= obstacle.y + obstacle.height + 5
-        ) {
-          // Reflect particles based on collision side
-          if (particle.x <= obstacle.x || particle.x >= obstacle.x + obstacle.width) {
-            particle.speedX *= -0.5;
-          }
-          if (particle.y <= obstacle.y || particle.y >= obstacle.y + obstacle.height) {
-            particle.speedY *= -0.5;
-          }
-          
-          // Add turbulence
-          particle.speedY += (Math.random() - 0.5) * localWindSpeed / 2;
-        }
-      });
-    };
-
-    const animate = () => {
-      ctx.fillStyle = "rgba(26, 31, 44, 0.2)";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      drawObstacles();
-
-      particles.forEach((particle, i) => {
-        ctx.fillStyle = `rgba(57, 255, 20, ${0.5 + Math.random() * 0.5})`;
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fill();
-
-        checkCollision(particle);
-
-        particles[i].x += particle.speedX;
-        particles[i].y += particle.speedY;
-
-        if (particles[i].x > canvas.width) particles[i].x = 0;
-        if (particles[i].y > canvas.height) particles[i].y = 0;
-        if (particles[i].y < 0) particles[i].y = canvas.height;
-      });
-
-      requestAnimationFrame(animate);
-    };
-
-    createParticles();
-    animate();
-  }, [localWindSpeed, obstacles]);
 
   const handleWindSpeedChange = (value: number[]) => {
     const newSpeed = value[0];
@@ -210,47 +140,65 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     }
   };
 
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    const animate = () => {
+      ctx.fillStyle = "rgba(26, 31, 44, 0.2)";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Render obstacles
+      ObstacleRenderer({
+        ctx,
+        obstacles,
+        selectedObstacle,
+        hoveredObstacle
+      });
+
+      // Update and render particles
+      WindParticleSystem({
+        ctx,
+        canvasWidth: canvas.width,
+        canvasHeight: canvas.height,
+        windSpeed: localWindSpeed,
+        windAngle,
+        windCurve,
+        particleDensity,
+        obstacles
+      });
+
+      requestAnimationFrame(animate);
+    };
+
+    animate();
+  }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle]);
+
   return (
     <div className="space-y-4" ref={containerRef}>
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-stalker-muted">Wind Speed: {localWindSpeed.toFixed(1)} m/s</span>
-        <Slider
-          defaultValue={[windSpeed]}
-          max={20}
-          min={0}
-          step={0.1}
-          onValueChange={handleWindSpeedChange}
-          className="flex-1"
-        />
-      </div>
-      
-      <div className="flex items-center gap-4 mb-4">
-        <Label className="text-sm text-stalker-muted">Obstacles:</Label>
-        <RadioGroup
-          defaultValue="tree"
-          onValueChange={(value) => setSelectedObstacle(value as "tree" | "building" | "skyscraper")}
-          className="flex gap-4"
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="tree" id="tree" />
-            <Label htmlFor="tree">Trees</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="building" id="building" />
-            <Label htmlFor="building">Buildings</Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem value="skyscraper" id="skyscraper" />
-            <Label htmlFor="skyscraper">Skyscrapers</Label>
-          </div>
-        </RadioGroup>
-      </div>
+      <WindControls
+        windSpeed={localWindSpeed}
+        windAngle={windAngle}
+        windCurve={windCurve}
+        particleDensity={particleDensity}
+        selectedMode={mode}
+        selectedObstacle={selectedObstacleType}
+        onWindSpeedChange={handleWindSpeedChange}
+        onWindAngleChange={(value) => setWindAngle(value[0])}
+        onWindCurveChange={(value) => setWindCurve(value[0])}
+        onParticleDensityChange={(value) => setParticleDensity(value[0])}
+        onModeChange={setMode}
+        onObstacleTypeChange={setSelectedObstacleType}
+        onClearAll={() => setObstacles([])}
+      />
 
       <canvas
         ref={canvasRef}
-        className="w-full h-full bg-stalker-dark/50 rounded-lg cursor-crosshair"
-        style={{ minHeight: "200px" }}
-        onClick={handleCanvasClick}
+        className="w-full h-full bg-stalker-dark/50 rounded-lg"
+        style={{ minHeight: "300px" }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
