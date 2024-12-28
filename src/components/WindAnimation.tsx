@@ -44,7 +44,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     const updateCanvasSize = () => {
       if (containerRef.current && canvasRef.current) {
         const containerWidth = containerRef.current.clientWidth;
-        const containerHeight = Math.min(window.innerHeight * 0.6, containerWidth * 0.6);
+        const containerHeight = Math.min(window.innerHeight * 0.5, containerWidth * 0.6);
         
         canvasRef.current.width = containerWidth;
         canvasRef.current.height = containerHeight;
@@ -235,7 +235,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       <canvas
         ref={canvasRef}
         className="w-full bg-stalker-dark/50 rounded-lg"
-        style={{ height: "60vh" }}
+        style={{ height: "50vh" }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

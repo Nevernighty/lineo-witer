@@ -1,4 +1,5 @@
 import { WindParticle, Obstacle, WindTrail, EnergyMarker } from './types';
+import { WindTrails } from './WindTrails';
 
 export class ParticleSystem {
   private particles: WindParticle[] = [];
@@ -8,6 +9,7 @@ export class ParticleSystem {
   private readonly TRAIL_LENGTH = 30;
   private readonly COLLISION_COLOR = 'rgba(255, 182, 193, 0.9)';
   private readonly DEFAULT_COLOR = 'rgba(57, 255, 20, 0.8)';
+  private windTrails: WindTrails;
 
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -21,6 +23,7 @@ export class ParticleSystem {
   ) {
     this.createParticles();
     this.initializeEnergyMarkers();
+    this.windTrails = new WindTrails(ctx, canvasWidth, canvasHeight);
   }
 
   public updateDimensions(width: number, height: number) {
@@ -53,6 +56,10 @@ export class ParticleSystem {
       collisionTimer: 0,
       power: this.windSpeed * Math.random()
     }));
+  }
+
+  public addWindTrail(x: number, y: number, angle: number) {
+    this.windTrails.addWindTrail(x, y, angle, this.windSpeed * 2);
   }
 
   private updateParticle(particle: WindParticle) {
@@ -145,23 +152,20 @@ export class ParticleSystem {
       marker.outflow = 0;
     });
 
+    // Update wind trails
+    this.windTrails.update();
+
     // Update and draw particles
     this.particles.forEach(particle => {
       this.updateParticle(particle);
       this.drawParticle(particle);
     });
 
+    // Draw wind trails
+    this.windTrails.draw();
+
     // Draw energy markers
     this.drawEnergyMarkers();
-
-    // Update trails
-    this.trails = this.trails.filter(trail => {
-      if (trail.lifetime > 0) {
-        trail.lifetime--;
-        return true;
-      }
-      return false;
-    });
   }
 
   private drawParticle(particle: WindParticle) {
