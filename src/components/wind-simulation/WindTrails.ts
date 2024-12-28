@@ -2,6 +2,7 @@ import { WindTrail } from './types';
 
 export class WindTrails {
   private trails: WindTrail[] = [];
+  private readonly MAX_TRAILS = 50;
   
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -10,6 +11,11 @@ export class WindTrails {
   ) {}
 
   public addWindTrail(x: number, y: number, angle: number, power: number) {
+    // Remove oldest trail if we've reached the maximum
+    if (this.trails.length >= this.MAX_TRAILS) {
+      this.trails.shift();
+    }
+
     this.trails.push({
       points: [{ x, y }],
       power,
@@ -24,10 +30,13 @@ export class WindTrails {
       
       const lastPoint = trail.points[trail.points.length - 1];
       const angleRad = (trail.angle * Math.PI) / 180;
-      const speed = trail.power * 2;
+      const speed = trail.power * 0.5; // Reduced speed for smoother movement
       
-      const newX = lastPoint.x + Math.cos(angleRad) * speed;
-      const newY = lastPoint.y + Math.sin(angleRad) * speed;
+      // Add some natural variation
+      const turbulence = Math.sin(performance.now() * 0.001 + lastPoint.x * 0.1) * 2;
+      
+      const newX = lastPoint.x + Math.cos(angleRad) * speed + turbulence;
+      const newY = lastPoint.y + Math.sin(angleRad) * speed + turbulence;
       
       trail.points.push({ x: newX, y: newY });
       if (trail.points.length > 50) trail.points.shift();
@@ -44,13 +53,21 @@ export class WindTrails {
       this.ctx.beginPath();
       this.ctx.moveTo(trail.points[0].x, trail.points[0].y);
       
-      for (let i = 1; i < trail.points.length; i++) {
-        this.ctx.lineTo(trail.points[i].x, trail.points[i].y);
+      // Use quadratic curves for smoother trails
+      for (let i = 1; i < trail.points.length - 1; i++) {
+        const xc = (trail.points[i].x + trail.points[i + 1].x) / 2;
+        const yc = (trail.points[i].y + trail.points[i + 1].y) / 2;
+        this.ctx.quadraticCurveTo(
+          trail.points[i].x,
+          trail.points[i].y,
+          xc,
+          yc
+        );
       }
       
-      const alpha = trail.lifetime / 100;
+      const alpha = (trail.lifetime / 100) * 0.8; // Fade out gradually
       this.ctx.strokeStyle = `rgba(57, 255, 20, ${alpha})`;
-      this.ctx.lineWidth = trail.power / 2;
+      this.ctx.lineWidth = trail.power / 4;
       this.ctx.stroke();
     });
   }

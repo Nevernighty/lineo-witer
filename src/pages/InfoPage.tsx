@@ -1,21 +1,11 @@
 import React from "react";
 import { motion } from "framer-motion";
 import { 
-  Wind, 
-  Zap, 
-  Droplets, 
-  Sun, 
-  TreePine, 
-  Printer,
-  Settings,
-  BarChart3,
-  Lightbulb,
-  HelpCircle
+  Wind, Zap, Droplets, Sun, TreePine, Printer,
+  Settings, BarChart3, Lightbulb, HelpCircle
 } from "lucide-react";
 import {
-  HoverCard,
-  HoverCardContent,
-  HoverCardTrigger,
+  HoverCard, HoverCardContent, HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -29,17 +19,19 @@ import { VisualizationGuide } from "@/components/info/VisualizationGuide";
 const InfoSection = ({ 
   icon: Icon, 
   title, 
-  children 
+  children,
+  className = ""
 }: { 
   icon: React.ElementType; 
   title: string; 
   children: React.ReactNode;
+  className?: string;
 }) => (
   <motion.div
     initial={{ opacity: 0, y: 20 }}
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.5 }}
-    className="p-6 bg-stalker-dark/30 rounded-lg backdrop-blur hover:bg-stalker-dark/40 transition-all group"
+    className={`p-6 bg-stalker-dark/30 rounded-lg backdrop-blur hover:bg-stalker-dark/40 transition-all group ${className}`}
   >
     <div className="flex items-center gap-3 mb-4">
       <Icon className="w-6 h-6 text-stalker-accent group-hover:text-stalker-accent/80 transition-colors" />
@@ -70,36 +62,14 @@ const InfoPage = () => {
           </p>
         </motion.div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <InfoSection icon={Wind} title="Wind Energy Basics">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <InfoSection icon={Wind} title="Wind Energy Basics" className="lg:col-span-2">
             <div className="space-y-4">
-              <HoverCard>
-                <HoverCardTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start">
-                    <Zap className="w-4 h-4 mr-2" />
-                    Power Generation Principles
-                  </Button>
-                </HoverCardTrigger>
-                <HoverCardContent className="w-80">
-                  <div className="space-y-2">
-                    <h4 className="font-medium">How Wind Generates Power</h4>
-                    <p className="text-sm text-stalker-muted">
-                      Wind turbines convert kinetic energy into mechanical power, which is then transformed into electricity through electromagnetic induction.
-                    </p>
-                  </div>
-                </HoverCardContent>
-              </HoverCard>
-
               <TurbineCategories />
             </div>
           </InfoSection>
 
-          <InfoSection icon={Printer} title="3D Printing Integration">
-            <PrintableComponents />
-            <PrintingConsiderations />
-          </InfoSection>
-
-          <InfoSection icon={BarChart3} title="Performance Metrics">
+          <InfoSection icon={BarChart3} title="Performance Analysis">
             <div className="space-y-4">
               <Badge variant="outline" className="mb-4">
                 Real-time Analytics
@@ -108,20 +78,27 @@ const InfoPage = () => {
             </div>
           </InfoSection>
 
-          <InfoSection icon={Settings} title="Installation Guide">
+          <InfoSection icon={Printer} title="3D Printing Integration" className="lg:col-span-2">
+            <div className="grid md:grid-cols-2 gap-6">
+              <PrintableComponents />
+              <PrintingConsiderations />
+            </div>
+          </InfoSection>
+
+          <InfoSection icon={Settings} title="Technical Specifications">
             <div className="space-y-4">
               <HoverCard>
                 <HoverCardTrigger asChild>
                   <Button variant="outline" className="w-full justify-start">
                     <TreePine className="w-4 h-4 mr-2" />
-                    Environmental Considerations
+                    Environmental Impact
                   </Button>
                 </HoverCardTrigger>
                 <HoverCardContent className="w-80">
                   <div className="space-y-2">
-                    <h4 className="font-medium">Optimal Placement</h4>
+                    <h4 className="font-medium">Sustainable Design</h4>
                     <p className="text-sm text-stalker-muted">
-                      Learn about ideal locations, height requirements, and environmental factors that affect wind turbine performance.
+                      Our designs prioritize environmental sustainability while maintaining optimal performance.
                     </p>
                   </div>
                 </HoverCardContent>
@@ -129,8 +106,6 @@ const InfoPage = () => {
             </div>
           </InfoSection>
         </div>
-
-        <Separator className="my-8" />
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <InfoSection icon={Sun} title="Solar Integration">

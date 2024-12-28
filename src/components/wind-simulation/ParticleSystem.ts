@@ -10,6 +10,8 @@ export class ParticleSystem {
   private readonly COLLISION_COLOR = 'rgba(255, 182, 193, 0.9)';
   private readonly DEFAULT_COLOR = 'rgba(57, 255, 20, 0.8)';
   private windTrails: WindTrails;
+  private lastTime: number = 0;
+  private readonly SPAWN_INTERVAL = 16; // ~60fps
 
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -24,6 +26,7 @@ export class ParticleSystem {
     this.createParticles();
     this.initializeEnergyMarkers();
     this.windTrails = new WindTrails(ctx, canvasWidth, canvasHeight);
+    this.lastTime = performance.now();
   }
 
   public updateDimensions(width: number, height: number) {
@@ -39,6 +42,10 @@ export class ParticleSystem {
       { position: 'top', inflow: 0, outflow: 0 },
       { position: 'bottom', inflow: 0, outflow: 0 }
     ];
+  }
+
+  public addWindTrail(x: number, y: number, angle: number) {
+    this.windTrails.addWindTrail(x, y, angle, this.windSpeed * 2);
   }
 
   private createParticles() {
@@ -58,24 +65,25 @@ export class ParticleSystem {
     }));
   }
 
-  public addWindTrail(x: number, y: number, angle: number) {
-    this.windTrails.addWindTrail(x, y, angle, this.windSpeed * 2);
-  }
-
-  private updateParticle(particle: WindParticle) {
-    // Apply wind force
-    const windForce = this.windSpeed * 0.1;
-    particle.speedX += Math.cos(this.windAngle * Math.PI / 180) * windForce;
-    particle.speedY += Math.sin(this.windAngle * Math.PI / 180) * windForce;
+  private updateParticle(particle: WindParticle, deltaTime: number) {
+    // Apply wind force with smooth acceleration
+    const windForce = this.windSpeed * 0.1 * (deltaTime / 16);
+    const angleRad = this.windAngle * Math.PI / 180;
+    
+    // Add some natural variation to particle movement
+    const turbulence = Math.sin(performance.now() * 0.001 + particle.x * 0.1) * 0.2;
+    
+    particle.speedX += (Math.cos(angleRad) * windForce + turbulence);
+    particle.speedY += (Math.sin(angleRad) * windForce + turbulence);
 
     // Apply drag force
-    const drag = 0.02;
+    const drag = 0.02 * (deltaTime / 16);
     particle.speedX *= (1 - drag);
     particle.speedY *= (1 - drag);
 
     // Update position
-    particle.x += particle.speedX;
-    particle.y += particle.speedY;
+    particle.x += particle.speedX * (deltaTime / 16);
+    particle.y += particle.speedY * (deltaTime / 16);
 
     // Check for obstacle collisions
     this.obstacles.forEach(obstacle => {
@@ -85,15 +93,18 @@ export class ParticleSystem {
         particle.y >= obstacle.y && 
         particle.y <= obstacle.y + obstacle.height
       ) {
-        // Reflect the particle
         if (!particle.hasCollided) {
           particle.hasCollided = true;
           particle.collisionTimer = 30;
           particle.color = this.COLLISION_COLOR;
           
-          // Simple reflection
-          particle.speedX *= -0.8;
-          particle.speedY *= -0.8;
+          // Calculate reflection angle based on obstacle surface
+          const normalX = particle.x < obstacle.x + obstacle.width / 2 ? -1 : 1;
+          const normalY = particle.y < obstacle.y + obstacle.height / 2 ? -1 : 1;
+          
+          // Apply reflection with energy loss
+          particle.speedX = -particle.speedX * 0.8 * normalX;
+          particle.speedY = -particle.speedY * 0.8 * normalY;
         }
       }
     });
@@ -107,7 +118,7 @@ export class ParticleSystem {
       }
     }
 
-    // Update trail
+    // Update trail with smooth interpolation
     if (particle.trail) {
       particle.trail.unshift({ x: particle.x, y: particle.y });
       if (particle.trail.length > this.TRAIL_LENGTH) {
@@ -160,6 +171,10 @@ export class ParticleSystem {
   }
 
   public update() {
+    const currentTime = performance.now();
+    const deltaTime = currentTime - this.lastTime;
+    this.lastTime = currentTime;
+
     // Reset energy measurements
     this.energyMarkers.forEach(marker => {
       marker.inflow = 0;
@@ -169,9 +184,9 @@ export class ParticleSystem {
     // Update wind trails
     this.windTrails.update();
 
-    // Update and draw particles
+    // Update and draw particles with time-based movement
     this.particles.forEach(particle => {
-      this.updateParticle(particle);
+      this.updateParticle(particle, deltaTime);
       this.drawParticle(particle);
     });
 
@@ -183,13 +198,23 @@ export class ParticleSystem {
   }
 
   private drawParticle(particle: WindParticle) {
-    // Draw trail
+    // Draw trail with smooth gradient
     if (particle.trail && particle.trail.length > 1) {
       this.ctx.beginPath();
       this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
-      for (let i = 1; i < particle.trail.length; i++) {
-        this.ctx.lineTo(particle.trail[i].x, particle.trail[i].y);
+      
+      // Use quadratic curves for smoother trails
+      for (let i = 1; i < particle.trail.length - 1; i++) {
+        const xc = (particle.trail[i].x + particle.trail[i + 1].x) / 2;
+        const yc = (particle.trail[i].y + particle.trail[i + 1].y) / 2;
+        this.ctx.quadraticCurveTo(
+          particle.trail[i].x,
+          particle.trail[i].y,
+          xc,
+          yc
+        );
       }
+      
       this.ctx.strokeStyle = `rgba(${particle.hasCollided ? '255, 182, 193' : '57, 255, 20'}, ${0.3 * (particle.trail.length / this.TRAIL_LENGTH)})`;
       this.ctx.lineWidth = particle.size / 2;
       this.ctx.stroke();
