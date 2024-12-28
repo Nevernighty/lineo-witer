@@ -7,6 +7,30 @@ interface ObstacleRendererProps {
   hoveredObstacle: number | null;
 }
 
+const drawSelection = (ctx: CanvasRenderingContext2D, obstacle: Obstacle) => {
+  ctx.save();
+  ctx.strokeStyle = 'rgba(57, 255, 20, 0.8)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+  ctx.strokeRect(obstacle.x - 2, obstacle.y - 2, obstacle.width + 4, obstacle.height + 4);
+  
+  // Draw resize handles
+  const handleSize = 8;
+  const handles = [
+    { x: obstacle.x - handleSize/2, y: obstacle.y - handleSize/2 },
+    { x: obstacle.x + obstacle.width - handleSize/2, y: obstacle.y - handleSize/2 },
+    { x: obstacle.x - handleSize/2, y: obstacle.y + obstacle.height - handleSize/2 },
+    { x: obstacle.x + obstacle.width - handleSize/2, y: obstacle.y + obstacle.height - handleSize/2 }
+  ];
+  
+  ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+  handles.forEach(handle => {
+    ctx.fillRect(handle.x, handle.y, handleSize, handleSize);
+  });
+  
+  ctx.restore();
+};
+
 export const ObstacleRenderer = ({
   ctx,
   obstacles,
@@ -134,7 +158,7 @@ export const ObstacleRenderer = ({
     }
     
     if (index === selectedObstacle || index === hoveredObstacle) {
-      drawSelection(obstacle);
+      drawSelection(ctx, obstacle);
     }
   });
 

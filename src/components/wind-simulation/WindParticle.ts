@@ -5,8 +5,11 @@ export interface WindParticle {
   speedX: number;
   speedY: number;
   color: string;
-  trailTime?: number;
+  lifetime: number;
+  trail?: { x: number; y: number }[];
   hasCollided?: boolean;
+  collisionTimer: number;
+  power?: number;
 }
 
 export const createWindParticle = (
@@ -22,8 +25,11 @@ export const createWindParticle = (
     size: Math.random() * 2 + 1,
     speedX: Math.cos(angleRad) * windSpeed * (Math.random() + 0.5),
     speedY: Math.sin(angleRad) * windSpeed * (Math.random() + 0.5),
-    color: `rgba(57, 255, 20, ${0.5 + Math.random() * 0.5})`,
-    trailTime: 0,
-    hasCollided: false
+    color: 'rgba(57, 255, 20, 0.8)',
+    lifetime: 300,
+    trail: [],
+    hasCollided: false,
+    collisionTimer: 0,
+    power: windSpeed * Math.random()
   };
 };

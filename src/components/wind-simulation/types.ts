@@ -1,3 +1,5 @@
+export type ObstacleShape = "regular" | "L" | "T" | "Y" | "Z" | "Q" | "P" | "N";
+
 export interface WindParticle {
   x: number;
   y: number;
@@ -11,8 +13,6 @@ export interface WindParticle {
   collisionTimer: number;
   power?: number;
 }
-
-export type ObstacleShape = "regular" | "L" | "T" | "Y" | "Z" | "Q" | "P" | "N";
 
 export interface Obstacle {
   type: "tree" | "building" | "skyscraper";
