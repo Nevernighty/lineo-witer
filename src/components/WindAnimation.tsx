@@ -43,31 +43,23 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   useEffect(() => {
     const updateCanvasSize = () => {
       if (containerRef.current && canvasRef.current) {
-        const { width, height } = containerRef.current.getBoundingClientRect();
-        canvasRef.current.width = width;
-        canvasRef.current.height = height;
+        const containerWidth = containerRef.current.clientWidth;
+        const containerHeight = Math.min(window.innerHeight * 0.6, containerWidth * 0.6);
+        
+        canvasRef.current.width = containerWidth;
+        canvasRef.current.height = containerHeight;
+        
+        if (particleSystem) {
+          particleSystem.updateDimensions(containerWidth, containerHeight);
+        }
       }
     };
 
     updateCanvasSize();
     window.addEventListener('resize', updateCanvasSize);
     
-    if (canvasRef.current) {
-      interactionManagerRef.current = new InteractionManager(canvasRef.current);
-      setParticleSystem(new ParticleSystem(
-        canvasRef.current.getContext("2d")!,
-        canvasRef.current.width,
-        canvasRef.current.height,
-        localWindSpeed,
-        windAngle,
-        windCurve,
-        particleDensity,
-        obstacles
-      ));
-    }
-
     return () => window.removeEventListener('resize', updateCanvasSize);
-  }, []);
+  }, [particleSystem]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (mode === "wind") {
@@ -242,8 +234,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
 
       <canvas
         ref={canvasRef}
-        className="w-full h-full bg-stalker-dark/50 rounded-lg"
-        style={{ minHeight: "300px" }}
+        className="w-full bg-stalker-dark/50 rounded-lg"
+        style={{ height: "60vh" }}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}

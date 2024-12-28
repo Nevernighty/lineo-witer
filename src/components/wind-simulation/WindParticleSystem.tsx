@@ -1,4 +1,4 @@
-import { WindParticle, Obstacle } from "./types";
+import { WindParticle, Obstacle, EnergyMarker } from "./types";
 
 interface WindParticleSystemProps {
   ctx: CanvasRenderingContext2D;
@@ -13,107 +13,171 @@ interface WindParticleSystemProps {
 
 export class WindParticleSystem {
   private particles: WindParticle[] = [];
-  private ctx: CanvasRenderingContext2D;
-  private canvasWidth: number;
-  private canvasHeight: number;
-  private windSpeed: number;
-  private windAngle: number;
-  private windCurve: number;
-  private obstacles: Obstacle[];
-
-  constructor({
-    ctx,
-    canvasWidth,
-    canvasHeight,
-    windSpeed,
-    windAngle,
-    windCurve,
-    particleDensity,
-    obstacles,
-  }: WindParticleSystemProps) {
-    this.ctx = ctx;
-    this.canvasWidth = canvasWidth;
-    this.canvasHeight = canvasHeight;
-    this.windSpeed = windSpeed;
-    this.windAngle = windAngle;
-    this.windCurve = windCurve;
-    this.obstacles = obstacles;
-    this.createParticles(particleDensity);
+  private trails: { points: { x: number; y: number }[]; lifetime: number }[] = [];
+  private energyMarkers: EnergyMarker[] = [];
+  
+  constructor(
+    private ctx: CanvasRenderingContext2D,
+    private canvasWidth: number,
+    private canvasHeight: number,
+    private windSpeed: number,
+    private windAngle: number,
+    private windCurve: number,
+    private particleDensity: number,
+    private obstacles: Obstacle[]
+  ) {
+    this.createParticles();
+    this.initializeEnergyMarkers();
   }
 
-  private createParticles(particleDensity: number) {
-    this.particles = [];
+  public updateDimensions(width: number, height: number) {
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.initializeEnergyMarkers();
+  }
+
+  private initializeEnergyMarkers() {
+    this.energyMarkers = [
+      { position: 'left', inflow: 0, outflow: 0 },
+      { position: 'right', inflow: 0, outflow: 0 },
+      { position: 'top', inflow: 0, outflow: 0 },
+      { position: 'bottom', inflow: 0, outflow: 0 }
+    ];
+  }
+
+  private createParticles() {
     const angleRad = (this.windAngle * Math.PI) / 180;
     
-    for (let i = 0; i < particleDensity; i++) {
+    for (let i = 0; i < this.particleDensity; i++) {
       this.particles.push({
         x: Math.random() * this.canvasWidth,
         y: Math.random() * this.canvasHeight,
         size: Math.random() * 2 + 1,
         speedX: Math.cos(angleRad) * this.windSpeed * (Math.random() + 0.5),
-        speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5)
+        speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5),
+        color: 'rgba(57, 255, 20, 0.8)',
+        lifetime: 300,
+        trail: [],
+        hasCollided: false,
+        collisionTimer: 0,
+        power: this.windSpeed * Math.random()
       });
     }
   }
 
-  private checkCollision(particle: WindParticle, obstacle: Obstacle) {
-    if (obstacle.type === "tree") {
-      const px = particle.x;
-      const py = particle.y;
-      const x1 = obstacle.x;
-      const y1 = obstacle.y + obstacle.height;
-      const x2 = obstacle.x + obstacle.width / 2;
-      const y2 = obstacle.y;
-      const x3 = obstacle.x + obstacle.width;
-      const y3 = obstacle.y + obstacle.height;
-      
-      const area = Math.abs((x1*(y2-y3) + x2*(y3-y1)+ x3*(y1-y2))/2.0);
-      const a1 = Math.abs((px*(y2-y3) + x2*(y3-py)+ x3*(py-y2))/2.0);
-      const a2 = Math.abs((x1*(py-y3) + px*(y3-y1)+ x3*(y1-py))/2.0);
-      const a3 = Math.abs((x1*(y2-py) + x2*(py-y1)+ px*(y1-y2))/2.0);
-      
-      return Math.abs(area - (a1 + a2 + a3)) < 0.1;
-    } else {
-      return (
-        particle.x >= obstacle.x - 5 &&
-        particle.x <= obstacle.x + obstacle.width + 5 &&
-        particle.y >= obstacle.y - 5 &&
-        particle.y <= obstacle.y + obstacle.height + 5
-      );
-    }
-  }
-
   private updateParticle(particle: WindParticle) {
-    this.obstacles.forEach(obstacle => {
-      if (this.checkCollision(particle, obstacle)) {
-        particle.speedX *= -0.5;
-        particle.speedY *= -0.5;
-        particle.speedY += (Math.random() - 0.5) * this.windSpeed / 2;
-        particle.speedX += (Math.random() - 0.5) * this.windSpeed / 2;
-      }
-    });
+    // Apply wind force
+    const windForce = this.windSpeed * 0.1;
+    particle.speedX += Math.cos(this.windAngle * Math.PI / 180) * windForce;
+    particle.speedY += Math.sin(this.windAngle * Math.PI / 180) * windForce;
 
-    particle.speedY += Math.sin(particle.x / this.canvasWidth * Math.PI * 2) * this.windCurve;
+    // Apply drag force
+    const drag = 0.02;
+    particle.speedX *= (1 - drag);
+    particle.speedY *= (1 - drag);
+
+    // Update position
     particle.x += particle.speedX;
     particle.y += particle.speedY;
 
-    if (particle.x > this.canvasWidth) particle.x = 0;
-    if (particle.x < 0) particle.x = this.canvasWidth;
-    if (particle.y > this.canvasHeight) particle.y = 0;
-    if (particle.y < 0) particle.y = this.canvasHeight;
+    // Update trail
+    if (particle.trail) {
+      particle.trail.unshift({ x: particle.x, y: particle.y });
+      if (particle.trail.length > 10) {
+        particle.trail.pop();
+      }
+    }
+
+    // Check borders and update energy markers
+    this.handleBorderCollision(particle);
+
+    // Update lifetime
+    particle.lifetime--;
+    if (particle.lifetime <= 0) {
+      this.resetParticle(particle);
+    }
   }
 
-  private drawParticle(particle: WindParticle) {
-    this.ctx.fillStyle = `rgba(57, 255, 20, ${0.5 + Math.random() * 0.5})`;
-    this.ctx.beginPath();
-    this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-    this.ctx.fill();
+  private handleBorderCollision(particle: WindParticle) {
+    const buffer = 5;
+    const energy = 0.5 * particle.power! * (particle.speedX ** 2 + particle.speedY ** 2);
+
+    if (particle.x < buffer) {
+      this.energyMarkers[0].outflow += energy;
+      particle.x = this.canvasWidth - buffer;
+    } else if (particle.x > this.canvasWidth - buffer) {
+      this.energyMarkers[1].outflow += energy;
+      particle.x = buffer;
+    }
+
+    if (particle.y < buffer) {
+      this.energyMarkers[2].outflow += energy;
+      particle.y = this.canvasHeight - buffer;
+    } else if (particle.y > this.canvasHeight - buffer) {
+      this.energyMarkers[3].outflow += energy;
+      particle.y = buffer;
+    }
+  }
+
+  private resetParticle(particle: WindParticle) {
+    const angleRad = this.windAngle * Math.PI / 180;
+    particle.x = Math.random() * this.canvasWidth;
+    particle.y = Math.random() * this.canvasHeight;
+    particle.speedX = Math.cos(angleRad) * this.windSpeed * (Math.random() + 0.5);
+    particle.speedY = Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5);
+    particle.lifetime = 300;
+    particle.trail = [];
+    particle.hasCollided = false;
+    particle.collisionTimer = 0;
+  }
+
+  private drawEnergyMarkers() {
+    this.energyMarkers.forEach(marker => {
+      const x = marker.position === 'left' ? 0 : 
+               marker.position === 'right' ? this.canvasWidth - 60 : 
+               marker.position === 'top' ? this.canvasWidth / 2 - 30 : 
+               this.canvasWidth / 2 - 30;
+      
+      const y = marker.position === 'top' ? 0 : 
+               marker.position === 'bottom' ? this.canvasHeight - 20 : 
+               this.canvasHeight / 2 - 10;
+
+      this.ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+      this.ctx.fillText(`In: ${marker.inflow.toFixed(1)}`, x, y);
+      this.ctx.fillText(`Out: ${marker.outflow.toFixed(1)}`, x, y + 15);
+    });
   }
 
   public update() {
+    // Reset energy measurements
+    this.energyMarkers.forEach(marker => {
+      marker.inflow = 0;
+      marker.outflow = 0;
+    });
+
+    // Update and draw particles
     this.particles.forEach(particle => {
       this.updateParticle(particle);
       this.drawParticle(particle);
     });
+
+    // Draw energy markers
+    this.drawEnergyMarkers();
+
+    // Update trails
+    this.trails = this.trails.filter(trail => {
+      if (trail.lifetime > 0) {
+        trail.lifetime--;
+        return true;
+      }
+      return false;
+    });
+  }
+
+  private drawParticle(particle: WindParticle) {
+    this.ctx.fillStyle = particle.color;
+    this.ctx.beginPath();
+    this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+    this.ctx.fill();
   }
 }

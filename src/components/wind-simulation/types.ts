@@ -21,8 +21,6 @@ export interface Obstacle {
   y: number;
   width: number;
   height: number;
-  selected?: boolean;
-  variant?: string;
 }
 
 export type SimulationMode = "add" | "move" | "resize" | "draw" | "erase" | "wind";
