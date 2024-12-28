@@ -30,6 +30,11 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [selectedObstacle, setSelectedObstacle] = useState<number | null>(null);
   const [hoveredObstacle, setHoveredObstacle] = useState<number | null>(null);
   const [mode, setMode] = useState<SimulationMode>("add");
+  const [windMode, setWindMode] = useState<"normal" | "trails">("normal");
+  const [selectedShape, setSelectedShape] = useState<ObstacleShape>("regular");
+  const [showWindOnly, setShowWindOnly] = useState(false);
+  const [currentAngle, setCurrentAngle] = useState(0);
+  const [particleSystem, setParticleSystem] = useState<ParticleSystem | null>(null);
 
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -45,12 +50,31 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     
     if (canvasRef.current) {
       interactionManagerRef.current = new InteractionManager(canvasRef.current);
+      setParticleSystem(new ParticleSystem(
+        canvasRef.current.getContext("2d")!,
+        canvasRef.current.width,
+        canvasRef.current.height,
+        localWindSpeed,
+        windAngle,
+        windCurve,
+        particleDensity,
+        obstacles
+      ));
     }
 
     return () => window.removeEventListener('resize', updateCanvasSize);
   }, []);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (mode === "wind") {
+      const { x, y } = interactionManagerRef.current?.getMousePosition(e) || { x: 0, y: 0 };
+      if (particleSystem) {
+        particleSystem.addWindTrail(x, y, currentAngle);
+        setCurrentAngle(prev => (prev + 30) % 360);
+      }
+      return;
+    }
+
     if (!interactionManagerRef.current) return;
     
     interactionManagerRef.current.handleMouseDown(
@@ -104,13 +128,12 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !particleSystem) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     let animationFrameId: number;
-    let particleSystem: ParticleSystem;
 
     const animate = () => {
       ctx.fillStyle = "rgba(26, 31, 44, 0.2)";
@@ -125,34 +148,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       });
 
       // Update and render particles
-      if (!particleSystem) {
-        particleSystem = new ParticleSystem(
-          ctx,
-          canvas.width,
-          canvas.height,
-          localWindSpeed,
-          windAngle,
-          windCurve,
-          particleDensity,
-          obstacles
-        );
-      } else {
-        particleSystem.update();
-      }
+      particleSystem.update();
 
-      // Draw erase radius if in erase mode
-      if (mode === "erase" && interactionManagerRef.current) {
-        const mouseEvent = new MouseEvent('mousemove', {
-          clientX: 0,
-          clientY: 0,
-          bubbles: true,
-          cancelable: true,
-          view: window
-        });
-        const { x, y } = interactionManagerRef.current.getMousePosition(mouseEvent);
-        interactionManagerRef.current.drawEraseRadius(ctx, x, y);
-      }
-      
       animationFrameId = requestAnimationFrame(animate);
     };
 
@@ -163,25 +160,81 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
         cancelAnimationFrame(animationFrameId);
       }
     };
-  }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle, mode]);
+  }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle, mode, particleSystem]);
 
   return (
     <div className="space-y-4" ref={containerRef}>
-      <WindControls
-        windSpeed={localWindSpeed}
-        windAngle={windAngle}
-        windCurve={windCurve}
-        particleDensity={particleDensity}
-        selectedMode={mode}
-        selectedObstacle={selectedObstacleType}
-        onWindSpeedChange={handleWindSpeedChange}
-        onWindAngleChange={(value) => setWindAngle(value[0])}
-        onWindCurveChange={(value) => setWindCurve(value[0])}
-        onParticleDensityChange={(value) => setParticleDensity(value[0])}
-        onModeChange={setMode}
-        onObstacleTypeChange={setSelectedObstacleType}
-        onClearAll={() => setObstacles([])}
-      />
+      <div className="flex flex-col space-y-4 bg-stalker-dark/30 p-4 rounded-lg">
+        {/* Wind Controls */}
+        <div className="flex items-center space-x-4">
+          <Button
+            variant={mode === "wind" ? "default" : "outline"}
+            onClick={() => setMode("wind")}
+            size="sm"
+          >
+            Подути
+          </Button>
+          {mode === "wind" && (
+            <Select onValueChange={(val: "normal" | "trails") => setWindMode(val)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Виберіть режим вітру" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="normal">Звичайний вітер</SelectItem>
+                <SelectItem value="trails">Вітрові сліди</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Obstacle Controls */}
+        {mode === "add" && (
+          <div className="flex items-center space-x-4">
+            <Select onValueChange={(val: ObstacleShape) => setSelectedShape(val)}>
+              <SelectTrigger>
+                <SelectValue placeholder="Форма перешкоди" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="regular">Звичайна</SelectItem>
+                <SelectItem value="L">L-подібна</SelectItem>
+                <SelectItem value="T">T-подібна</SelectItem>
+                <SelectItem value="Y">Y-подібна</SelectItem>
+                <SelectItem value="Z">Z-подібна</SelectItem>
+                <SelectItem value="Q">Q-подібна</SelectItem>
+                <SelectItem value="P">P-подібна</SelectItem>
+                <SelectItem value="N">N-подібна</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+
+        {/* Wind Generation Settings */}
+        <div className="flex items-center space-x-4">
+          <Checkbox
+            id="windOnly"
+            checked={showWindOnly}
+            onCheckedChange={(checked: boolean) => setShowWindOnly(checked)}
+          />
+          <Label htmlFor="windOnly">Показувати вітер тільки по краях</Label>
+        </div>
+
+        {/* Existing Controls */}
+        <WindControls
+          windSpeed={localWindSpeed}
+          windAngle={windAngle}
+          windCurve={windCurve}
+          particleDensity={particleDensity}
+          selectedMode={mode}
+          selectedObstacle={selectedObstacleType}
+          onWindSpeedChange={handleWindSpeedChange}
+          onWindAngleChange={(value) => setWindAngle(value[0])}
+          onWindCurveChange={(value) => setWindCurve(value[0])}
+          onParticleDensityChange={(value) => setParticleDensity(value[0])}
+          onModeChange={setMode}
+          onObstacleTypeChange={setSelectedObstacleType}
+          onClearAll={() => setObstacles([])}
+        />
+      </div>
 
       <canvas
         ref={canvasRef}

@@ -9,16 +9,33 @@ export interface WindParticle {
   trail?: { x: number; y: number }[];
   hasCollided?: boolean;
   collisionTimer: number;
+  power?: number;
 }
+
+export type ObstacleShape = "regular" | "L" | "T" | "Y" | "Z" | "Q" | "P" | "N";
 
 export interface Obstacle {
   type: "tree" | "building" | "skyscraper";
+  shape: ObstacleShape;
   x: number;
   y: number;
   width: number;
   height: number;
-  shape?: "L" | "T" | "regular";
   selected?: boolean;
+  variant?: string;
 }
 
-export type SimulationMode = "add" | "move" | "resize" | "draw" | "erase";
+export type SimulationMode = "add" | "move" | "resize" | "draw" | "erase" | "wind";
+
+export interface WindTrail {
+  points: { x: number; y: number }[];
+  power: number;
+  angle: number;
+  lifetime: number;
+}
+
+export interface EnergyMarker {
+  position: 'left' | 'right' | 'top' | 'bottom';
+  inflow: number;
+  outflow: number;
+}

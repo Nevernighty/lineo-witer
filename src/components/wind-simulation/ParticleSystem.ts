@@ -1,7 +1,8 @@
-import { WindParticle, Obstacle } from './types';
+import { WindParticle, Obstacle, WindTrail } from './types';
 
 export class ParticleSystem {
   private particles: WindParticle[] = [];
+  private trails: WindTrail[] = [];
   private ctx: CanvasRenderingContext2D;
   private canvasWidth: number;
   private canvasHeight: number;
@@ -9,8 +10,10 @@ export class ParticleSystem {
   private windAngle: number;
   private windCurve: number;
   private obstacles: Obstacle[];
-  private readonly PARTICLE_LIFETIME = 200; // Frames
-  private readonly TRAIL_LENGTH = 20;
+  private readonly PARTICLE_LIFETIME = 300;
+  private readonly TRAIL_LENGTH = 30;
+  private readonly COLLISION_COLOR = 'rgba(255, 182, 193, 0.9)';
+  private readonly DEFAULT_COLOR = 'rgba(57, 255, 20, 0.8)';
 
   constructor(
     ctx: CanvasRenderingContext2D,
@@ -33,17 +36,19 @@ export class ParticleSystem {
   }
 
   private createParticles(particleDensity: number) {
+    const angleRad = (this.windAngle * Math.PI) / 180;
     this.particles = Array.from({ length: particleDensity }, () => ({
       x: Math.random() * this.canvasWidth,
       y: Math.random() * this.canvasHeight,
       size: Math.random() * 2 + 1,
-      speedX: Math.cos(this.windAngle * Math.PI / 180) * this.windSpeed * (Math.random() + 0.5),
-      speedY: Math.sin(this.windAngle * Math.PI / 180) * this.windSpeed * (Math.random() + 0.5),
-      color: 'rgba(57, 255, 20, 0.8)',
+      speedX: Math.cos(angleRad) * this.windSpeed * (Math.random() + 0.5),
+      speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5),
+      color: this.DEFAULT_COLOR,
       lifetime: this.PARTICLE_LIFETIME,
       trail: [],
       hasCollided: false,
-      collisionTimer: 0
+      collisionTimer: 0,
+      power: this.windSpeed * Math.random()
     }));
   }
 
@@ -159,14 +164,57 @@ export class ParticleSystem {
     this.ctx.fill();
   }
 
+  public addWindTrail(x: number, y: number, angle: number) {
+    const trail: WindTrail = {
+      points: [{ x, y }],
+      power: this.windSpeed * 2,
+      angle: angle,
+      lifetime: 100
+    };
+    this.trails.push(trail);
+  }
+
   public update() {
+    // Update and draw particles
     this.particles.forEach(particle => {
       this.updateParticle(particle);
       this.drawParticle(particle);
     });
+
+    // Update and draw wind trails
+    this.trails = this.trails.filter(trail => {
+      if (trail.lifetime > 0) {
+        this.updateWindTrail(trail);
+        return true;
+      }
+      return false;
+    });
   }
 
-  public setParticleDensity(density: number) {
-    this.createParticles(density);
+  private updateWindTrail(trail: WindTrail) {
+    const lastPoint = trail.points[trail.points.length - 1];
+    const angleRad = (trail.angle * Math.PI) / 180;
+    
+    const newPoint = {
+      x: lastPoint.x + Math.cos(angleRad) * trail.power,
+      y: lastPoint.y + Math.sin(angleRad) * trail.power
+    };
+
+    trail.points.push(newPoint);
+    if (trail.points.length > this.TRAIL_LENGTH) {
+      trail.points.shift();
+    }
+
+    // Draw trail
+    this.ctx.beginPath();
+    this.ctx.moveTo(trail.points[0].x, trail.points[0].y);
+    trail.points.forEach(point => {
+      this.ctx.lineTo(point.x, point.y);
+    });
+    this.ctx.strokeStyle = `rgba(57, 255, 20, ${trail.lifetime / 100})`;
+    this.ctx.lineWidth = 2;
+    this.ctx.stroke();
+
+    trail.lifetime--;
   }
 }
