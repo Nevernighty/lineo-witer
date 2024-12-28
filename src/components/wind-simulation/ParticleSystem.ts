@@ -77,6 +77,36 @@ export class ParticleSystem {
     particle.x += particle.speedX;
     particle.y += particle.speedY;
 
+    // Check for obstacle collisions
+    this.obstacles.forEach(obstacle => {
+      if (
+        particle.x >= obstacle.x && 
+        particle.x <= obstacle.x + obstacle.width &&
+        particle.y >= obstacle.y && 
+        particle.y <= obstacle.y + obstacle.height
+      ) {
+        // Reflect the particle
+        if (!particle.hasCollided) {
+          particle.hasCollided = true;
+          particle.collisionTimer = 30;
+          particle.color = this.COLLISION_COLOR;
+          
+          // Simple reflection
+          particle.speedX *= -0.8;
+          particle.speedY *= -0.8;
+        }
+      }
+    });
+
+    // Update collision state
+    if (particle.collisionTimer > 0) {
+      particle.collisionTimer--;
+      if (particle.collisionTimer === 0) {
+        particle.hasCollided = false;
+        particle.color = this.DEFAULT_COLOR;
+      }
+    }
+
     // Update trail
     if (particle.trail) {
       particle.trail.unshift({ x: particle.x, y: particle.y });
@@ -126,23 +156,7 @@ export class ParticleSystem {
     particle.trail = [];
     particle.hasCollided = false;
     particle.collisionTimer = 0;
-  }
-
-  private drawEnergyMarkers() {
-    this.energyMarkers.forEach(marker => {
-      const x = marker.position === 'left' ? 0 : 
-               marker.position === 'right' ? this.canvasWidth - 60 : 
-               marker.position === 'top' ? this.canvasWidth / 2 - 30 : 
-               this.canvasWidth / 2 - 30;
-      
-      const y = marker.position === 'top' ? 0 : 
-               marker.position === 'bottom' ? this.canvasHeight - 20 : 
-               this.canvasHeight / 2 - 10;
-
-      this.ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
-      this.ctx.fillText(`In: ${marker.inflow.toFixed(1)}`, x, y);
-      this.ctx.fillText(`Out: ${marker.outflow.toFixed(1)}`, x, y + 15);
-    });
+    particle.color = this.DEFAULT_COLOR;
   }
 
   public update() {
@@ -176,7 +190,7 @@ export class ParticleSystem {
       for (let i = 1; i < particle.trail.length; i++) {
         this.ctx.lineTo(particle.trail[i].x, particle.trail[i].y);
       }
-      this.ctx.strokeStyle = `rgba(${particle.collisionTimer > 0 ? '255, 182, 193' : '57, 255, 20'}, ${0.3 * (particle.trail.length / this.TRAIL_LENGTH)})`;
+      this.ctx.strokeStyle = `rgba(${particle.hasCollided ? '255, 182, 193' : '57, 255, 20'}, ${0.3 * (particle.trail.length / this.TRAIL_LENGTH)})`;
       this.ctx.lineWidth = particle.size / 2;
       this.ctx.stroke();
     }
@@ -186,5 +200,22 @@ export class ParticleSystem {
     this.ctx.beginPath();
     this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
     this.ctx.fill();
+  }
+
+  private drawEnergyMarkers() {
+    this.energyMarkers.forEach(marker => {
+      const x = marker.position === 'left' ? 10 : 
+               marker.position === 'right' ? this.canvasWidth - 100 : 
+               this.canvasWidth / 2 - 50;
+      
+      const y = marker.position === 'top' ? 20 : 
+               marker.position === 'bottom' ? this.canvasHeight - 40 : 
+               this.canvasHeight / 2;
+
+      this.ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+      this.ctx.font = '12px monospace';
+      this.ctx.fillText(`In: ${marker.inflow.toFixed(1)}`, x, y);
+      this.ctx.fillText(`Out: ${marker.outflow.toFixed(1)}`, x, y + 15);
+    });
   }
 }

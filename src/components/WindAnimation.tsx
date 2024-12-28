@@ -41,6 +41,31 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [particleSystem, setParticleSystem] = useState<ParticleSystem | null>(null);
 
   useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Initialize ParticleSystem
+    const newParticleSystem = new ParticleSystem(
+      ctx,
+      canvas.width,
+      canvas.height,
+      localWindSpeed,
+      windAngle,
+      windCurve,
+      particleDensity,
+      obstacles
+    );
+
+    setParticleSystem(newParticleSystem);
+
+    // Initialize InteractionManager
+    interactionManagerRef.current = new InteractionManager(canvas);
+  }, []);
+
+  useEffect(() => {
     const updateCanvasSize = () => {
       if (containerRef.current && canvasRef.current) {
         const containerWidth = containerRef.current.clientWidth;
