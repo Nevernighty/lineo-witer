@@ -21,7 +21,7 @@ export interface Obstacle {
   y: number;
   width: number;
   height: number;
-  power?: number; // Added for wind type obstacles
+  power?: number;
 }
 
 export type SimulationMode = "add" | "move" | "resize" | "draw" | "erase" | "wind";

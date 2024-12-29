@@ -10,8 +10,12 @@ export class WindTrails {
     private canvasHeight: number
   ) {}
 
+  public updateDimensions(width: number, height: number) {
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+  }
+
   public addWindTrail(x: number, y: number, angle: number, power: number) {
-    // Remove oldest trail if we've reached the maximum
     if (this.trails.length >= this.MAX_TRAILS) {
       this.trails.shift();
     }

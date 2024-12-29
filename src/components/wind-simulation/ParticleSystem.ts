@@ -28,7 +28,46 @@ export class ParticleSystem {
     this.initializeEnergyMarkers();
     this.windTrails = new WindTrails(ctx, canvasWidth, canvasHeight);
     this.lastTime = performance.now();
-    this.turbulenceOffset = Math.random() * 1000; // Random offset for varied turbulence
+    this.turbulenceOffset = Math.random() * 1000;
+  }
+
+  private createParticles() {
+    const angleRad = (this.windAngle * Math.PI) / 180;
+    
+    for (let i = 0; i < this.particleDensity; i++) {
+      this.particles.push({
+        x: Math.random() * this.canvasWidth,
+        y: Math.random() * this.canvasHeight,
+        size: Math.random() * 2 + 1,
+        speedX: Math.cos(angleRad) * this.windSpeed * (Math.random() + 0.5),
+        speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5),
+        color: this.DEFAULT_COLOR,
+        lifetime: this.PARTICLE_LIFETIME,
+        trail: [],
+        hasCollided: false,
+        collisionTimer: 0,
+        power: this.windSpeed * Math.random()
+      });
+    }
+  }
+
+  private initializeEnergyMarkers() {
+    this.energyMarkers = [
+      { position: 'left', inflow: 0, outflow: 0 },
+      { position: 'right', inflow: 0, outflow: 0 },
+      { position: 'top', inflow: 0, outflow: 0 },
+      { position: 'bottom', inflow: 0, outflow: 0 }
+    ];
+  }
+
+  public updateDimensions(width: number, height: number) {
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.windTrails.updateDimensions(width, height);
+  }
+
+  public addWindTrail(x: number, y: number, angle: number, power: number) {
+    this.windTrails.addWindTrail(x, y, angle, power);
   }
 
   private updateParticle(particle: WindParticle, deltaTime: number) {
