@@ -15,12 +15,13 @@ export interface WindParticle {
 }
 
 export interface Obstacle {
-  type: "tree" | "building" | "skyscraper";
+  type: "tree" | "building" | "skyscraper" | "wind";
   shape: ObstacleShape;
   x: number;
   y: number;
   width: number;
   height: number;
+  power?: number; // Added for wind type obstacles
 }
 
 export type SimulationMode = "add" | "move" | "resize" | "draw" | "erase" | "wind";

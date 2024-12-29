@@ -29,7 +29,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [windAngle, setWindAngle] = useState(0);
   const [windCurve, setWindCurve] = useState(0.2);
   const [particleDensity, setParticleDensity] = useState(50);
-  const [selectedObstacleType, setSelectedObstacleType] = useState<"tree" | "building" | "skyscraper">("tree");
+  const [selectedObstacleType, setSelectedObstacleType] = useState<"tree" | "building" | "skyscraper" | "wind">("tree");
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [selectedObstacle, setSelectedObstacle] = useState<number | null>(null);
   const [hoveredObstacle, setHoveredObstacle] = useState<number | null>(null);
@@ -90,8 +90,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     if (mode === "wind") {
       const { x, y } = interactionManagerRef.current?.getMousePosition(e) || { x: 0, y: 0 };
       if (particleSystem) {
-        particleSystem.addWindTrail(x, y, currentAngle);
-        setCurrentAngle(prev => (prev + 30) % 360);
+        const blastPower = windMode === "normal" ? localWindSpeed * 2 : localWindSpeed * 4;
+        particleSystem.addWindTrail(x, y, windAngle, blastPower);
       }
       return;
     }
