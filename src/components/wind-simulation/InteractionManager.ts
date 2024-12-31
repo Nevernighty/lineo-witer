@@ -1,4 +1,4 @@
-import { Obstacle, SimulationMode } from './types';
+import { Obstacle, SimulationMode, ObstacleType } from './types';
 
 export class InteractionManager {
   private canvas: HTMLCanvasElement;
@@ -32,7 +32,7 @@ export class InteractionManager {
     e: React.MouseEvent<HTMLCanvasElement>,
     mode: SimulationMode,
     obstacles: Obstacle[],
-    selectedObstacleType: "tree" | "building" | "skyscraper",
+    selectedObstacleType: ObstacleType,
     setObstacles: (obstacles: Obstacle[]) => void,
     setSelectedObstacle: (index: number | null) => void
   ) {
@@ -44,8 +44,8 @@ export class InteractionManager {
           type: selectedObstacleType,
           x,
           y,
-          width: selectedObstacleType === "tree" ? 30 : selectedObstacleType === "building" ? 60 : 80,
-          height: selectedObstacleType === "tree" ? 40 : selectedObstacleType === "building" ? 80 : 120,
+          width: selectedObstacleType === "tree" ? 30 : selectedObstacleType === "building" ? 60 : selectedObstacleType === "wind" ? 40 : 80,
+          height: selectedObstacleType === "tree" ? 40 : selectedObstacleType === "building" ? 80 : selectedObstacleType === "wind" ? 40 : 120,
           shape: "regular"
         };
         setObstacles([...obstacles, newObstacle]);
