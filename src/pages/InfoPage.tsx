@@ -23,6 +23,17 @@ const InfoSection = ({ children }: { children: React.ReactNode }) => {
 };
 
 const InfoPage = () => {
+  // Add default values for WindGenerationCharts props
+  const defaultGeneratorSpecs = {
+    bladeLength: 1.5,
+    efficiency: 0.85,
+    ratedPower: 1000,
+    cutInSpeed: 3,
+    cutOutSpeed: 25,
+    optimalWindSpeed: 12,
+    materialType: 'composite'
+  };
+
   return (
     <ScrollArea className="h-screen">
       <div className="container mx-auto py-8 px-4">
@@ -71,7 +82,10 @@ const InfoPage = () => {
               <Card className="p-6 bg-stalker-dark/30">
                 <h2 className="text-2xl font-bold mb-4">Technical Specifications</h2>
                 <div className="space-y-4">
-                  <WindGenerationCharts />
+                  <WindGenerationCharts 
+                    windSpeed={10} 
+                    generatorSpecs={defaultGeneratorSpecs} 
+                  />
                 </div>
               </Card>
             </div>

@@ -24,6 +24,29 @@ export class ParticleSystem {
     this.lastTime = performance.now();
   }
 
+  public updateDimensions(width: number, height: number) {
+    this.canvasWidth = width;
+    this.canvasHeight = height;
+    this.physics = new ParticlePhysics(width, height, this.windSpeed, this.windAngle, this.windCurve);
+  }
+
+  public addWindTrail(x: number, y: number, angle: number, power: number) {
+    const trailParticle: WindParticle = {
+      x,
+      y,
+      size: 3,
+      speedX: Math.cos(angle * Math.PI / 180) * power,
+      speedY: Math.sin(angle * Math.PI / 180) * power,
+      color: 'rgba(57, 255, 20, 0.8)',
+      lifetime: 100,
+      trail: [],
+      hasCollided: false,
+      collisionTimer: 0,
+      power: power
+    };
+    this.particles.push(trailParticle);
+  }
+
   private createParticles() {
     const particleCount = Math.floor(this.particleDensity * (this.canvasWidth * this.canvasHeight) / 50000);
     
@@ -55,29 +78,22 @@ export class ParticleSystem {
     this.lastTime = currentTime;
 
     this.particles.forEach(particle => {
-      // Update physics
       const updatedParticle = this.physics.updateParticle(particle, deltaTime);
-      
-      // Handle collisions
       this.handleCollisions(updatedParticle);
       
-      // Update trail
       if (particle.trail) {
         particle.trail.unshift({ x: particle.x, y: particle.y });
         if (particle.trail.length > 50) particle.trail.pop();
       }
       
-      // Handle border wrapping
       const { x, y } = this.physics.handleBorderWrapping(updatedParticle);
       particle.x = x;
       particle.y = y;
       
-      // Calculate and update energy
       const particleEnergy = 0.5 * (particle.speedX ** 2 + particle.speedY ** 2);
       this.energyCalculator.addEnergyReading(particleEnergy);
     });
 
-    // Draw everything
     this.draw();
   }
 
@@ -94,7 +110,6 @@ export class ParticleSystem {
           particle.collisionTimer = 30;
           particle.color = 'rgba(255, 182, 193, 0.9)';
           
-          // Calculate reflection
           const centerX = obstacle.x + obstacle.width / 2;
           const centerY = obstacle.y + obstacle.height / 2;
           const normalX = (particle.x - centerX) / (obstacle.width / 2);
@@ -122,7 +137,6 @@ export class ParticleSystem {
 
   private draw() {
     this.particles.forEach(particle => {
-      // Draw trail
       if (particle.trail && particle.trail.length > 1) {
         this.ctx.beginPath();
         this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
@@ -143,7 +157,6 @@ export class ParticleSystem {
         this.ctx.stroke();
       }
 
-      // Draw particle
       this.ctx.shadowBlur = 10;
       this.ctx.shadowColor = particle.color;
       this.ctx.fillStyle = particle.color;

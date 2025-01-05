@@ -1,148 +1,94 @@
 export interface WindGeneratorSpecs {
-  type: string;
-  height: number;
+  bladeLength: number;
   efficiency: number;
-  rotorDiameter: number;
+  ratedPower: number;
   cutInSpeed: number;
   cutOutSpeed: number;
   optimalWindSpeed: number;
-  ratedPower: number;
-  axisOrientation: "horizontal" | "vertical";
-  bladeDesign: "three-blade" | "two-blade" | "darrieus" | "savonius";
-  installationType: "rooftop" | "freestanding" | "hybrid";
-  powerCategory: "micro" | "small" | "medium";
-  purpose: "off-grid" | "grid-tied";
-  material: "abs" | "petg" | "pla" | "pp" | "metal" | "wood" | "carbon-fiber" | "composite";
+  materialType: string;
 }
 
-export const GENERATOR_PRESETS: Record<string, WindGeneratorSpecs> = {
-  "Bergey Excel 10": {
-    type: "Horizontal Axis",
-    height: 30,
-    efficiency: 0.45,
-    rotorDiameter: 7,
-    cutInSpeed: 2.5,
-    cutOutSpeed: 25,
-    optimalWindSpeed: 12,
-    ratedPower: 10000,
-    axisOrientation: "horizontal",
-    bladeDesign: "three-blade",
-    installationType: "freestanding",
-    powerCategory: "medium",
-    purpose: "grid-tied",
-    material: "metal"
-  },
-  "Windspire 1.2": {
-    type: "Vertical Axis",
-    height: 20,
-    efficiency: 0.35,
-    rotorDiameter: 2,
-    cutInSpeed: 3.5,
-    cutOutSpeed: 25,
-    optimalWindSpeed: 10,
-    ratedPower: 1200,
-    axisOrientation: "vertical",
-    bladeDesign: "darrieus",
-    installationType: "rooftop",
-    powerCategory: "small",
-    purpose: "grid-tied",
-    material: "metal"
-  },
-  "GE Haliade-X 14": {
-    type: "Horizontal Axis",
-    height: 150,
-    efficiency: 0.63,
-    rotorDiameter: 220,
-    cutInSpeed: 3,
-    cutOutSpeed: 25,
-    optimalWindSpeed: 13.5,
-    ratedPower: 14000000,
-    axisOrientation: "horizontal",
-    bladeDesign: "three-blade",
-    installationType: "freestanding",
-    powerCategory: "medium",
-    purpose: "grid-tied",
-    material: "composite"
-  },
-  "small": {
-    type: "Small Wind Turbine",
-    height: 30,
-    efficiency: 0.4,
-    rotorDiameter: 10,
-    cutInSpeed: 3,
-    cutOutSpeed: 25,
-    optimalWindSpeed: 12,
-    ratedPower: 1000,
-    axisOrientation: "horizontal",
-    bladeDesign: "three-blade",
-    installationType: "rooftop",
-    powerCategory: "micro",
-    purpose: "off-grid",
-    material: "pla"
-  },
-  "medium": {
-    type: "Medium Wind Turbine",
-    height: 50,
-    efficiency: 0.5,
-    rotorDiameter: 15,
-    cutInSpeed: 3,
-    cutOutSpeed: 25,
-    optimalWindSpeed: 13,
-    ratedPower: 5000,
-    axisOrientation: "horizontal",
-    bladeDesign: "three-blade",
-    installationType: "freestanding",
-    powerCategory: "small",
-    purpose: "grid-tied",
-    material: "metal"
-  },
-  "large": {
-    type: "Large Wind Turbine",
-    height: 80,
-    efficiency: 0.6,
-    rotorDiameter: 25,
-    cutInSpeed: 3,
-    cutOutSpeed: 25,
-    optimalWindSpeed: 14,
-    ratedPower: 10000,
-    axisOrientation: "horizontal",
-    bladeDesign: "three-blade",
-    installationType: "freestanding",
-    powerCategory: "medium",
-    purpose: "grid-tied",
-    material: "composite"
-  },
-};
-
-export const calculateHeightAdjustedWindSpeed = (
-  windSpeed: number,
-  referenceHeight: number,
-  actualHeight: number
-): number => {
-  // Wind shear coefficient (typically 0.143 for open land)
-  const alpha = 0.143;
-  return windSpeed * Math.pow(actualHeight / referenceHeight, alpha);
-};
-
-export const calculatePowerOutput = (
-  windSpeed: number,
-  specs: WindGeneratorSpecs
-): number => {
-  // Air density at sea level (kg/m³)
-  const airDensity = 1.225;
-  
-  // Rotor swept area (m²)
-  const area = Math.PI * Math.pow(specs.rotorDiameter / 2, 2);
-  
-  // Check if wind speed is within operational range
+export const calculatePowerOutput = (windSpeed: number, specs: WindGeneratorSpecs): number => {
   if (windSpeed < specs.cutInSpeed || windSpeed > specs.cutOutSpeed) {
     return 0;
   }
+
+  // Air density at sea level (kg/m³)
+  const airDensity = 1.225;
   
-  // Calculate theoretical power
-  const theoreticalPower = 0.5 * airDensity * area * Math.pow(windSpeed, 3);
+  // Swept area of the turbine (m²)
+  const sweptArea = Math.PI * Math.pow(specs.bladeLength, 2);
   
-  // Apply efficiency and limit to rated power
-  const actualPower = theoreticalPower * specs.efficiency;
-  return Math.min(actualPower, specs.ratedPower);
+  // Basic power calculation using the power equation
+  // P = 0.5 * ρ * A * v³ * Cp
+  // where ρ is air density, A is swept area, v is wind speed, Cp is power coefficient
+  let power = 0.5 * airDensity * sweptArea * Math.pow(windSpeed, 3) * specs.efficiency;
+  
+  // Apply efficiency curve
+  const normalizedSpeed = (windSpeed - specs.cutInSpeed) / (specs.optimalWindSpeed - specs.cutInSpeed);
+  const efficiencyFactor = Math.exp(-Math.pow(normalizedSpeed - 1, 2));
+  power *= efficiencyFactor;
+  
+  // Cap at rated power
+  return Math.min(power, specs.ratedPower);
+};
+
+export const getMaterialEfficiency = (materialType: string): number => {
+  const efficiencies: { [key: string]: number } = {
+    'composite': 0.85,
+    'aluminum': 0.75,
+    'steel': 0.70,
+    'wood': 0.60,
+    'plastic': 0.65,
+    'carbon-fiber': 0.90
+  };
+  
+  return efficiencies[materialType] || 0.70;
+};
+
+export const calculateAnnualEnergy = (
+  averageWindSpeed: number,
+  specs: WindGeneratorSpecs
+): number => {
+  const hoursInYear = 8760;
+  const availabilityFactor = 0.95; // Typical availability factor
+  
+  // Calculate power output at average wind speed
+  const averagePower = calculatePowerOutput(averageWindSpeed, specs);
+  
+  // Annual energy in kWh
+  return averagePower * hoursInYear * availabilityFactor / 1000;
+};
+
+export const getOptimalTowerHeight = (
+  bladeLength: number,
+  terrainRoughness: number
+): number => {
+  // Minimum tower height based on blade length
+  const minHeight = bladeLength * 1.5;
+  
+  // Additional height based on terrain roughness (0-1)
+  const additionalHeight = terrainRoughness * bladeLength * 2;
+  
+  return minHeight + additionalHeight;
+};
+
+export const calculatePaybackPeriod = (
+  installationCost: number,
+  annualEnergy: number,
+  electricityPrice: number
+): number => {
+  const annualRevenue = annualEnergy * electricityPrice;
+  return installationCost / annualRevenue;
+};
+
+export const getWindSpeedAtHeight = (
+  referenceWindSpeed: number,
+  referenceHeight: number,
+  targetHeight: number,
+  roughnessLength: number
+): number => {
+  // Wind shear calculation using log law
+  return referenceWindSpeed * 
+    (Math.log(targetHeight / roughnessLength) / Math.log(referenceHeight / roughnessLength));
 };
