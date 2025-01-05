@@ -23,7 +23,7 @@ const InfoSection = ({ children }: { children: React.ReactNode }) => {
 };
 
 const InfoPage = () => {
-  // Add default values for WindGenerationCharts props
+  // Updated defaultGeneratorSpecs to match WindGeneratorSpecs interface
   const defaultGeneratorSpecs = {
     bladeLength: 1.5,
     efficiency: 0.85,
@@ -31,7 +31,12 @@ const InfoPage = () => {
     cutInSpeed: 3,
     cutOutSpeed: 25,
     optimalWindSpeed: 12,
-    materialType: 'composite'
+    height: 10,
+    material: 'composite',
+    bladedesign: 'three-blade',
+    installationtype: 'rooftop',
+    powercategory: 'small',
+    purpose: 'off-grid'
   };
 
   return (
