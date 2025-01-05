@@ -6,13 +6,14 @@ export class ParticleSystem {
   private trails: WindTrail[] = [];
   private energyMarkers: EnergyMarker[] = [];
   private readonly PARTICLE_LIFETIME = 300;
-  private readonly TRAIL_LENGTH = 30;
+  private readonly TRAIL_LENGTH = 50; // Increased for longer trails
   private readonly COLLISION_COLOR = 'rgba(255, 182, 193, 0.9)';
   private readonly DEFAULT_COLOR = 'rgba(57, 255, 20, 0.8)';
   private windTrails: WindTrails;
   private lastTime: number = 0;
   private readonly SPAWN_INTERVAL = 16;
   private turbulenceOffset: number = 0;
+  private totalCollisionEnergy: number = 0;
 
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -37,10 +38,6 @@ export class ParticleSystem {
     this.windTrails.updateDimensions(width, height);
   }
 
-  public addWindTrail(x: number, y: number, angle: number, power: number) {
-    this.windTrails.addWindTrail(x, y, angle, power);
-  }
-
   private createParticles() {
     const angleRad = (this.windAngle * Math.PI) / 180;
     
@@ -56,7 +53,8 @@ export class ParticleSystem {
         trail: [],
         hasCollided: false,
         collisionTimer: 0,
-        power: this.windSpeed * Math.random()
+        power: this.windSpeed * Math.random(),
+        collisionEnergy: 0
       });
     }
   }
@@ -80,8 +78,16 @@ export class ParticleSystem {
     const turbulence = Math.sin((performance.now() + this.turbulenceOffset) * 0.001) * 0.2;
     
     // Update particle velocity with proper physics
-    particle.speedX = Math.cos(angleRad + curveEffect) * windForce + turbulence;
-    particle.speedY = Math.sin(angleRad + curveEffect) * windForce + turbulence;
+    const targetSpeedX = Math.cos(angleRad + curveEffect) * windForce;
+    const targetSpeedY = Math.sin(angleRad + curveEffect) * windForce;
+    
+    // Smooth velocity changes
+    particle.speedX += (targetSpeedX - particle.speedX) * 0.1;
+    particle.speedY += (targetSpeedY - particle.speedY) * 0.1;
+    
+    // Apply turbulence
+    particle.speedX += turbulence * 0.1;
+    particle.speedY += turbulence * 0.1;
 
     // Apply particle density effect
     const densityFactor = this.particleDensity / 100;
@@ -95,7 +101,7 @@ export class ParticleSystem {
     // Handle obstacle collisions with improved physics
     this.handleObstacleCollisions(particle);
 
-    // Update trail
+    // Update trail with longer persistence
     if (particle.trail) {
       particle.trail.unshift({ x: particle.x, y: particle.y });
       if (particle.trail.length > this.TRAIL_LENGTH) {
@@ -106,7 +112,7 @@ export class ParticleSystem {
     // Check borders and update energy markers
     this.handleBorderCollision(particle);
 
-    // Update lifetime
+    // Update lifetime with slower decay
     particle.lifetime--;
     if (particle.lifetime <= 0) {
       this.resetParticle(particle);
@@ -126,24 +132,26 @@ export class ParticleSystem {
           particle.collisionTimer = 30;
           particle.color = this.COLLISION_COLOR;
 
-          // Calculate reflection vectors
+          // Calculate collision energy
+          const speed = Math.sqrt(particle.speedX ** 2 + particle.speedY ** 2);
+          const collisionEnergy = 0.5 * speed ** 2;
+          particle.collisionEnergy = collisionEnergy;
+          this.totalCollisionEnergy += collisionEnergy;
+
+          // Calculate reflection vectors with improved physics
           const centerX = obstacle.x + obstacle.width / 2;
           const centerY = obstacle.y + obstacle.height / 2;
           const normalX = (particle.x - centerX) / (obstacle.width / 2);
           const normalY = (particle.y - centerY) / (obstacle.height / 2);
           const normalLength = Math.sqrt(normalX * normalX + normalY * normalY);
 
-          // Normalize and apply reflection
+          // Normalize and apply reflection with energy loss
           const nx = normalX / normalLength;
           const ny = normalY / normalLength;
           const dotProduct = particle.speedX * nx + particle.speedY * ny;
 
-          particle.speedX = particle.speedX - 2 * dotProduct * nx;
-          particle.speedY = particle.speedY - 2 * dotProduct * ny;
-
-          // Add energy loss
-          particle.speedX *= 0.8;
-          particle.speedY *= 0.8;
+          particle.speedX = (particle.speedX - 2 * dotProduct * nx) * 0.8;
+          particle.speedY = (particle.speedY - 2 * dotProduct * ny) * 0.8;
         }
       }
     }
@@ -285,5 +293,13 @@ export class ParticleSystem {
       this.ctx.fillText(`Out: ${(marker.outflow * this.windSpeed).toFixed(1)}W`, x, y + 15);
       this.ctx.shadowBlur = 0;
     });
+  }
+
+  public getCollisionEnergy(): number {
+    return this.totalCollisionEnergy;
+  }
+
+  public addWindTrail(x: number, y: number, angle: number, power: number) {
+    this.windTrails.addWindTrail(x, y, angle, power);
   }
 }

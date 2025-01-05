@@ -10,13 +10,14 @@ interface WindControlsProps {
   windCurve: number;
   particleDensity: number;
   selectedMode: SimulationMode;
-  selectedObstacle: "tree" | "building" | "skyscraper";
+  selectedObstacle: "tree" | "building" | "skyscraper" | "wind";
+  collisionEnergy: number;
   onWindSpeedChange: (value: number[]) => void;
   onWindAngleChange: (value: number[]) => void;
   onWindCurveChange: (value: number[]) => void;
   onParticleDensityChange: (value: number[]) => void;
   onModeChange: (mode: SimulationMode) => void;
-  onObstacleTypeChange: (type: "tree" | "building" | "skyscraper") => void;
+  onObstacleTypeChange: (type: "tree" | "building" | "skyscraper" | "wind") => void;
   onClearAll: () => void;
 }
 
@@ -27,6 +28,7 @@ export const WindControls: React.FC<WindControlsProps> = ({
   particleDensity,
   selectedMode,
   selectedObstacle,
+  collisionEnergy,
   onWindSpeedChange,
   onWindAngleChange,
   onWindCurveChange,
@@ -82,6 +84,16 @@ export const WindControls: React.FC<WindControlsProps> = ({
       </div>
 
       <div className="space-y-2">
+        <Label>Collision Energy: {collisionEnergy.toFixed(2)} J</Label>
+        <div className="h-2 bg-stalker-dark rounded overflow-hidden">
+          <div 
+            className="h-full bg-stalker-accent transition-all duration-300"
+            style={{ width: `${Math.min((collisionEnergy / 1000) * 100, 100)}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="space-y-2">
         <Label>Mode</Label>
         <div className="flex gap-2">
           <Button
@@ -126,7 +138,7 @@ export const WindControls: React.FC<WindControlsProps> = ({
         <Label>Obstacle Type</Label>
         <RadioGroup
           defaultValue={selectedObstacle}
-          onValueChange={(value) => onObstacleTypeChange(value as "tree" | "building" | "skyscraper")}
+          onValueChange={(value) => onObstacleTypeChange(value as "tree" | "building" | "skyscraper" | "wind")}
           className="flex gap-4"
         >
           <div className="flex items-center space-x-2">
@@ -140,6 +152,10 @@ export const WindControls: React.FC<WindControlsProps> = ({
           <div className="flex items-center space-x-2">
             <RadioGroupItem value="skyscraper" id="skyscraper" />
             <Label htmlFor="skyscraper">Skyscrapers</Label>
+          </div>
+          <div className="flex items-center space-x-2">
+            <RadioGroupItem value="wind" id="wind" />
+            <Label htmlFor="wind">Wind</Label>
           </div>
         </RadioGroup>
       </div>

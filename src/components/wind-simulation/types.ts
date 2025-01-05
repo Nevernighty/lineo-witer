@@ -14,6 +14,7 @@ export interface WindParticle {
   hasCollided?: boolean;
   collisionTimer: number;
   power?: number;
+  collisionEnergy?: number;
 }
 
 export interface Obstacle {
