@@ -39,6 +39,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [showWindOnly, setShowWindOnly] = useState(false);
   const [currentAngle, setCurrentAngle] = useState(0);
   const [particleSystem, setParticleSystem] = useState<ParticleSystem | null>(null);
+  const [collisionEnergy, setCollisionEnergy] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -176,6 +177,10 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
 
       // Update and render particles
       particleSystem.update();
+      // Update collision energy
+      if (particleSystem) {
+        setCollisionEnergy(particleSystem.getCollisionEnergy());
+      }
 
       animationFrameId = requestAnimationFrame(animate);
     };
@@ -245,7 +250,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
           <Label htmlFor="windOnly">Показувати вітер тільки по краях</Label>
         </div>
 
-        {/* Existing Controls */}
+        {/* Existing Controls with collisionEnergy prop */}
         <WindControls
           windSpeed={localWindSpeed}
           windAngle={windAngle}
@@ -253,6 +258,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
           particleDensity={particleDensity}
           selectedMode={mode}
           selectedObstacle={selectedObstacleType}
+          collisionEnergy={collisionEnergy}
           onWindSpeedChange={handleWindSpeedChange}
           onWindAngleChange={(value) => setWindAngle(value[0])}
           onWindCurveChange={(value) => setWindCurve(value[0])}
