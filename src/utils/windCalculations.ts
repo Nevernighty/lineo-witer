@@ -5,8 +5,25 @@ export interface WindGeneratorSpecs {
   cutInSpeed: number;
   cutOutSpeed: number;
   optimalWindSpeed: number;
-  materialType: string;
+  height: number;
+  material: string;
+  bladedesign: string;
+  installationtype: string;
+  powercategory: string;
+  purpose: string;
 }
+
+export const calculateHeightAdjustedWindSpeed = (
+  baseWindSpeed: number,
+  baseHeight: number,
+  targetHeight: number
+): number => {
+  // Wind shear coefficient (typical value for neutral stability conditions)
+  const alpha = 0.143;
+  
+  // Power law equation for wind speed variation with height
+  return baseWindSpeed * Math.pow(targetHeight / baseHeight, alpha);
+};
 
 export const calculatePowerOutput = (windSpeed: number, specs: WindGeneratorSpecs): number => {
   if (windSpeed < specs.cutInSpeed || windSpeed > specs.cutOutSpeed) {
@@ -33,62 +50,19 @@ export const calculatePowerOutput = (windSpeed: number, specs: WindGeneratorSpec
   return Math.min(power, specs.ratedPower);
 };
 
-export const getMaterialEfficiency = (materialType: string): number => {
-  const efficiencies: { [key: string]: number } = {
-    'composite': 0.85,
-    'aluminum': 0.75,
-    'steel': 0.70,
-    'wood': 0.60,
-    'plastic': 0.65,
-    'carbon-fiber': 0.90
-  };
-  
-  return efficiencies[materialType] || 0.70;
-};
-
-export const calculateAnnualEnergy = (
-  averageWindSpeed: number,
-  specs: WindGeneratorSpecs
-): number => {
-  const hoursInYear = 8760;
-  const availabilityFactor = 0.95; // Typical availability factor
-  
-  // Calculate power output at average wind speed
-  const averagePower = calculatePowerOutput(averageWindSpeed, specs);
-  
-  // Annual energy in kWh
-  return averagePower * hoursInYear * availabilityFactor / 1000;
-};
-
-export const getOptimalTowerHeight = (
-  bladeLength: number,
-  terrainRoughness: number
-): number => {
-  // Minimum tower height based on blade length
-  const minHeight = bladeLength * 1.5;
-  
-  // Additional height based on terrain roughness (0-1)
-  const additionalHeight = terrainRoughness * bladeLength * 2;
-  
-  return minHeight + additionalHeight;
-};
-
-export const calculatePaybackPeriod = (
-  installationCost: number,
-  annualEnergy: number,
-  electricityPrice: number
-): number => {
-  const annualRevenue = annualEnergy * electricityPrice;
-  return installationCost / annualRevenue;
-};
-
-export const getWindSpeedAtHeight = (
-  referenceWindSpeed: number,
-  referenceHeight: number,
-  targetHeight: number,
-  roughnessLength: number
-): number => {
-  // Wind shear calculation using log law
-  return referenceWindSpeed * 
-    (Math.log(targetHeight / roughnessLength) / Math.log(referenceHeight / roughnessLength));
+export const GENERATOR_PRESETS: { [key: string]: WindGeneratorSpecs } = {
+  "GE Haliade-X 14": {
+    bladeLength: 107,
+    efficiency: 0.63,
+    ratedPower: 14000000, // 14 MW
+    cutInSpeed: 3,
+    cutOutSpeed: 25,
+    optimalWindSpeed: 12,
+    height: 150,
+    material: "composite",
+    bladedesign: "three-blade",
+    installationtype: "freestanding",
+    powercategory: "medium",
+    purpose: "grid-tied"
+  }
 };
