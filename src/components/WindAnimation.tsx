@@ -47,7 +47,13 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Initialize ParticleSystem
+    // Add title
+    ctx.font = '24px monospace';
+    ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+    ctx.textAlign = 'center';
+    ctx.fillText('СИМУЛЯЦІЯ', canvas.width / 2, 30);
+
+    // Initialize ParticleSystem with updated physics
     const newParticleSystem = new ParticleSystem(
       ctx,
       canvas.width,
