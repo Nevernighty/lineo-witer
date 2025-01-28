@@ -22,22 +22,11 @@ export class ParticleSystem {
   ) {
     this.energyCalculator = new EnergyCalculator();
     this.createParticles();
-    this.initializeEnergyMarkers();
   }
 
   public updateDimensions(width: number, height: number) {
     this.canvasWidth = width;
     this.canvasHeight = height;
-    this.initializeEnergyMarkers();
-  }
-
-  private initializeEnergyMarkers() {
-    this.energyMarkers = [
-      { position: 'left', inflow: 0, outflow: 0 },
-      { position: 'right', inflow: 0, outflow: 0 },
-      { position: 'top', inflow: 0, outflow: 0 },
-      { position: 'bottom', inflow: 0, outflow: 0 }
-    ];
   }
 
   public addWindTrail(x: number, y: number, angle: number, power: number) {
@@ -45,11 +34,6 @@ export class ParticleSystem {
       x,
       y,
       power: power * 2,
-      lifetime: 60
-    });
-    
-    this.trails.push({
-      points: [{ x, y }],
       lifetime: 60
     });
   }
@@ -64,6 +48,7 @@ export class ParticleSystem {
       this.particles.push(this.createNewParticle());
     }
 
+    // Adjust particle count if needed
     if (this.particles.length > particleCount) {
       this.particles.length = particleCount;
     }
@@ -108,18 +93,19 @@ export class ParticleSystem {
       const dx = particle.x - blast.x;
       const dy = particle.y - blast.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      const influence = Math.max(0, 1 - distance / 100) * blast.power;
-      
-      additionalSpeedX += (dx / distance || 0) * influence;
-      additionalSpeedY += (dy / distance || 0) * influence;
+      if (distance < 200) { // Only affect particles within range
+        const influence = Math.max(0, 1 - distance / 200) * blast.power;
+        additionalSpeedX += (dx / distance || 0) * influence;
+        additionalSpeedY += (dy / distance || 0) * influence;
+      }
     });
     
     // Target speeds with natural movement and blast influence
     const targetSpeedX = Math.cos(finalAngle) * baseSpeed + additionalSpeedX;
     const targetSpeedY = Math.sin(finalAngle) * baseSpeed + additionalSpeedY;
     
-    // Smooth velocity transitions
-    const lerpFactor = 0.1 * deltaTime;
+    // Smooth velocity transitions with deltaTime
+    const lerpFactor = 0.1 * (deltaTime / 16);
     particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
     particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
 
