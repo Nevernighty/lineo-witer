@@ -8,6 +8,7 @@ export class ParticleSystem {
   private lastTime: number = performance.now();
   private readonly MAX_PARTICLES = 150;
   private energyCalculator: EnergyCalculator;
+  private windBlasts: Array<{ x: number; y: number; power: number; lifetime: number }> = [];
   
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -40,6 +41,13 @@ export class ParticleSystem {
   }
 
   public addWindTrail(x: number, y: number, angle: number, power: number) {
+    this.windBlasts.push({
+      x,
+      y,
+      power: power * 2,
+      lifetime: 60
+    });
+    
     this.trails.push({
       points: [{ x, y }],
       lifetime: 60
@@ -56,7 +64,6 @@ export class ParticleSystem {
       this.particles.push(this.createNewParticle());
     }
 
-    // Remove excess particles if density is lowered
     if (this.particles.length > particleCount) {
       this.particles.length = particleCount;
     }
@@ -64,14 +71,15 @@ export class ParticleSystem {
 
   private createNewParticle(x?: number, y?: number): WindParticle {
     const angleRad = (this.windAngle * Math.PI) / 180;
+    const baseSpeed = this.windSpeed * 0.5;
     return {
       x: x ?? Math.random() * this.canvasWidth,
       y: y ?? Math.random() * this.canvasHeight,
       size: Math.random() * 2 + 1,
-      speedX: Math.cos(angleRad) * this.windSpeed * (Math.random() * 0.5 + 0.75),
-      speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() * 0.5 + 0.75),
+      speedX: Math.cos(angleRad) * baseSpeed * (Math.random() * 0.5 + 0.75),
+      speedY: Math.sin(angleRad) * baseSpeed * (Math.random() * 0.5 + 0.75),
       color: 'rgba(57, 255, 20, 0.8)',
-      lifetime: Infinity, // Particles now live forever
+      lifetime: Infinity,
       trail: [],
       hasCollided: false,
       collisionTimer: 0,
@@ -79,24 +87,36 @@ export class ParticleSystem {
     };
   }
 
-  private updateParticle(particle: WindParticle) {
-    const now = performance.now();
-    const deltaTime = (now - this.lastTime) / 16;
-    
-    // Apply wind force with improved physics
+  private updateParticle(particle: WindParticle, deltaTime: number) {
+    // Base wind force
     const angleRad = (this.windAngle * Math.PI) / 180;
     const baseSpeed = this.windSpeed * (0.8 + Math.random() * 0.4);
     
     // Enhanced turbulence and natural variation
+    const now = performance.now();
     const turbulence = Math.sin(now * 0.001 + particle.x * 0.1) * 0.5;
     const curveEffect = Math.sin(particle.x * 0.01 + particle.y * 0.01) * this.windCurve;
     
     // Calculate final angle with improved dynamics
     const finalAngle = angleRad + curveEffect + turbulence * 0.1;
     
-    // Target speeds with natural movement
-    const targetSpeedX = Math.cos(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
-    const targetSpeedY = Math.sin(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
+    // Apply wind blasts influence
+    let additionalSpeedX = 0;
+    let additionalSpeedY = 0;
+    
+    this.windBlasts.forEach(blast => {
+      const dx = particle.x - blast.x;
+      const dy = particle.y - blast.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      const influence = Math.max(0, 1 - distance / 100) * blast.power;
+      
+      additionalSpeedX += (dx / distance || 0) * influence;
+      additionalSpeedY += (dy / distance || 0) * influence;
+    });
+    
+    // Target speeds with natural movement and blast influence
+    const targetSpeedX = Math.cos(finalAngle) * baseSpeed + additionalSpeedX;
+    const targetSpeedY = Math.sin(finalAngle) * baseSpeed + additionalSpeedY;
     
     // Smooth velocity transitions
     const lerpFactor = 0.1 * deltaTime;
@@ -104,10 +124,10 @@ export class ParticleSystem {
     particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
 
     // Apply velocity with deltaTime scaling
-    particle.x += particle.speedX * deltaTime;
-    particle.y += particle.speedY * deltaTime;
+    particle.x += particle.speedX * (deltaTime / 16);
+    particle.y += particle.speedY * (deltaTime / 16);
 
-    // Wrap around screen edges instead of resetting
+    // Wrap around screen edges
     if (particle.x < 0) particle.x = this.canvasWidth;
     if (particle.x > this.canvasWidth) particle.x = 0;
     if (particle.y < 0) particle.y = this.canvasHeight;
@@ -122,16 +142,21 @@ export class ParticleSystem {
     // Calculate and update energy
     const energy = 0.5 * particle.power! * (particle.speedX ** 2 + particle.speedY ** 2);
     this.energyCalculator.addEnergyReading(energy);
-
-    return particle;
   }
 
   public update() {
     const now = performance.now();
+    const deltaTime = now - this.lastTime;
+    
+    // Update wind blasts
+    this.windBlasts = this.windBlasts.filter(blast => {
+      blast.lifetime--;
+      return blast.lifetime > 0;
+    });
     
     // Update particles
     this.particles.forEach(particle => {
-      this.updateParticle(particle);
+      this.updateParticle(particle, deltaTime);
     });
 
     // Draw particles with improved trails
