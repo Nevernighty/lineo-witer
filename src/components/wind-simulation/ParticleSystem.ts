@@ -1,11 +1,13 @@
 import { WindParticle, Obstacle, EnergyMarker } from "./types";
+import { EnergyCalculator } from "./EnergyCalculator";
 
 export class ParticleSystem {
   private particles: WindParticle[] = [];
   private trails: { points: { x: number; y: number }[]; lifetime: number }[] = [];
   private energyMarkers: EnergyMarker[] = [];
   private lastTime: number = performance.now();
-  private readonly MAX_PARTICLES = 150; // Reduced from previous value
+  private readonly MAX_PARTICLES = 150;
+  private energyCalculator: EnergyCalculator;
   
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -17,6 +19,7 @@ export class ParticleSystem {
     private particleDensity: number,
     private obstacles: Obstacle[]
   ) {
+    this.energyCalculator = new EnergyCalculator();
     this.createParticles();
     this.initializeEnergyMarkers();
   }
@@ -50,20 +53,7 @@ export class ParticleSystem {
     );
     
     while (this.particles.length < particleCount) {
-      const angleRad = (this.windAngle * Math.PI) / 180;
-      this.particles.push({
-        x: Math.random() * this.canvasWidth,
-        y: Math.random() * this.canvasHeight,
-        size: Math.random() * 2 + 1,
-        speedX: Math.cos(angleRad) * this.windSpeed * (Math.random() * 0.5 + 0.75),
-        speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() * 0.5 + 0.75),
-        color: 'rgba(57, 255, 20, 0.8)',
-        lifetime: 300,
-        trail: [],
-        hasCollided: false,
-        collisionTimer: 0,
-        power: this.windSpeed
-      });
+      this.particles.push(this.createNewParticle());
     }
 
     // Remove excess particles if density is lowered
@@ -72,34 +62,52 @@ export class ParticleSystem {
     }
   }
 
+  private createNewParticle(x?: number, y?: number): WindParticle {
+    const angleRad = (this.windAngle * Math.PI) / 180;
+    return {
+      x: x ?? Math.random() * this.canvasWidth,
+      y: y ?? Math.random() * this.canvasHeight,
+      size: Math.random() * 2 + 1,
+      speedX: Math.cos(angleRad) * this.windSpeed * (Math.random() * 0.5 + 0.75),
+      speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() * 0.5 + 0.75),
+      color: 'rgba(57, 255, 20, 0.8)',
+      lifetime: Infinity, // Particles now live forever
+      trail: [],
+      hasCollided: false,
+      collisionTimer: 0,
+      power: this.windSpeed
+    };
+  }
+
   private updateParticle(particle: WindParticle) {
     const now = performance.now();
-    const deltaTime = (now - this.lastTime) / 16; // Normalize to ~60fps
+    const deltaTime = (now - this.lastTime) / 16;
     
     // Apply wind force with improved physics
     const angleRad = (this.windAngle * Math.PI) / 180;
     const baseSpeed = this.windSpeed * (0.8 + Math.random() * 0.4);
     
-    // Add natural variation and turbulence
+    // Enhanced turbulence and natural variation
     const turbulence = Math.sin(now * 0.001 + particle.x * 0.1) * 0.5;
     const curveEffect = Math.sin(particle.x * 0.01 + particle.y * 0.01) * this.windCurve;
     
-    // Calculate final angle with dynamics
+    // Calculate final angle with improved dynamics
     const finalAngle = angleRad + curveEffect + turbulence * 0.1;
     
-    // Update velocities with smooth transitions
-    const targetSpeedX = Math.cos(finalAngle) * baseSpeed;
-    const targetSpeedY = Math.sin(finalAngle) * baseSpeed;
+    // Target speeds with natural movement
+    const targetSpeedX = Math.cos(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
+    const targetSpeedY = Math.sin(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
     
+    // Smooth velocity transitions
     const lerpFactor = 0.1 * deltaTime;
     particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
     particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
 
-    // Apply velocity
+    // Apply velocity with deltaTime scaling
     particle.x += particle.speedX * deltaTime;
     particle.y += particle.speedY * deltaTime;
 
-    // Handle borders
+    // Wrap around screen edges instead of resetting
     if (particle.x < 0) particle.x = this.canvasWidth;
     if (particle.x > this.canvasWidth) particle.x = 0;
     if (particle.y < 0) particle.y = this.canvasHeight;
@@ -111,25 +119,11 @@ export class ParticleSystem {
       if (particle.trail.length > 10) particle.trail.pop();
     }
 
-    // Update lifetime
-    particle.lifetime--;
-    if (particle.lifetime <= 0) {
-      this.resetParticle(particle);
-    }
+    // Calculate and update energy
+    const energy = 0.5 * particle.power! * (particle.speedX ** 2 + particle.speedY ** 2);
+    this.energyCalculator.addEnergyReading(energy);
 
     return particle;
-  }
-
-  private resetParticle(particle: WindParticle) {
-    const angleRad = this.windAngle * Math.PI / 180;
-    particle.x = Math.random() * this.canvasWidth;
-    particle.y = Math.random() * this.canvasHeight;
-    particle.speedX = Math.cos(angleRad) * this.windSpeed * (Math.random() + 0.5);
-    particle.speedY = Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5);
-    particle.lifetime = 300;
-    particle.trail = [];
-    particle.hasCollided = false;
-    particle.collisionTimer = 0;
   }
 
   public update() {
@@ -140,35 +134,37 @@ export class ParticleSystem {
       this.updateParticle(particle);
     });
 
-    // Draw particles
+    // Draw particles with improved trails
     this.particles.forEach(particle => {
-      // Draw trail
+      // Draw trail with fade effect
       if (particle.trail && particle.trail.length > 1) {
         this.ctx.beginPath();
         this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
         
-        for (let i = 1; i < particle.trail.length; i++) {
-          this.ctx.lineTo(particle.trail[i].x, particle.trail[i].y);
-        }
+        particle.trail.forEach((point, index) => {
+          const alpha = 1 - (index / particle.trail.length);
+          this.ctx.strokeStyle = `rgba(57, 255, 20, ${alpha * 0.3})`;
+          this.ctx.lineTo(point.x, point.y);
+        });
         
-        this.ctx.strokeStyle = `rgba(57, 255, 20, ${0.3 * (particle.trail.length / 10)})`;
         this.ctx.lineWidth = particle.size / 2;
         this.ctx.stroke();
       }
 
-      // Draw particle
+      // Draw particle with glow effect
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
       this.ctx.fillStyle = particle.color;
+      this.ctx.shadowColor = 'rgba(57, 255, 20, 0.5)';
+      this.ctx.shadowBlur = 5;
       this.ctx.fill();
+      this.ctx.shadowBlur = 0;
     });
 
     this.lastTime = now;
   }
 
   public getCollisionEnergy(): number {
-    return this.particles.reduce((total, particle) => {
-      return total + (0.5 * particle.power! * (particle.speedX ** 2 + particle.speedY ** 2));
-    }, 0);
+    return this.energyCalculator.getAverageEnergy();
   }
 }
