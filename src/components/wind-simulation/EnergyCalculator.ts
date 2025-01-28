@@ -1,6 +1,6 @@
 export class EnergyCalculator {
   private energyHistory: { time: number; value: number }[] = [];
-  private readonly HISTORY_DURATION = 3000; // 3 seconds
+  private readonly HISTORY_DURATION = 3000; // 3 seconds window
 
   constructor() {}
 
@@ -8,7 +8,7 @@ export class EnergyCalculator {
     const now = performance.now();
     this.energyHistory.push({ time: now, value });
     
-    // Clean up old readings
+    // Clean up readings older than 3 seconds
     this.energyHistory = this.energyHistory.filter(
       reading => now - reading.time <= this.HISTORY_DURATION
     );
@@ -16,7 +16,19 @@ export class EnergyCalculator {
 
   public getAverageEnergy(): number {
     if (this.energyHistory.length === 0) return 0;
-    const sum = this.energyHistory.reduce((acc, curr) => acc + curr.value, 0);
-    return sum / this.energyHistory.length;
+    
+    // Calculate weighted average based on time
+    const now = performance.now();
+    let totalWeight = 0;
+    let weightedSum = 0;
+    
+    this.energyHistory.forEach(reading => {
+      const age = now - reading.time;
+      const weight = 1 - (age / this.HISTORY_DURATION);
+      weightedSum += reading.value * weight;
+      totalWeight += weight;
+    });
+    
+    return totalWeight > 0 ? weightedSum / totalWeight : 0;
   }
 }

@@ -7,6 +7,7 @@ export class ParticleSystem {
   private physics: ParticlePhysics;
   private energyCalculator: EnergyCalculator;
   private lastTime: number = 0;
+  private readonly MAX_PARTICLES = 1000;
 
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -30,28 +31,19 @@ export class ParticleSystem {
     this.physics = new ParticlePhysics(width, height, this.windSpeed, this.windAngle, this.windCurve);
   }
 
-  public addWindTrail(x: number, y: number, angle: number, power: number) {
-    const trailParticle: WindParticle = {
-      x,
-      y,
-      size: 3,
-      speedX: Math.cos(angle * Math.PI / 180) * power,
-      speedY: Math.sin(angle * Math.PI / 180) * power,
-      color: 'rgba(57, 255, 20, 0.8)',
-      lifetime: 100,
-      trail: [],
-      hasCollided: false,
-      collisionTimer: 0,
-      power: power
-    };
-    this.particles.push(trailParticle);
-  }
-
   private createParticles() {
-    const particleCount = Math.floor(this.particleDensity * (this.canvasWidth * this.canvasHeight) / 50000);
+    const targetCount = Math.min(
+      Math.floor(this.particleDensity * (this.canvasWidth * this.canvasHeight) / 50000),
+      this.MAX_PARTICLES
+    );
     
-    for (let i = 0; i < particleCount; i++) {
+    while (this.particles.length < targetCount) {
       this.particles.push(this.createParticle());
+    }
+    
+    // Remove excess particles if density is lowered
+    if (this.particles.length > targetCount) {
+      this.particles.length = targetCount;
     }
   }
 
@@ -74,23 +66,32 @@ export class ParticleSystem {
 
   public update() {
     const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastTime;
+    const deltaTime = Math.min(currentTime - this.lastTime, 32); // Cap at ~30 FPS
     this.lastTime = currentTime;
 
+    // Update particle count based on density
+    this.createParticles();
+
     this.particles.forEach(particle => {
+      // Update particle physics
       const updatedParticle = this.physics.updateParticle(particle, deltaTime);
+      
+      // Handle collisions
       this.handleCollisions(updatedParticle);
       
+      // Update trails
       if (particle.trail) {
         particle.trail.unshift({ x: particle.x, y: particle.y });
         if (particle.trail.length > 50) particle.trail.pop();
       }
       
+      // Handle border wrapping
       const { x, y } = this.physics.handleBorderWrapping(updatedParticle);
       particle.x = x;
       particle.y = y;
       
-      const particleEnergy = 0.5 * (particle.speedX ** 2 + particle.speedY ** 2);
+      // Calculate and record energy
+      const particleEnergy = 0.5 * particle.power! * (particle.speedX ** 2 + particle.speedY ** 2);
       this.energyCalculator.addEnergyReading(particleEnergy);
     });
 
@@ -110,18 +111,30 @@ export class ParticleSystem {
           particle.collisionTimer = 30;
           particle.color = 'rgba(255, 182, 193, 0.9)';
           
+          // Calculate collision normal
           const centerX = obstacle.x + obstacle.width / 2;
           const centerY = obstacle.y + obstacle.height / 2;
           const normalX = (particle.x - centerX) / (obstacle.width / 2);
           const normalY = (particle.y - centerY) / (obstacle.height / 2);
           const normalLength = Math.sqrt(normalX ** 2 + normalY ** 2);
           
+          // Normalize vectors
           const nx = normalX / normalLength;
           const ny = normalY / normalLength;
-          const dotProduct = particle.speedX * nx + particle.speedY * ny;
           
-          particle.speedX = (particle.speedX - 2 * dotProduct * nx) * 0.8;
-          particle.speedY = (particle.speedY - 2 * dotProduct * ny) * 0.8;
+          // Calculate reflection
+          const dotProduct = particle.speedX * nx + particle.speedY * ny;
+          const reflectionX = particle.speedX - 2 * dotProduct * nx;
+          const reflectionY = particle.speedY - 2 * dotProduct * ny;
+          
+          // Apply reflection with energy loss
+          const energyLoss = 0.8;
+          particle.speedX = reflectionX * energyLoss;
+          particle.speedY = reflectionY * energyLoss;
+          
+          // Add some randomness to prevent particles from getting stuck
+          particle.speedX += (Math.random() - 0.5) * 0.5;
+          particle.speedY += (Math.random() - 0.5) * 0.5;
         }
       }
     }
@@ -137,6 +150,7 @@ export class ParticleSystem {
 
   private draw() {
     this.particles.forEach(particle => {
+      // Draw trails with fade effect
       if (particle.trail && particle.trail.length > 1) {
         this.ctx.beginPath();
         this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
@@ -157,6 +171,7 @@ export class ParticleSystem {
         this.ctx.stroke();
       }
 
+      // Draw particle with glow effect
       this.ctx.shadowBlur = 10;
       this.ctx.shadowColor = particle.color;
       this.ctx.fillStyle = particle.color;

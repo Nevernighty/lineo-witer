@@ -10,24 +10,27 @@ export class ParticlePhysics {
   ) {}
 
   public updateParticle(particle: WindParticle, deltaTime: number) {
+    // Apply wind force with improved physics
     const angleRad = (this.windAngle * Math.PI) / 180;
     const baseSpeed = this.windSpeed * (0.8 + Math.random() * 0.4);
     
-    // Add natural variation
+    // Enhanced turbulence and natural variation
     const turbulence = Math.sin(performance.now() * 0.001 + particle.x * 0.1) * 0.5;
     const curveEffect = Math.sin(particle.x * 0.01 + particle.y * 0.01) * this.windCurve;
     
-    // Calculate final angle with turbulence and curve
+    // Calculate final angle with improved dynamics
     const finalAngle = angleRad + curveEffect + turbulence * 0.1;
     
-    // Update velocities with smooth interpolation
-    const targetSpeedX = Math.cos(finalAngle) * baseSpeed;
-    const targetSpeedY = Math.sin(finalAngle) * baseSpeed;
+    // Target speeds with natural movement
+    const targetSpeedX = Math.cos(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
+    const targetSpeedY = Math.sin(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
     
-    particle.speedX += (targetSpeedX - particle.speedX) * 0.1;
-    particle.speedY += (targetSpeedY - particle.speedY) * 0.1;
+    // Smooth velocity transitions
+    const lerpFactor = 0.1;
+    particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
+    particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
     
-    // Update position with deltaTime scaling
+    // Apply velocity with deltaTime scaling
     particle.x += particle.speedX * (deltaTime / 16);
     particle.y += particle.speedY * (deltaTime / 16);
     
@@ -39,16 +42,17 @@ export class ParticlePhysics {
     let newX = particle.x;
     let newY = particle.y;
     
+    // Improved border wrapping with smooth transitions
     if (particle.x < -buffer) {
-      newX = this.canvasWidth - buffer;
+      newX = this.canvasWidth + (particle.x % this.canvasWidth);
     } else if (particle.x > this.canvasWidth + buffer) {
-      newX = buffer;
+      newX = particle.x % this.canvasWidth;
     }
     
     if (particle.y < -buffer) {
-      newY = this.canvasHeight - buffer;
+      newY = this.canvasHeight + (particle.y % this.canvasHeight);
     } else if (particle.y > this.canvasHeight + buffer) {
-      newY = buffer;
+      newY = particle.y % this.canvasHeight;
     }
     
     return { x: newX, y: newY };
