@@ -48,7 +48,6 @@ export class ParticleSystem {
       this.particles.push(this.createNewParticle());
     }
 
-    // Adjust particle count if needed
     if (this.particles.length > particleCount) {
       this.particles.length = particleCount;
     }
@@ -73,19 +72,15 @@ export class ParticleSystem {
   }
 
   private updateParticle(particle: WindParticle, deltaTime: number) {
-    // Base wind force
     const angleRad = (this.windAngle * Math.PI) / 180;
     const baseSpeed = this.windSpeed * (0.8 + Math.random() * 0.4);
     
-    // Enhanced turbulence and natural variation
     const now = performance.now();
     const turbulence = Math.sin(now * 0.001 + particle.x * 0.1) * 0.5;
     const curveEffect = Math.sin(particle.x * 0.01 + particle.y * 0.01) * this.windCurve;
     
-    // Calculate final angle with improved dynamics
     const finalAngle = angleRad + curveEffect + turbulence * 0.1;
     
-    // Apply wind blasts influence
     let additionalSpeedX = 0;
     let additionalSpeedY = 0;
     
@@ -93,39 +88,33 @@ export class ParticleSystem {
       const dx = particle.x - blast.x;
       const dy = particle.y - blast.y;
       const distance = Math.sqrt(dx * dx + dy * dy);
-      if (distance < 200) { // Only affect particles within range
+      if (distance < 200) {
         const influence = Math.max(0, 1 - distance / 200) * blast.power;
         additionalSpeedX += (dx / distance || 0) * influence;
         additionalSpeedY += (dy / distance || 0) * influence;
       }
     });
     
-    // Target speeds with natural movement and blast influence
     const targetSpeedX = Math.cos(finalAngle) * baseSpeed + additionalSpeedX;
     const targetSpeedY = Math.sin(finalAngle) * baseSpeed + additionalSpeedY;
     
-    // Smooth velocity transitions with deltaTime
     const lerpFactor = 0.1 * (deltaTime / 16);
     particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
     particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
 
-    // Apply velocity with deltaTime scaling
     particle.x += particle.speedX * (deltaTime / 16);
     particle.y += particle.speedY * (deltaTime / 16);
 
-    // Wrap around screen edges
     if (particle.x < 0) particle.x = this.canvasWidth;
     if (particle.x > this.canvasWidth) particle.x = 0;
     if (particle.y < 0) particle.y = this.canvasHeight;
     if (particle.y > this.canvasHeight) particle.y = 0;
 
-    // Update trail
     if (particle.trail) {
       particle.trail.unshift({ x: particle.x, y: particle.y });
       if (particle.trail.length > 10) particle.trail.pop();
     }
 
-    // Calculate and update energy
     const energy = 0.5 * particle.power! * (particle.speedX ** 2 + particle.speedY ** 2);
     this.energyCalculator.addEnergyReading(energy);
   }
@@ -134,20 +123,16 @@ export class ParticleSystem {
     const now = performance.now();
     const deltaTime = now - this.lastTime;
     
-    // Update wind blasts
     this.windBlasts = this.windBlasts.filter(blast => {
       blast.lifetime--;
       return blast.lifetime > 0;
     });
     
-    // Update particles
     this.particles.forEach(particle => {
       this.updateParticle(particle, deltaTime);
     });
 
-    // Draw particles with improved trails
     this.particles.forEach(particle => {
-      // Draw trail with fade effect
       if (particle.trail && particle.trail.length > 1) {
         this.ctx.beginPath();
         this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
@@ -162,7 +147,6 @@ export class ParticleSystem {
         this.ctx.stroke();
       }
 
-      // Draw particle with glow effect
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
       this.ctx.fillStyle = particle.color;
