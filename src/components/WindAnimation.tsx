@@ -8,7 +8,7 @@ import { ObstacleRenderer } from "./wind-simulation/ObstacleRenderer";
 import { ParticleSystem } from "./wind-simulation/ParticleSystem";
 import { InteractionManager } from "./wind-simulation/InteractionManager";
 import { Obstacle, SimulationMode, ObstacleShape } from "./wind-simulation/types";
-import { Cube } from "@/components/ui/icons";
+import { Cube } from "lucide-react";
 
 export interface WindAnimationProps {
   windSpeed: number;
