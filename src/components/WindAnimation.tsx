@@ -8,6 +8,7 @@ import { ObstacleRenderer } from "./wind-simulation/ObstacleRenderer";
 import { ParticleSystem } from "./wind-simulation/ParticleSystem";
 import { InteractionManager } from "./wind-simulation/InteractionManager";
 import { Obstacle, SimulationMode, ObstacleShape } from "./wind-simulation/types";
+import { Cube } from "@/components/ui/icons";
 
 export interface WindAnimationProps {
   windSpeed: number;
@@ -40,6 +41,9 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [currentAngle, setCurrentAngle] = useState(0);
   const [particleSystem, setParticleSystem] = useState<ParticleSystem | null>(null);
   const [collisionEnergy, setCollisionEnergy] = useState(0);
+  const [is3DMode, setIs3DMode] = useState(false);
+  const [canvasRef3D, setCanvasRef3D] = useState<HTMLCanvasElement | null>(null);
+  const [transitionProgress, setTransitionProgress] = useState(0);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -194,10 +198,48 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     };
   }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle, mode, particleSystem]);
 
+  const handle3DToggle = () => {
+    setIs3DMode(prev => !prev);
+    // Trigger transition animation
+    if (!is3DMode) {
+      // Start transition to 3D
+      setTransitionProgress(0);
+      const animate = () => {
+        setTransitionProgress(prev => {
+          if (prev >= 1) return prev;
+          requestAnimationFrame(animate);
+          return prev + 0.02;
+        });
+      };
+      animate();
+    } else {
+      // Reverse transition
+      setTransitionProgress(1);
+      const animate = () => {
+        setTransitionProgress(prev => {
+          if (prev <= 0) return prev;
+          requestAnimationFrame(animate);
+          return prev - 0.02;
+        });
+      };
+      animate();
+    }
+  };
+
   return (
     <div className="space-y-4" ref={containerRef}>
       <div className="flex flex-col space-y-4 bg-stalker-dark/30 p-4 rounded-lg">
-        {/* Wind Controls */}
+        <div className="flex items-center justify-between">
+          <Button
+            variant={is3DMode ? "default" : "outline"}
+            onClick={handle3DToggle}
+            className="flex items-center gap-2"
+          >
+            <Cube className="w-4 h-4" />
+            3D Mode
+          </Button>
+        </div>
+
         <div className="flex items-center space-x-4">
           <Button
             variant={mode === "wind" ? "default" : "outline"}
@@ -219,28 +261,24 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
           )}
         </div>
 
-        {/* Obstacle Controls */}
-        {mode === "add" && (
-          <div className="flex items-center space-x-4">
-            <Select onValueChange={(val: ObstacleShape) => setSelectedShape(val)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Форма перешкоди" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="regular">Звичайна</SelectItem>
-                <SelectItem value="L">L-подібна</SelectItem>
-                <SelectItem value="T">T-подібна</SelectItem>
-                <SelectItem value="Y">Y-подібна</SelectItem>
-                <SelectItem value="Z">Z-подібна</SelectItem>
-                <SelectItem value="Q">Q-подібна</SelectItem>
-                <SelectItem value="P">P-подібна</SelectItem>
-                <SelectItem value="N">N-подібна</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        )}
+        <div className="flex items-center space-x-4">
+          <Select onValueChange={(val: ObstacleShape) => setSelectedShape(val)}>
+            <SelectTrigger>
+              <SelectValue placeholder="Форма перешкоди" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="regular">Звичайна</SelectItem>
+              <SelectItem value="L">L-подібна</SelectItem>
+              <SelectItem value="T">T-подібна</SelectItem>
+              <SelectItem value="Y">Y-подібна</SelectItem>
+              <SelectItem value="Z">Z-подібна</SelectItem>
+              <SelectItem value="Q">Q-подібна</SelectItem>
+              <SelectItem value="P">P-подібна</SelectItem>
+              <SelectItem value="N">N-подібна</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
-        {/* Wind Generation Settings */}
         <div className="flex items-center space-x-4">
           <Checkbox
             id="windOnly"
@@ -250,7 +288,6 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
           <Label htmlFor="windOnly">Показувати вітер тільки по краях</Label>
         </div>
 
-        {/* Existing Controls with collisionEnergy prop */}
         <WindControls
           windSpeed={localWindSpeed}
           windAngle={windAngle}
@@ -260,24 +297,56 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
           selectedObstacle={selectedObstacleType}
           collisionEnergy={collisionEnergy}
           onWindSpeedChange={handleWindSpeedChange}
-          onWindAngleChange={(value) => setWindAngle(value[0])}
-          onWindCurveChange={(value) => setWindCurve(value[0])}
-          onParticleDensityChange={(value) => setParticleDensity(value[0])}
+          onWindAngleChange={(value) => {
+            setWindAngle(value[0]);
+            if (particleSystem) {
+              particleSystem.updateSettings(localWindSpeed, value[0], windCurve, particleDensity);
+            }
+          }}
+          onWindCurveChange={(value) => {
+            setWindCurve(value[0]);
+            if (particleSystem) {
+              particleSystem.updateSettings(localWindSpeed, windAngle, value[0], particleDensity);
+            }
+          }}
+          onParticleDensityChange={(value) => {
+            setParticleDensity(value[0]);
+            if (particleSystem) {
+              particleSystem.updateSettings(localWindSpeed, windAngle, windCurve, value[0]);
+            }
+          }}
           onModeChange={setMode}
           onObstacleTypeChange={setSelectedObstacleType}
           onClearAll={() => setObstacles([])}
         />
       </div>
 
-      <canvas
-        ref={canvasRef}
-        className="w-full bg-stalker-dark/50 rounded-lg"
-        style={{ height: "50vh" }}
-        onMouseDown={handleMouseDown}
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-        onMouseLeave={handleMouseUp}
-      />
+      <div className="relative">
+        <canvas
+          ref={canvasRef}
+          className={`w-full bg-stalker-dark/50 rounded-lg transition-transform duration-500 ${
+            is3DMode ? 'transform-gpu perspective-1000 rotate-x-12' : ''
+          }`}
+          style={{ 
+            height: "50vh",
+            transform: is3DMode ? `perspective(1000px) rotateX(${12 * transitionProgress}deg)` : 'none'
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+        />
+
+        {is3DMode && (
+          <div 
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: `linear-gradient(rgba(57, 255, 20, ${0.1 * transitionProgress}), transparent)`,
+              boxShadow: `0 0 20px rgba(57, 255, 20, ${0.2 * transitionProgress})`
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 };

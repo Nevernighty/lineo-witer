@@ -1,3 +1,4 @@
+
 import { WindParticle } from './types';
 
 export class ParticlePhysics {
@@ -21,12 +22,12 @@ export class ParticlePhysics {
     // Calculate final angle with improved dynamics
     const finalAngle = angleRad + curveEffect + turbulence * 0.1;
     
-    // Target speeds with natural movement
+    // Target speeds with natural movement and direct wind speed influence
     const targetSpeedX = Math.cos(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
     const targetSpeedY = Math.sin(finalAngle) * baseSpeed * (1 + Math.random() * 0.2);
     
-    // Smooth velocity transitions
-    const lerpFactor = 0.1;
+    // Smooth velocity transitions based on wind speed
+    const lerpFactor = 0.1 * (this.windSpeed / 10); // Faster response at higher wind speeds
     particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
     particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
     
