@@ -10,6 +10,7 @@ export class ParticleSystem {
   private energyCalculator: EnergyCalculator;
   private windBlasts: Array<{ x: number; y: number; power: number; lifetime: number }> = [];
   private animationFrame: number | null = null;
+  private collisionEnergy: number = 0;
   
   constructor(
     private ctx: CanvasRenderingContext2D,
@@ -63,13 +64,43 @@ export class ParticleSystem {
     });
   }
 
+  public addWindWhirl(x: number, y: number) {
+    const particleCount = 12;
+    const radius = 20;
+    
+    for (let i = 0; i < particleCount; i++) {
+      const angle = (i / particleCount) * Math.PI * 2;
+      const particleX = x + Math.cos(angle) * radius;
+      const particleY = y + Math.sin(angle) * radius;
+      
+      const particle = this.createNewParticle(particleX, particleY);
+      particle.speedX = Math.cos(angle) * this.windSpeed * 2;
+      particle.speedY = Math.sin(angle) * this.windSpeed * 2;
+      particle.lifetime = 200;
+      this.particles.push(particle);
+    }
+
+    this.windBlasts.push({
+      x,
+      y,
+      power: this.windSpeed * 3,
+      lifetime: 120
+    });
+  }
+
   private createParticles() {
     const particleCount = Math.min(
       Math.floor(this.particleDensity * (this.canvasWidth * this.canvasHeight) / 100000),
       this.MAX_PARTICLES
     );
     
-    this.particles = Array.from({ length: particleCount }, () => this.createNewParticle());
+    this.particles = this.particles.filter(p => p.lifetime === Infinity);
+    while (this.particles.length < particleCount) {
+      this.particles.push(this.createNewParticle());
+    }
+    if (this.particles.length > particleCount) {
+      this.particles = this.particles.slice(0, particleCount);
+    }
   }
 
   private createNewParticle(x?: number, y?: number): WindParticle {
@@ -86,11 +117,45 @@ export class ParticleSystem {
       trail: [],
       hasCollided: false,
       collisionTimer: 0,
-      power: this.windSpeed
+      power: this.windSpeed,
+      collisionEnergy: 0
     };
   }
 
+  private checkCollision(particle: WindParticle): boolean {
+    for (const obstacle of this.obstacles) {
+      if (
+        particle.x >= obstacle.x &&
+        particle.x <= obstacle.x + obstacle.width &&
+        particle.y >= obstacle.y &&
+        particle.y <= obstacle.y + obstacle.height
+      ) {
+        const speed = Math.sqrt(particle.speedX ** 2 + particle.speedY ** 2);
+        const collisionEnergy = 0.5 * particle.power! * speed ** 2;
+        particle.collisionEnergy = collisionEnergy;
+        this.collisionEnergy += collisionEnergy;
+
+        if (particle.x - obstacle.x < 5) particle.speedX *= -0.8;
+        if (obstacle.x + obstacle.width - particle.x < 5) particle.speedX *= -0.8;
+        if (particle.y - obstacle.y < 5) particle.speedY *= -0.8;
+        if (obstacle.y + obstacle.height - particle.y < 5) particle.speedY *= -0.8;
+
+        particle.hasCollided = true;
+        particle.collisionTimer = 20;
+        return true;
+      }
+    }
+    return false;
+  }
+
   private updateParticle(particle: WindParticle, deltaTime: number) {
+    if (particle.collisionTimer > 0) {
+      particle.collisionTimer--;
+      if (particle.collisionTimer === 0) {
+        particle.hasCollided = false;
+      }
+    }
+
     const angleRad = (this.windAngle * Math.PI) / 180;
     const baseSpeed = Math.max(0.1, this.windSpeed * (0.8 + Math.random() * 0.4));
     
@@ -100,11 +165,9 @@ export class ParticleSystem {
     
     const finalAngle = angleRad + curveEffect + turbulence * 0.1;
     
-    // Apply base wind force
     let targetSpeedX = Math.cos(finalAngle) * baseSpeed;
     let targetSpeedY = Math.sin(finalAngle) * baseSpeed;
     
-    // Apply wind blast effects
     this.windBlasts.forEach(blast => {
       const dx = particle.x - blast.x;
       const dy = particle.y - blast.y;
@@ -115,13 +178,11 @@ export class ParticleSystem {
         targetSpeedY += (dy / distance || 0) * influence;
       }
     });
-    
-    // Update particle velocity with smooth transition
+
     const lerpFactor = 0.1 * (deltaTime / 16);
     particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
     particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
 
-    // Apply minimum speed to ensure particles keep moving
     const minSpeed = 0.1;
     const currentSpeed = Math.sqrt(particle.speedX * particle.speedX + particle.speedY * particle.speedY);
     if (currentSpeed < minSpeed) {
@@ -129,23 +190,24 @@ export class ParticleSystem {
       particle.speedY *= minSpeed / currentSpeed;
     }
 
-    // Update position
-    particle.x += particle.speedX;
-    particle.y += particle.speedY;
+    const nextX = particle.x + particle.speedX;
+    const nextY = particle.y + particle.speedY;
+    
+    particle.x = nextX;
+    particle.y = nextY;
 
-    // Wrap around screen edges
+    this.checkCollision(particle);
+
     if (particle.x < 0) particle.x = this.canvasWidth;
     if (particle.x > this.canvasWidth) particle.x = 0;
     if (particle.y < 0) particle.y = this.canvasHeight;
     if (particle.y > this.canvasHeight) particle.y = 0;
 
-    // Update trail
     if (particle.trail) {
       particle.trail.unshift({ x: particle.x, y: particle.y });
       if (particle.trail.length > 10) particle.trail.pop();
     }
 
-    // Calculate energy
     const energy = 0.5 * particle.power! * (particle.speedX ** 2 + particle.speedY ** 2);
     this.energyCalculator.addEnergyReading(energy);
   }
@@ -154,23 +216,26 @@ export class ParticleSystem {
     const now = performance.now();
     const deltaTime = now - this.lastTime;
     
-    // Clear canvas with fade effect
+    this.collisionEnergy = 0;
+    
     this.ctx.fillStyle = 'rgba(26, 31, 44, 0.2)';
     this.ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
     
-    // Update wind blasts
     this.windBlasts = this.windBlasts.filter(blast => {
       blast.lifetime--;
       return blast.lifetime > 0;
     });
     
-    // Update and draw particles
+    this.particles = this.particles.filter(p => p.lifetime === Infinity || p.lifetime > 0);
+    
     this.particles.forEach(particle => {
+      if (particle.lifetime !== Infinity) {
+        particle.lifetime--;
+      }
       this.updateParticle(particle, deltaTime);
     });
 
     this.particles.forEach(particle => {
-      // Draw trail
       if (particle.trail && particle.trail.length > 1) {
         this.ctx.beginPath();
         this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
@@ -185,20 +250,27 @@ export class ParticleSystem {
         this.ctx.stroke();
       }
 
-      // Draw particle
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-      this.ctx.fillStyle = particle.color;
-      this.ctx.shadowColor = 'rgba(57, 255, 20, 0.5)';
+      this.ctx.fillStyle = particle.hasCollided 
+        ? 'rgba(255, 100, 20, 0.8)' 
+        : particle.color;
+      this.ctx.shadowColor = particle.hasCollided 
+        ? 'rgba(255, 100, 20, 0.5)'
+        : 'rgba(57, 255, 20, 0.5)';
       this.ctx.shadowBlur = 5;
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     });
 
+    this.ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+    this.ctx.font = '14px monospace';
+    this.ctx.fillText(`Collision Energy: ${this.collisionEnergy.toFixed(2)}`, 10, 20);
+
     this.lastTime = now;
   }
 
   public getCollisionEnergy(): number {
-    return this.energyCalculator.getAverageEnergy();
+    return this.collisionEnergy;
   }
 }
