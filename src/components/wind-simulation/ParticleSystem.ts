@@ -216,16 +216,20 @@ export class ParticleSystem {
     const now = performance.now();
     const deltaTime = now - this.lastTime;
     
+    // Reset collision energy
     this.collisionEnergy = 0;
     
+    // Clear canvas with fade effect
     this.ctx.fillStyle = 'rgba(26, 31, 44, 0.2)';
     this.ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
     
+    // Update wind blasts
     this.windBlasts = this.windBlasts.filter(blast => {
       blast.lifetime--;
       return blast.lifetime > 0;
     });
     
+    // Update particles
     this.particles = this.particles.filter(p => p.lifetime === Infinity || p.lifetime > 0);
     
     this.particles.forEach(particle => {
@@ -235,6 +239,7 @@ export class ParticleSystem {
       this.updateParticle(particle, deltaTime);
     });
 
+    // Draw particles and trails
     this.particles.forEach(particle => {
       if (particle.trail && particle.trail.length > 1) {
         this.ctx.beginPath();
@@ -263,11 +268,32 @@ export class ParticleSystem {
       this.ctx.shadowBlur = 0;
     });
 
-    this.ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
-    this.ctx.font = '14px monospace';
-    this.ctx.fillText(`Collision Energy: ${this.collisionEnergy.toFixed(2)}`, 10, 20);
+    // Draw statistics with background
+    this.drawStatistics();
 
     this.lastTime = now;
+  }
+
+  private drawStatistics() {
+    // Create semi-transparent dark background for stats
+    this.ctx.fillStyle = 'rgba(26, 31, 44, 0.97)';
+    this.ctx.fillRect(10, 10, 250, 120);
+    
+    // Draw statistics with improved styling
+    this.ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
+    this.ctx.font = '14px monospace';
+    
+    const stats = [
+      `Collision Energy: ${this.collisionEnergy.toFixed(2)} J`,
+      `Wind Speed: ${this.windSpeed.toFixed(1)} m/s`,
+      `Wind Angle: ${this.windAngle.toFixed(0)}°`,
+      `Wind Curve: ${this.windCurve.toFixed(2)}`,
+      `Particles: ${this.particles.length}`
+    ];
+    
+    stats.forEach((stat, index) => {
+      this.ctx.fillText(stat, 20, 35 + (index * 20));
+    });
   }
 
   public getCollisionEnergy(): number {
