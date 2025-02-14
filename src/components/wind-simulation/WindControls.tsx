@@ -1,4 +1,3 @@
-
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -76,12 +75,12 @@ export const WindControls: React.FC<WindControlsProps> = ({
       </div>
 
       <div className="space-y-2">
-        <Label>Particle Density</Label>
+        <Label>Particle Density: {particleDensity}</Label>
         <Slider
           defaultValue={[particleDensity]}
           max={maxParticles}
-          min={20}
-          step={10}
+          min={0}
+          step={1}
           onValueChange={onParticleDensityChange}
         />
       </div>
