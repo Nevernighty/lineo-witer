@@ -8,7 +8,7 @@ import { ObstacleRenderer } from "./wind-simulation/ObstacleRenderer";
 import { ParticleSystem } from "./wind-simulation/ParticleSystem";
 import { InteractionManager } from "./wind-simulation/InteractionManager";
 import { Obstacle, SimulationMode, ObstacleShape } from "./wind-simulation/types";
-import { Box } from "lucide-react";
+import { Box, Recycle } from "lucide-react";
 import { ThreeScene } from './wind-simulation/ThreeScene';
 
 export interface WindAnimationProps {
@@ -19,7 +19,7 @@ export interface WindAnimationProps {
 }
 
 export const WindAnimation: React.FC<WindAnimationProps> = ({
-  windSpeed,
+  windSpeed: initialWindSpeed = 1, // Set default to 1 m/s
   width = 300,
   height = 300,
   onWindSpeedChange
@@ -27,7 +27,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const interactionManagerRef = useRef<InteractionManager | null>(null);
-  const [localWindSpeed, setLocalWindSpeed] = useState(windSpeed);
+  const [localWindSpeed, setLocalWindSpeed] = useState(initialWindSpeed);
   const [windAngle, setWindAngle] = useState(0);
   const [windCurve, setWindCurve] = useState(0.2);
   const [particleDensity, setParticleDensity] = useState(50);
@@ -45,6 +45,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [is3DMode, setIs3DMode] = useState(false);
   const [canvasRef3D, setCanvasRef3D] = useState<HTMLCanvasElement | null>(null);
   const [transitionProgress, setTransitionProgress] = useState(0);
+  const [isTurboMode, setIsTurboMode] = useState(false);
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
   const [threeScene, setThreeScene] = useState<ThreeScene | null>(null);
   const canvas3DRef = useRef<HTMLCanvasElement>(null);
@@ -136,6 +138,10 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       canvas.style.cursor = "no-drop";
     } else {
       canvas.style.cursor = "default";
+    }
+
+    if (mode === "wind") {
+      setMousePos({ x: e.clientX, y: e.clientY });
     }
 
     interactionManagerRef.current.handleMouseMove(
@@ -255,6 +261,15 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     }
   };
 
+  // Update particle density handler
+  const handleParticleDensityChange = (value: number[]) => {
+    const density = isTurboMode ? Math.min(value[0] * 2, 1000) : Math.min(value[0], 100);
+    setParticleDensity(density);
+    if (particleSystem) {
+      particleSystem.updateSettings(localWindSpeed, windAngle, windCurve, density);
+    }
+  };
+
   return (
     <div className="space-y-4" ref={containerRef}>
       <div className="flex flex-col space-y-4 bg-stalker-dark/30 p-4 rounded-lg">
@@ -278,43 +293,31 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
             Подути
           </Button>
           {mode === "wind" && (
-            <Select onValueChange={(val: "normal" | "trails") => setWindMode(val)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Виберіть режим вітру" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="normal">Звичайний вітер</SelectItem>
-                <SelectItem value="trails">Вітрові сліди</SelectItem>
-              </SelectContent>
-            </Select>
+            <div 
+              className="fixed pointer-events-none"
+              style={{ 
+                left: mousePos.x - 12,
+                top: mousePos.y - 12,
+                transition: 'all 0.1s ease-out'
+              }}
+            >
+              <Recycle 
+                className="w-6 h-6 text-stalker-accent/50 animate-spin"
+                style={{ animationDuration: '2s' }}
+              />
+            </div>
           )}
         </div>
 
         <div className="flex items-center space-x-4">
-          <Select onValueChange={(val: ObstacleShape) => setSelectedShape(val)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Форма перешкоди" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="regular">Звичайна</SelectItem>
-              <SelectItem value="L">L-подібна</SelectItem>
-              <SelectItem value="T">T-подібна</SelectItem>
-              <SelectItem value="Y">Y-подібна</SelectItem>
-              <SelectItem value="Z">Z-подібна</SelectItem>
-              <SelectItem value="Q">Q-подібна</SelectItem>
-              <SelectItem value="P">P-подібна</SelectItem>
-              <SelectItem value="N">N-подібна</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="flex items-center space-x-4">
           <Checkbox
-            id="windOnly"
-            checked={showWindOnly}
-            onCheckedChange={(checked: boolean) => setShowWindOnly(checked)}
+            id="turboMode"
+            checked={isTurboMode}
+            onCheckedChange={(checked: boolean) => setIsTurboMode(checked)}
           />
-          <Label htmlFor="windOnly">Показувати вітер тільки по краях</Label>
+          <Label htmlFor="turboMode">
+            Turbo PC Mode 🚀
+          </Label>
         </div>
 
         <WindControls
@@ -338,15 +341,11 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
               particleSystem.updateSettings(localWindSpeed, windAngle, value[0], particleDensity);
             }
           }}
-          onParticleDensityChange={(value) => {
-            setParticleDensity(value[0]);
-            if (particleSystem) {
-              particleSystem.updateSettings(localWindSpeed, windAngle, windCurve, value[0]);
-            }
-          }}
+          onParticleDensityChange={handleParticleDensityChange}
           onModeChange={setMode}
           onObstacleTypeChange={setSelectedObstacleType}
           onClearAll={() => setObstacles([])}
+          maxParticles={isTurboMode ? 1000 : 100}
         />
       </div>
 
@@ -367,13 +366,23 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
         />
 
         {is3DMode && (
-          <canvas
-            ref={canvas3DRef}
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              opacity: transitionProgress,
-            }}
-          />
+          <>
+            <canvas
+              ref={canvas3DRef}
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                opacity: transitionProgress,
+              }}
+            />
+            <div className="absolute inset-0 pointer-events-none">
+              {/* Coordinate axes */}
+              <div className="absolute left-4 bottom-4 flex items-end gap-2">
+                <div className="h-16 w-0.5 bg-red-500 origin-bottom transform -rotate-90" />
+                <div className="h-16 w-0.5 bg-green-500 origin-bottom" />
+                <div className="h-16 w-0.5 bg-blue-500 origin-bottom transform rotate-45" />
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
