@@ -13,7 +13,7 @@ interface WindControlsProps {
   selectedMode: SimulationMode;
   selectedObstacle: "tree" | "building" | "skyscraper" | "wind";
   collisionEnergy: number;
-  maxParticles?: number; // Add the new prop
+  maxParticles?: number;
   onWindSpeedChange: (value: number[]) => void;
   onWindAngleChange: (value: number[]) => void;
   onWindCurveChange: (value: number[]) => void;
@@ -31,7 +31,7 @@ export const WindControls: React.FC<WindControlsProps> = ({
   selectedMode,
   selectedObstacle,
   collisionEnergy,
-  maxParticles = 100, // Default value if not provided
+  maxParticles = 100,
   onWindSpeedChange,
   onWindAngleChange,
   onWindCurveChange,
@@ -122,7 +122,7 @@ export const WindControls: React.FC<WindControlsProps> = ({
           </Button>
           <Button
             variant={selectedMode === "draw" ? "default" : "outline"}
-            onClick={() => onModeMode("draw")}
+            onClick={() => onModeChange("draw")}
             size="sm"
           >
             Draw
