@@ -1,3 +1,4 @@
+
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -12,6 +13,7 @@ interface WindControlsProps {
   selectedMode: SimulationMode;
   selectedObstacle: "tree" | "building" | "skyscraper" | "wind";
   collisionEnergy: number;
+  maxParticles?: number; // Add the new prop
   onWindSpeedChange: (value: number[]) => void;
   onWindAngleChange: (value: number[]) => void;
   onWindCurveChange: (value: number[]) => void;
@@ -29,6 +31,7 @@ export const WindControls: React.FC<WindControlsProps> = ({
   selectedMode,
   selectedObstacle,
   collisionEnergy,
+  maxParticles = 100, // Default value if not provided
   onWindSpeedChange,
   onWindAngleChange,
   onWindCurveChange,
@@ -76,7 +79,7 @@ export const WindControls: React.FC<WindControlsProps> = ({
         <Label>Particle Density</Label>
         <Slider
           defaultValue={[particleDensity]}
-          max={500}
+          max={maxParticles}
           min={20}
           step={10}
           onValueChange={onParticleDensityChange}
@@ -119,7 +122,7 @@ export const WindControls: React.FC<WindControlsProps> = ({
           </Button>
           <Button
             variant={selectedMode === "draw" ? "default" : "outline"}
-            onClick={() => onModeChange("draw")}
+            onClick={() => onModeMode("draw")}
             size="sm"
           >
             Draw
