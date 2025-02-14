@@ -9,6 +9,7 @@ import { ParticleSystem } from "./wind-simulation/ParticleSystem";
 import { InteractionManager } from "./wind-simulation/InteractionManager";
 import { Obstacle, SimulationMode, ObstacleShape } from "./wind-simulation/types";
 import { Box } from "lucide-react";
+import { ThreeScene } from './wind-simulation/ThreeScene';
 
 export interface WindAnimationProps {
   windSpeed: number;
@@ -45,6 +46,10 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [canvasRef3D, setCanvasRef3D] = useState<HTMLCanvasElement | null>(null);
   const [transitionProgress, setTransitionProgress] = useState(0);
 
+  const [threeScene, setThreeScene] = useState<ThreeScene | null>(null);
+  const canvas3DRef = useRef<HTMLCanvasElement>(null);
+
+  // Effect for particle system initialization
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -52,13 +57,9 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Add title
-    ctx.font = '24px monospace';
-    ctx.fillStyle = 'rgba(57, 255, 20, 0.8)';
-    ctx.textAlign = 'center';
-    ctx.fillText('СИМУЛЯЦІЯ', canvas.width / 2, 30);
+    ctx.fillStyle = 'rgba(26, 31, 44, 0.97)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    // Initialize ParticleSystem with updated physics
     const newParticleSystem = new ParticleSystem(
       ctx,
       canvas.width,
@@ -71,9 +72,11 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     );
 
     setParticleSystem(newParticleSystem);
-
-    // Initialize InteractionManager
     interactionManagerRef.current = new InteractionManager(canvas);
+
+    return () => {
+      newParticleSystem.cleanup();
+    };
   }, []);
 
   useEffect(() => {
@@ -197,6 +200,32 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       }
     };
   }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle, mode, particleSystem]);
+
+  // Effect for 3D scene management
+  useEffect(() => {
+    if (is3DMode && canvas3DRef.current && !threeScene) {
+      const newThreeScene = new ThreeScene(
+        canvas3DRef.current,
+        containerRef.current?.clientWidth || window.innerWidth,
+        containerRef.current?.clientHeight || window.innerHeight
+      );
+      setThreeScene(newThreeScene);
+    }
+
+    return () => {
+      if (threeScene) {
+        threeScene.cleanup();
+      }
+    };
+  }, [is3DMode]);
+
+  // Effect for 3D transition animation
+  useEffect(() => {
+    if (threeScene && is3DMode) {
+      threeScene.updateObstacles(obstacles, transitionProgress);
+      threeScene.render();
+    }
+  }, [transitionProgress, obstacles, is3DMode]);
 
   const handle3DToggle = () => {
     setIs3DMode(prev => !prev);
@@ -324,8 +353,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       <div className="relative">
         <canvas
           ref={canvasRef}
-          className={`w-full bg-stalker-dark/50 rounded-lg transition-transform duration-500 ${
-            is3DMode ? 'transform-gpu perspective-1000 rotate-x-12' : ''
+          className={`w-full bg-stalker-dark/97 rounded-lg transition-transform duration-500 ${
+            is3DMode ? 'transform-gpu perspective-1000 rotate-x-12 opacity-50' : ''
           }`}
           style={{ 
             height: "50vh",
@@ -338,11 +367,11 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
         />
 
         {is3DMode && (
-          <div 
+          <canvas
+            ref={canvas3DRef}
             className="absolute inset-0 pointer-events-none"
             style={{
-              background: `linear-gradient(rgba(57, 255, 20, ${0.1 * transitionProgress}), transparent)`,
-              boxShadow: `0 0 20px rgba(57, 255, 20, ${0.2 * transitionProgress})`
+              opacity: transitionProgress,
             }}
           />
         )}
