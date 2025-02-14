@@ -8,7 +8,7 @@ import { ObstacleRenderer } from "./wind-simulation/ObstacleRenderer";
 import { ParticleSystem } from "./wind-simulation/ParticleSystem";
 import { InteractionManager } from "./wind-simulation/InteractionManager";
 import { Obstacle, SimulationMode, ObstacleShape } from "./wind-simulation/types";
-import { Cube } from "lucide-react";
+import { Box } from "lucide-react";
 
 export interface WindAnimationProps {
   windSpeed: number;
@@ -235,7 +235,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
             onClick={handle3DToggle}
             className="flex items-center gap-2"
           >
-            <Cube className="w-4 h-4" />
+            <Box className="w-4 h-4" />
             3D Mode
           </Button>
         </div>
