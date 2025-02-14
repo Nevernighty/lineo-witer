@@ -70,7 +70,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       windAngle,
       windCurve,
       particleDensity,
-      obstacles
+      obstacles,
+      is3DMode
     );
 
     setParticleSystem(newParticleSystem);

@@ -11,11 +11,13 @@ export class ThreeScene {
   private obstacles3D: THREE.Mesh[] = [];
   private axes: THREE.AxesHelper;
   private animationProgress: number = 0;
+  private gridHelper: THREE.GridHelper;
   
   constructor(canvas: HTMLCanvasElement, width: number, height: number) {
+    // Initialize scene
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
-    this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
+    this.renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
     this.renderer.setSize(width, height);
     
     // Add lighting
@@ -33,6 +35,11 @@ export class ThreeScene {
     this.axes = new THREE.AxesHelper(5);
     this.axes.visible = false;
     this.scene.add(this.axes);
+
+    // Add grid helper
+    this.gridHelper = new THREE.GridHelper(10, 10);
+    this.gridHelper.visible = false;
+    this.scene.add(this.gridHelper);
 
     // Start animation loop
     this.animate();
@@ -54,7 +61,7 @@ export class ThreeScene {
       const geometry = new THREE.BoxGeometry(
         obstacle.width / 50,
         obstacle.height / 50,
-        (obstacle.depth || 1) * progress
+        obstacle.depth || 1
       );
       
       const material = new THREE.MeshPhongMaterial({
@@ -67,15 +74,17 @@ export class ThreeScene {
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.x = (obstacle.x - window.innerWidth / 2) / 50;
       mesh.position.y = -(obstacle.y - window.innerHeight / 2) / 50;
-      mesh.position.z = ((obstacle.z || 0) - window.innerHeight / 4) / 50;
+      mesh.position.z = (obstacle.z || 0) / 50;
       
       this.scene.add(mesh);
       this.obstacles3D.push(mesh);
     });
 
-    // Animate axes appearance
+    // Animate grid and axes appearance
     this.axes.visible = progress > 0;
+    this.gridHelper.visible = progress > 0;
     this.axes.scale.setScalar(progress);
+    this.gridHelper.scale.setScalar(progress);
   }
 
   private animate = () => {
