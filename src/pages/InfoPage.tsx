@@ -7,6 +7,7 @@ import { TurbineCategories } from '@/components/info/TurbineCategories';
 import { PrintableComponents } from '@/components/info/PrintableComponents';
 import { PrintingConsiderations } from '@/components/info/PrintingConsiderations';
 import { WindGenerationCharts } from '@/components/charts/WindGenerationCharts';
+import { WindTurbineModels } from '@/components/info/WindTurbineModels';
 import { Button } from '@/components/ui/button';
 import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
 
@@ -24,7 +25,6 @@ const InfoSection = ({ children }: { children: React.ReactNode }) => {
 };
 
 const InfoPage = () => {
-  // Updated defaultGeneratorSpecs to match WindGeneratorSpecs interface
   const defaultGeneratorSpecs = {
     bladeLength: 1.5,
     efficiency: 0.85,
@@ -95,6 +95,10 @@ const InfoPage = () => {
                 </div>
               </Card>
             </div>
+          </InfoSection>
+
+          <InfoSection>
+            <WindTurbineModels />
           </InfoSection>
 
           <InfoSection>

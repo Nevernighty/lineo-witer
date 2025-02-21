@@ -73,12 +73,7 @@ export class WindParticleSystem {
     particle.z += particle.speedZ;
 
     // Update trail
-    if (particle.trail) {
-      particle.trail.unshift({ x: particle.x, y: particle.y });
-      if (particle.trail.length > 10) {
-        particle.trail.pop();
-      }
-    }
+    this.addParticleTrailPoint(particle);
 
     // Check borders and update energy markers
     this.handleBorderCollision(particle);
@@ -87,6 +82,19 @@ export class WindParticleSystem {
     particle.lifetime--;
     if (particle.lifetime <= 0) {
       this.resetParticle(particle);
+    }
+  }
+
+  private addParticleTrailPoint(particle: WindParticle) {
+    if (particle.trail) {
+      particle.trail.push({ 
+        x: particle.x, 
+        y: particle.y, 
+        z: particle.z || 0 // Provide default z coordinate
+      });
+      if (particle.trail.length > 10) {
+        particle.trail.shift();
+      }
     }
   }
 
