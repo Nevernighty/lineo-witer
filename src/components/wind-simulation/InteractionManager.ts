@@ -42,11 +42,13 @@ export class InteractionManager {
       case "add":
         const newObstacle: Obstacle = {
           type: selectedObstacleType,
+          shape: "regular",
           x,
           y,
+          z: 0,
           width: selectedObstacleType === "tree" ? 30 : selectedObstacleType === "building" ? 60 : selectedObstacleType === "wind" ? 40 : 80,
           height: selectedObstacleType === "tree" ? 40 : selectedObstacleType === "building" ? 80 : selectedObstacleType === "wind" ? 40 : 120,
-          shape: "regular"
+          depth: 1
         };
         setObstacles([...obstacles, newObstacle]);
         break;
@@ -67,7 +69,6 @@ export class InteractionManager {
         if (resizeIndex !== -1) {
           this.isResizing = true;
           setSelectedObstacle(resizeIndex);
-          // Determine which handle was clicked
           const obstacle = obstacles[resizeIndex];
           const handleSize = 8;
           const handles = [
@@ -144,14 +145,12 @@ export class InteractionManager {
           break;
       }
       
-      // Ensure minimum size
       obstacle.width = Math.max(20, obstacle.width);
       obstacle.height = Math.max(20, obstacle.height);
       
       setObstacles(newObstacles);
     }
 
-    // Update hovered state
     const hoveredIndex = this.findObstacleAtPosition(x, y, obstacles);
     setHoveredObstacle(hoveredIndex);
   }

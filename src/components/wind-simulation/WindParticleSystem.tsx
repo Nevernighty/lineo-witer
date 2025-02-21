@@ -52,9 +52,11 @@ export class WindParticleSystem {
       this.particles.push({
         x: Math.random() * this.canvasWidth,
         y: Math.random() * this.canvasHeight,
+        z: 0,
         size: Math.random() * 2 + 1,
         speedX: Math.cos(angleRad) * this.windSpeed * (Math.random() + 0.5),
         speedY: Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5),
+        speedZ: 0,
         color: 'rgba(57, 255, 20, 0.8)',
         lifetime: 300,
         trail: [],
@@ -79,6 +81,7 @@ export class WindParticleSystem {
     // Update position
     particle.x += particle.speedX;
     particle.y += particle.speedY;
+    particle.z += particle.speedZ;
 
     // Update trail
     if (particle.trail) {
@@ -125,6 +128,7 @@ export class WindParticleSystem {
     particle.y = Math.random() * this.canvasHeight;
     particle.speedX = Math.cos(angleRad) * this.windSpeed * (Math.random() + 0.5);
     particle.speedY = Math.sin(angleRad) * this.windSpeed * (Math.random() + 0.5);
+    particle.speedZ = 0;
     particle.lifetime = 300;
     particle.trail = [];
     particle.hasCollided = false;

@@ -19,7 +19,7 @@ export interface WindAnimationProps {
 }
 
 export const WindAnimation: React.FC<WindAnimationProps> = ({
-  windSpeed: initialWindSpeed = 1, // Set default to 1 m/s
+  windSpeed: initialWindSpeed = 1,
   width = 300,
   height = 300,
   onWindSpeedChange
@@ -51,16 +51,12 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const [threeScene, setThreeScene] = useState<ThreeScene | null>(null);
   const canvas3DRef = useRef<HTMLCanvasElement>(null);
 
-  // Effect for particle system initialization
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    ctx.fillStyle = 'rgba(26, 31, 44, 0.97)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const newParticleSystem = new ParticleSystem(
       ctx,
@@ -70,8 +66,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       windAngle,
       windCurve,
       particleDensity,
-      obstacles,
-      is3DMode
+      obstacles
     );
 
     setParticleSystem(newParticleSystem);
@@ -208,13 +203,14 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     };
   }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle, mode, particleSystem]);
 
-  // Effect for 3D scene management
   useEffect(() => {
-    if (is3DMode && canvas3DRef.current && !threeScene) {
+    if (is3DMode && canvas3DRef.current) {
       const newThreeScene = new ThreeScene(
         canvas3DRef.current,
         containerRef.current?.clientWidth || window.innerWidth,
-        containerRef.current?.clientHeight || window.innerHeight
+        containerRef.current?.clientHeight || window.innerHeight,
+        obstacles,
+        transitionProgress
       );
       setThreeScene(newThreeScene);
     }
@@ -224,21 +220,11 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
         threeScene.cleanup();
       }
     };
-  }, [is3DMode]);
-
-  // Effect for 3D transition animation
-  useEffect(() => {
-    if (threeScene && is3DMode) {
-      threeScene.updateObstacles(obstacles, transitionProgress);
-      threeScene.render();
-    }
-  }, [transitionProgress, obstacles, is3DMode]);
+  }, [is3DMode, obstacles, transitionProgress]);
 
   const handle3DToggle = () => {
     setIs3DMode(prev => !prev);
-    // Trigger transition animation
     if (!is3DMode) {
-      // Start transition to 3D
       setTransitionProgress(0);
       const animate = () => {
         setTransitionProgress(prev => {
@@ -249,7 +235,6 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       };
       animate();
     } else {
-      // Reverse transition
       setTransitionProgress(1);
       const animate = () => {
         setTransitionProgress(prev => {
@@ -262,7 +247,6 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     }
   };
 
-  // Update particle density handler
   const handleParticleDensityChange = (value: number[]) => {
     const density = isTurboMode ? Math.min(value[0] * 2, 1000) : Math.min(value[0], 100);
     setParticleDensity(density);
@@ -376,7 +360,6 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
               }}
             />
             <div className="absolute inset-0 pointer-events-none">
-              {/* Coordinate axes */}
               <div className="absolute left-4 bottom-4 flex items-end gap-2">
                 <div className="h-16 w-0.5 bg-red-500 origin-bottom transform -rotate-90" />
                 <div className="h-16 w-0.5 bg-green-500 origin-bottom" />
