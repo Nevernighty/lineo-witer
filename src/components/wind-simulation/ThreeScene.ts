@@ -1,3 +1,4 @@
+
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { Obstacle } from './types';
@@ -15,7 +16,8 @@ export class ThreeScene {
   constructor(
     canvas: HTMLCanvasElement, 
     width: number, 
-    height: number
+    height: number,
+    private zDepth: number = 10
   ) {
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, width / height, 0.1, 1000);
@@ -45,6 +47,7 @@ export class ThreeScene {
   public updateObstacles(obstacles: Obstacle[], progress: number) {
     this.animationProgress = progress;
     
+    // Clean up old obstacles
     this.obstacles3D.forEach(mesh => {
       this.scene.remove(mesh);
       mesh.geometry.dispose();
@@ -59,12 +62,41 @@ export class ThreeScene {
         obstacle.depth || 1
       );
       
-      const material = new THREE.MeshPhongMaterial({
-        color: 0x39ff14,
-        opacity: 0.5,
-        transparent: true,
-        side: THREE.DoubleSide,
-      });
+      let material: THREE.Material;
+      
+      switch (obstacle.type) {
+        case "tree":
+          material = new THREE.MeshPhongMaterial({
+            color: 0x2d4a1c,
+            opacity: 0.8,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+          break;
+        case "building":
+          material = new THREE.MeshPhongMaterial({
+            color: 0x4a4a4a,
+            opacity: 0.8,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+          break;
+        case "skyscraper":
+          material = new THREE.MeshPhongMaterial({
+            color: 0x6e6e6e,
+            opacity: 0.8,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+          break;
+        default:
+          material = new THREE.MeshPhongMaterial({
+            color: 0x39ff14,
+            opacity: 0.5,
+            transparent: true,
+            side: THREE.DoubleSide,
+          });
+      }
       
       const mesh = new THREE.Mesh(geometry, material);
       mesh.position.x = (obstacle.x - window.innerWidth / 2) / 50;
