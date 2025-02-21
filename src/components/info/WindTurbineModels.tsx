@@ -4,7 +4,7 @@ import { TabsList, TabsTrigger, TabsContent, Tabs } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Printer, Wind, Rulers, Thermometer, Tool, RotateCcw } from 'lucide-react';
+import { Printer, Wind, Ruler, Thermometer, Wrench, RotateCcw } from 'lucide-react';
 
 interface ModelCategory {
   emoji: string;
@@ -34,10 +34,50 @@ const categories: ModelCategory[] = [
         description: "No support needed, low friction design with detailed assembly instructions",
         link: "https://www.printables.com/model/123456"
       },
-      // ... more examples
+      {
+        name: "Vertical Wind Turbine",
+        author: "FormFutura B.V.",
+        description: "Efficient vertical axis wind turbine design",
+        link: "https://www.printables.com/model/234567"
+      },
+      {
+        name: "Small wind turbine MK3",
+        author: "rosch8",
+        description: "Compact windmill design for small-scale power generation",
+        link: "https://www.printables.com/model/345678"
+      }
     ]
   },
-  // ... more categories
+  {
+    emoji: "🍃",
+    title: "Decorative Wind Spinners",
+    description: "Aesthetically pleasing wind-powered art and decorative pieces",
+    count: 74,
+    likes: 23142,
+    examples: [
+      {
+        name: "Sunflower Windmill",
+        author: "BamBam Design",
+        description: "Customizable garden windmill system",
+        link: "https://www.printables.com/model/456789"
+      }
+    ]
+  },
+  {
+    emoji: "🌬️",
+    title: "Airflow Tools",
+    description: "Tools for manipulating and studying wind and airflow patterns",
+    count: 26,
+    likes: 9635,
+    examples: [
+      {
+        name: "Wind Tunnel Kit",
+        author: "Jerrod H",
+        description: "Modular wind tunnel for STEM education",
+        link: "https://www.printables.com/model/567890"
+      }
+    ]
+  }
 ];
 
 export const WindTurbineModels = () => {
@@ -64,7 +104,7 @@ export const WindTurbineModels = () => {
               Decorative
             </TabsTrigger>
             <TabsTrigger value="tools" className="flex items-center gap-2">
-              <Rulers className="h-4 w-4" />
+              <Ruler className="h-4 w-4" />
               Tools
             </TabsTrigger>
             <TabsTrigger value="weather" className="flex items-center gap-2">
@@ -72,7 +112,7 @@ export const WindTurbineModels = () => {
               Weather
             </TabsTrigger>
             <TabsTrigger value="hardware" className="flex items-center gap-2">
-              <Tool className="h-4 w-4" />
+              <Wrench className="h-4 w-4" />
               Hardware
             </TabsTrigger>
           </TabsList>
