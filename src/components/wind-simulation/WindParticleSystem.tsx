@@ -1,15 +1,4 @@
-import { WindParticle, Obstacle, EnergyMarker } from "./types";
-
-interface WindParticleSystemProps {
-  ctx: CanvasRenderingContext2D;
-  canvasWidth: number;
-  canvasHeight: number;
-  windSpeed: number;
-  windAngle: number;
-  windCurve: number;
-  particleDensity: number;
-  obstacles: Obstacle[];
-}
+import { WindParticle, Obstacle, EnergyMarker } from './types';
 
 export class WindParticleSystem {
   private particles: WindParticle[] = [];

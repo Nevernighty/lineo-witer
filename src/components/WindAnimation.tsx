@@ -52,6 +52,26 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const canvas3DRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    if (is3DMode && canvas3DRef.current) {
+      const newThreeScene = new ThreeScene(
+        canvas3DRef.current,
+        containerRef.current?.clientWidth || window.innerWidth,
+        containerRef.current?.clientHeight || window.innerHeight
+      );
+      setThreeScene(newThreeScene);
+
+      // Update obstacles separately
+      newThreeScene.updateObstacles(obstacles, transitionProgress);
+    }
+
+    return () => {
+      if (threeScene) {
+        threeScene.cleanup();
+      }
+    };
+  }, [is3DMode, obstacles, transitionProgress]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -202,25 +222,6 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       }
     };
   }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, selectedObstacle, hoveredObstacle, mode, particleSystem]);
-
-  useEffect(() => {
-    if (is3DMode && canvas3DRef.current) {
-      const newThreeScene = new ThreeScene(
-        canvas3DRef.current,
-        containerRef.current?.clientWidth || window.innerWidth,
-        containerRef.current?.clientHeight || window.innerHeight,
-        obstacles,
-        transitionProgress
-      );
-      setThreeScene(newThreeScene);
-    }
-
-    return () => {
-      if (threeScene) {
-        threeScene.cleanup();
-      }
-    };
-  }, [is3DMode, obstacles, transitionProgress]);
 
   const handle3DToggle = () => {
     setIs3DMode(prev => !prev);
