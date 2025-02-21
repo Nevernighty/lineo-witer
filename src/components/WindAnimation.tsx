@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -86,7 +87,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       windAngle,
       windCurve,
       particleDensity,
-      obstacles
+      obstacles,
+      is3DMode // Pass is3DMode as the fifth argument
     );
 
     setParticleSystem(newParticleSystem);
