@@ -184,6 +184,34 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     }
   };
 
+  const handleWindAngleChange = (value: number[]) => {
+    setWindAngle(value[0]);
+    if (particleSystem) {
+      particleSystem.updateSettings(localWindSpeed, value[0], windCurve, particleDensity, is3DMode);
+    }
+  };
+
+  const handleWindCurveChange = (value: number[]) => {
+    setWindCurve(value[0]);
+    if (particleSystem) {
+      particleSystem.updateSettings(localWindSpeed, windAngle, value[0], particleDensity, is3DMode);
+    }
+  };
+
+  const handleParticleDensityChange = (value: number[]) => {
+    const density = isTurboMode ? Math.min(value[0] * 2, 1000) : Math.min(value[0], 100);
+    setParticleDensity(density);
+    if (particleSystem) {
+      particleSystem.updateSettings(
+        localWindSpeed,
+        windAngle,
+        windCurve,
+        density,
+        is3DMode
+      );
+    }
+  };
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas || !particleSystem) return;
@@ -249,20 +277,6 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     }
   };
 
-  const handleParticleDensityChange = (value: number[]) => {
-    const density = isTurboMode ? Math.min(value[0] * 2, 1000) : Math.min(value[0], 100);
-    setParticleDensity(density);
-    if (particleSystem) {
-      particleSystem.updateSettings(
-        localWindSpeed,
-        windAngle,
-        windCurve,
-        density,
-        is3DMode
-      );
-    }
-  };
-
   return (
     <div className="space-y-4" ref={containerRef}>
       <div className="flex flex-col space-y-4 bg-stalker-dark/30 p-4 rounded-lg">
@@ -322,18 +336,8 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
           selectedObstacle={selectedObstacleType}
           collisionEnergy={collisionEnergy}
           onWindSpeedChange={handleWindSpeedChange}
-          onWindAngleChange={(value) => {
-            setWindAngle(value[0]);
-            if (particleSystem) {
-              particleSystem.updateSettings(localWindSpeed, value[0], windCurve, particleDensity);
-            }
-          }}
-          onWindCurveChange={(value) => {
-            setWindCurve(value[0]);
-            if (particleSystem) {
-              particleSystem.updateSettings(localWindSpeed, windAngle, value[0], particleDensity);
-            }
-          }}
+          onWindAngleChange={handleWindAngleChange}
+          onWindCurveChange={handleWindCurveChange}
           onParticleDensityChange={handleParticleDensityChange}
           onModeChange={setMode}
           onObstacleTypeChange={setSelectedObstacleType}
