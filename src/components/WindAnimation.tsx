@@ -179,6 +179,9 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
   const handleWindSpeedChange = (value: number[]) => {
     const newSpeed = value[0];
     setLocalWindSpeed(newSpeed);
+    if (particleSystem) {
+      particleSystem.updateSettings(newSpeed, windAngle, windCurve, particleDensity, is3DMode);
+    }
     if (onWindSpeedChange) {
       onWindSpeedChange(newSpeed);
     }
