@@ -87,7 +87,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
       windCurve,
       particleDensity,
       obstacles,
-      is3DMode // Pass is3DMode as the fifth argument
+      is3DMode
     );
 
     setParticleSystem(newParticleSystem);
