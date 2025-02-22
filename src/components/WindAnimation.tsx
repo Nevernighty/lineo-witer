@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -254,7 +253,13 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     const density = isTurboMode ? Math.min(value[0] * 2, 1000) : Math.min(value[0], 100);
     setParticleDensity(density);
     if (particleSystem) {
-      particleSystem.updateSettings(localWindSpeed, windAngle, windCurve, density);
+      particleSystem.updateSettings(
+        localWindSpeed,
+        windAngle,
+        windCurve,
+        density,
+        is3DMode
+      );
     }
   };
 
