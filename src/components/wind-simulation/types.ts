@@ -17,6 +17,7 @@ export interface WindParticle {
   collisionTimer: number;
   power?: number;
   collisionEnergy?: number;
+  originalColor?: string;
 }
 
 export interface Obstacle {

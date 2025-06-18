@@ -25,7 +25,7 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
 
   const [windSpeed, setWindSpeed] = useState(initialWindSpeed);
   const [windAngle, setWindAngle] = useState(0);
-  const [particleCount, setParticleCount] = useState(50);
+  const [particleCount, setParticleCount] = useState(100);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [mode, setMode] = useState<SimulationMode>("add");
   const [selectedObstacle, setSelectedObstacle] = useState<string>("tree");
@@ -60,11 +60,32 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
     };
   }, [width, height]);
 
+  // Update obstacles in particle system when they change
+  useEffect(() => {
+    if (particleSystemRef.current) {
+      particleSystemRef.current.setObstacles(obstacles);
+    }
+  }, [obstacles]);
+
   // Animation loop
   useEffect(() => {
     const animate = () => {
       if (particleSystemRef.current) {
         particleSystemRef.current.update();
+        
+        // Draw obstacles on top of particles
+        const canvas = canvasRef.current;
+        if (canvas) {
+          const ctx = canvas.getContext('2d');
+          if (ctx && obstacles.length > 0) {
+            ObstacleRenderer({ 
+              ctx, 
+              obstacles, 
+              selectedObstacle: null, 
+              hoveredObstacle: null 
+            });
+          }
+        }
       }
       animationRef.current = requestAnimationFrame(animate);
     };
@@ -76,7 +97,7 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [obstacles]);
 
   // Update particle system when settings change
   useEffect(() => {
@@ -117,10 +138,10 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
   return (
     <div className="space-y-4" ref={containerRef}>
       {/* Controls */}
-      <div className="bg-stalker-dark/30 p-4 rounded-lg space-y-4">
+      <div className="bg-slate-900/30 p-4 rounded-lg space-y-4 backdrop-blur-sm border border-green-500/20">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">
-            <Label>Wind Speed: {windSpeed.toFixed(1)} m/s</Label>
+            <Label className="text-green-400">Wind Speed: {windSpeed.toFixed(1)} m/s</Label>
             <Slider
               value={[windSpeed]}
               onValueChange={(value) => setWindSpeed(value[0])}
@@ -132,7 +153,7 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
           </div>
           
           <div className="space-y-2">
-            <Label>Wind Angle: {windAngle}°</Label>
+            <Label className="text-green-400">Wind Angle: {windAngle}°</Label>
             <Slider
               value={[windAngle]}
               onValueChange={(value) => setWindAngle(value[0])}
@@ -144,12 +165,12 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
           </div>
           
           <div className="space-y-2">
-            <Label>Particles: {particleCount}</Label>
+            <Label className="text-green-400">Particles: {particleCount}</Label>
             <Slider
               value={[particleCount]}
               onValueChange={(value) => setParticleCount(value[0])}
-              min={10}
-              max={200}
+              min={20}
+              max={300}
               step={10}
               className="w-full"
             />
@@ -161,6 +182,7 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
             variant={mode === "add" ? "default" : "outline"}
             onClick={() => setMode("add")}
             size="sm"
+            className="bg-green-600 hover:bg-green-700"
           >
             Add Obstacles
           </Button>
@@ -168,6 +190,7 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
             variant={mode === "wind" ? "default" : "outline"}
             onClick={() => setMode("wind")}
             size="sm"
+            className="bg-blue-600 hover:bg-blue-700"
           >
             Wind Blast
           </Button>
@@ -188,6 +211,7 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
                 variant={selectedObstacle === type ? "default" : "outline"}
                 onClick={() => setSelectedObstacle(type)}
                 size="sm"
+                className={selectedObstacle === type ? "bg-green-600" : ""}
               >
                 {type.charAt(0).toUpperCase() + type.slice(1)}
               </Button>
@@ -200,14 +224,19 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
       <div className="relative">
         <canvas
           ref={canvasRef}
-          className="w-full bg-stalker-dark/97 rounded-lg cursor-crosshair border border-stalker-accent/20"
+          className="w-full bg-slate-900/90 rounded-lg cursor-crosshair border border-green-500/30"
           onClick={handleCanvasClick}
           style={{ maxWidth: '100%', height: 'auto' }}
         />
         
         {/* Instructions */}
-        <div className="absolute top-2 right-2 bg-stalker-dark/80 p-2 rounded text-xs text-stalker-muted">
+        <div className="absolute top-2 right-2 bg-slate-900/80 p-2 rounded text-xs text-green-400 border border-green-500/30">
           {mode === "add" ? "Click to add obstacles" : "Click to create wind blasts"}
+        </div>
+        
+        {/* Collision Info */}
+        <div className="absolute bottom-2 left-2 bg-slate-900/80 p-2 rounded text-xs text-orange-400 border border-orange-500/30">
+          Orange particles = Active collisions | Yellow bursts = Wind blasts
         </div>
       </div>
     </div>
