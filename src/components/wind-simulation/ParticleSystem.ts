@@ -28,7 +28,6 @@ export class ParticleSystem {
     this.energyCalculator = new EnergyCalculator();
     this.is3D = is3D;
     this.createParticles();
-    this.startAnimation();
   }
 
   private createParticles() {
@@ -161,10 +160,10 @@ export class ParticleSystem {
     // Handle boundaries
     this.handleBoundaries(particle);
 
-    // Update trail if it exists
+    // Update trail with improved trail system
     if (particle.trail) {
       particle.trail.unshift({ x: particle.x, y: particle.y, z: particle.z });
-      if (particle.trail.length > 10) particle.trail.pop();
+      if (particle.trail.length > 15) particle.trail.pop();
     }
   }
 
@@ -215,14 +214,6 @@ export class ParticleSystem {
     this.createParticles();
   }
 
-  private startAnimation() {
-    const animate = () => {
-      this.update();
-      this.animationFrame = requestAnimationFrame(animate);
-    };
-    animate();
-  }
-
   public cleanup() {
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
@@ -243,33 +234,17 @@ export class ParticleSystem {
       power: power * 2,
       lifetime: 60
     });
-  }
-
-  public addWindWhirl(x: number, y: number, z: number) {
-    const particleCount = 12;
-    const radius = 20;
     
-    for (let i = 0; i < particleCount; i++) {
-      const angle = (i / particleCount) * Math.PI * 2;
-      const particleX = x + Math.cos(angle) * radius;
-      const particleY = y + Math.sin(angle) * radius;
-      const particleZ = z + Math.cos(angle) * radius;
-      
-      const particle = this.createNewParticle(particleX, particleY, particleZ);
-      particle.speedX = Math.cos(angle) * this.windSpeed * 2;
-      particle.speedY = Math.sin(angle) * this.windSpeed * 2;
-      particle.speedZ = Math.sin(angle) * this.windSpeed * 2;
-      particle.lifetime = 200;
+    // Create a burst of particles at the click location
+    for (let i = 0; i < 10; i++) {
+      const angleRad = (angle + (Math.random() - 0.5) * 60) * Math.PI / 180;
+      const speed = power * (0.5 + Math.random() * 0.5);
+      const particle = this.createNewParticle(x, y, z);
+      particle.speedX = Math.cos(angleRad) * speed;
+      particle.speedY = Math.sin(angleRad) * speed;
+      particle.lifetime = 100;
       this.particles.push(particle);
     }
-
-    this.windBlasts.push({
-      x,
-      y,
-      z,
-      power: this.windSpeed * 3,
-      lifetime: 120
-    });
   }
 
   public update() {
@@ -299,36 +274,41 @@ export class ParticleSystem {
       this.updateParticle(particle, deltaTime);
     });
 
-    // Draw particles and trails
+    // Draw particles and trails with improved rendering
     this.particles.forEach(particle => {
+      // Draw trail first
       if (particle.trail && particle.trail.length > 1) {
         this.ctx.beginPath();
         this.ctx.moveTo(particle.trail[0].x, particle.trail[0].y);
         
-        particle.trail.forEach((point, index) => {
-          const alpha = 1 - (index / particle.trail.length);
-          this.ctx.strokeStyle = `rgba(57, 255, 20, ${alpha * 0.3})`;
-          this.ctx.lineTo(point.x, point.y);
-        });
-        
-        this.ctx.lineWidth = particle.size / 2;
-        this.ctx.stroke();
+        for (let i = 1; i < particle.trail.length; i++) {
+          const alpha = (1 - (i / particle.trail.length)) * 0.5;
+          this.ctx.strokeStyle = particle.hasCollided 
+            ? `rgba(255, 100, 20, ${alpha})` 
+            : `rgba(57, 255, 20, ${alpha})`;
+          this.ctx.lineWidth = particle.size * 0.5;
+          this.ctx.lineTo(particle.trail[i].x, particle.trail[i].y);
+          this.ctx.stroke();
+          this.ctx.beginPath();
+          this.ctx.moveTo(particle.trail[i].x, particle.trail[i].y);
+        }
       }
 
+      // Draw particle
       this.ctx.beginPath();
       this.ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
       this.ctx.fillStyle = particle.hasCollided 
-        ? 'rgba(255, 100, 20, 0.8)' 
+        ? 'rgba(255, 100, 20, 0.9)' 
         : particle.color;
       this.ctx.shadowColor = particle.hasCollided 
         ? 'rgba(255, 100, 20, 0.5)'
         : 'rgba(57, 255, 20, 0.5)';
-      this.ctx.shadowBlur = 5;
+      this.ctx.shadowBlur = particle.hasCollided ? 8 : 5;
       this.ctx.fill();
       this.ctx.shadowBlur = 0;
     });
 
-    // Draw statistics with background
+    // Draw statistics
     this.drawStatistics();
 
     this.lastTime = now;

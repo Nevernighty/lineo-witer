@@ -96,7 +96,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
     return () => {
       newParticleSystem.cleanup();
     };
-  }, []);
+  }, [localWindSpeed, windAngle, windCurve, particleDensity, obstacles, is3DMode]);
 
   useEffect(() => {
     const updateCanvasSize = () => {
@@ -121,10 +121,14 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (mode === "wind") {
-      const { x, y } = interactionManagerRef.current?.getMousePosition(e) || { x: 0, y: 0 };
-      if (particleSystem) {
-        const blastPower = windMode === "normal" ? localWindSpeed * 2 : localWindSpeed * 4;
-        particleSystem.addWindTrail(x, y, windAngle, blastPower);
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        if (particleSystem) {
+          const blastPower = windMode === "normal" ? localWindSpeed * 2 : localWindSpeed * 4;
+          particleSystem.addWindTrail(x, y, 0, windAngle, blastPower);
+        }
       }
       return;
     }
@@ -286,7 +290,7 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
         <div className="flex items-center justify-between">
           <Button
             variant={is3DMode ? "default" : "outline"}
-            onClick={handle3DToggle}
+            onClick={() => setIs3DMode(prev => !prev)}
             className="flex items-center gap-2"
           >
             <Box className="w-4 h-4" />
@@ -360,7 +364,11 @@ export const WindAnimation: React.FC<WindAnimationProps> = ({
             transform: is3DMode ? `perspective(1000px) rotateX(${12 * transitionProgress}deg)` : 'none'
           }}
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
+          onMouseMove={(e) => {
+            if (mode === "wind") {
+              setMousePos({ x: e.clientX, y: e.clientY });
+            }
+          }}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
         />
