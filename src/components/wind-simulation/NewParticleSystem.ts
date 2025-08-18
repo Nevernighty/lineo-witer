@@ -121,19 +121,22 @@ export class NewParticleSystem {
     const time = performance.now() * 0.001;
     
     // Add turbulence for natural movement
-    const turbulence = Math.sin(time + particle.x * 0.01) * 0.5;
+    const turbulence = Math.sin(time + particle.x * 0.01) * 0.3;
     const finalAngle = angleRad + turbulence;
     
-    // Update velocity towards wind direction
-    const targetSpeedX = Math.cos(finalAngle) * this.windSpeed;
-    const targetSpeedY = Math.sin(finalAngle) * this.windSpeed;
+    // Update velocity towards wind direction with proper speed scaling
+    const windForceMultiplier = this.windSpeed * 2; // Make wind more responsive
+    const targetSpeedX = Math.cos(finalAngle) * windForceMultiplier;
+    const targetSpeedY = Math.sin(finalAngle) * windForceMultiplier;
     
-    particle.speedX += (targetSpeedX - particle.speedX) * 0.1;
-    particle.speedY += (targetSpeedY - particle.speedY) * 0.1;
+    // Faster responsiveness to wind changes
+    particle.speedX += (targetSpeedX - particle.speedX) * 0.3;
+    particle.speedY += (targetSpeedY - particle.speedY) * 0.3;
     
-    // Update position
-    particle.x += particle.speedX * deltaTime * 0.1;
-    particle.y += particle.speedY * deltaTime * 0.1;
+    // Update position with proper time scaling (60fps = ~16ms deltaTime)
+    const timeScale = Math.min(deltaTime / 16, 2); // Cap for stability
+    particle.x += particle.speedX * timeScale;
+    particle.y += particle.speedY * timeScale;
     
     // Handle boundaries (wrap around)
     if (particle.x < -10) particle.x = this.width + 10;
