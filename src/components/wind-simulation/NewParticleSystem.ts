@@ -263,24 +263,21 @@ export class NewParticleSystem {
 
   private drawStats() {
     this.ctx.fillStyle = 'rgba(26, 31, 44, 0.9)';
-    this.ctx.fillRect(10, 10, 250, 140);
+    this.ctx.fillRect(10, 10, 120, 60);
     
     this.ctx.fillStyle = 'rgba(57, 255, 20, 0.9)';
-    this.ctx.font = '12px monospace';
+    this.ctx.font = '8px monospace';
     
     const collisionCount = this.particles.filter(p => p.hasCollided).length;
     
     const stats = [
-      `Wind Speed: ${this.windSpeed.toFixed(1)} m/s`,
-      `Wind Angle: ${this.windAngle.toFixed(0)}°`,
-      `Particles: ${this.particles.length}`,
-      `Obstacles: ${this.obstacles.length}`,
-      `Active Collisions: ${collisionCount}`,
-      `Total Collision Energy: ${this.totalCollisionEnergy.toFixed(1)} J`
+      `Wind: ${this.windSpeed.toFixed(1)}m/s`,
+      `Collisions: ${collisionCount}`,
+      `Energy: ${this.totalCollisionEnergy.toFixed(1)}J`
     ];
     
     stats.forEach((stat, index) => {
-      this.ctx.fillText(stat, 20, 30 + index * 18);
+      this.ctx.fillText(stat, 15, 25 + index * 12);
     });
   }
 
