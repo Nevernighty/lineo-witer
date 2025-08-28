@@ -124,19 +124,18 @@ export class NewParticleSystem {
     const turbulence = Math.sin(time + particle.x * 0.01) * 0.3;
     const finalAngle = angleRad + turbulence;
     
-    // Update velocity towards wind direction with proper speed scaling
-    const windForceMultiplier = this.windSpeed * 2; // Make wind more responsive
+    // Much stronger wind force to ensure visible movement
+    const windForceMultiplier = Math.max(this.windSpeed * 5, 10); // Minimum movement
     const targetSpeedX = Math.cos(finalAngle) * windForceMultiplier;
     const targetSpeedY = Math.sin(finalAngle) * windForceMultiplier;
     
-    // Faster responsiveness to wind changes
-    particle.speedX += (targetSpeedX - particle.speedX) * 0.3;
-    particle.speedY += (targetSpeedY - particle.speedY) * 0.3;
+    // Apply wind force directly for immediate effect
+    particle.speedX = targetSpeedX + (Math.random() - 0.5) * 2;
+    particle.speedY = targetSpeedY + (Math.random() - 0.5) * 2;
     
-    // Update position with proper time scaling (60fps = ~16ms deltaTime)
-    const timeScale = Math.min(deltaTime / 16, 2); // Cap for stability
-    particle.x += particle.speedX * timeScale;
-    particle.y += particle.speedY * timeScale;
+    // Move particles with fixed speed regardless of deltaTime issues
+    particle.x += particle.speedX * 0.5;
+    particle.y += particle.speedY * 0.5;
     
     // Handle boundaries (wrap around)
     if (particle.x < -10) particle.x = this.width + 10;
@@ -239,14 +238,14 @@ export class NewParticleSystem {
 
   public update() {
     const currentTime = performance.now();
-    const deltaTime = currentTime - this.lastTime;
+    const deltaTime = Math.min(currentTime - this.lastTime, 32); // Cap deltaTime for stability
     this.lastTime = currentTime;
     
     // Decay collision energy over time
     this.totalCollisionEnergy *= 0.995;
     
-    // Clear canvas with fade effect
-    this.ctx.fillStyle = 'rgba(26, 31, 44, 0.1)';
+    // Clear canvas completely for smooth animation
+    this.ctx.fillStyle = 'rgba(15, 23, 42, 0.95)';
     this.ctx.fillRect(0, 0, this.width, this.height);
     
     // Update and draw particles
