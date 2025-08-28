@@ -118,6 +118,7 @@ export const SimpleWindAnimation: React.FC<SimpleWindAnimationProps> = ({
       // Add obstacle
       const newObstacle: Obstacle = {
         type: selectedObstacle as any,
+        category: 'structure', // Default category
         shape: "regular",
         x: x - 25,
         y: y - 25,

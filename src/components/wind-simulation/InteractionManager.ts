@@ -42,12 +42,13 @@ export class InteractionManager {
       case "add":
         const newObstacle: Obstacle = {
           type: selectedObstacleType,
+          category: 'structure', // Default category
           shape: "regular",
           x,
           y,
           z: 0,
-          width: selectedObstacleType === "tree" ? 30 : selectedObstacleType === "building" ? 60 : selectedObstacleType === "wind" ? 40 : 80,
-          height: selectedObstacleType === "tree" ? 40 : selectedObstacleType === "building" ? 80 : selectedObstacleType === "wind" ? 40 : 120,
+          width: selectedObstacleType === "tree" ? 30 : selectedObstacleType === "building" ? 60 : 80,
+          height: selectedObstacleType === "tree" ? 40 : selectedObstacleType === "building" ? 80 : 120,
           depth: 1
         };
         setObstacles([...obstacles, newObstacle]);
