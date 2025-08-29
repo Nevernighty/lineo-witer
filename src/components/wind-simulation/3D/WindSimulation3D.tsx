@@ -82,20 +82,26 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         onPointerDown={(e) => {
           if (e.altKey) return; // Allow camera controls with Alt
           
-          // Convert screen coordinates to world coordinates
-          const target = e.target as HTMLElement;
-          if (!target.getBoundingClientRect) return;
-          
-          const rect = target.getBoundingClientRect();
-          const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-          const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-          
-          // Simple 3D point calculation
-          addObstacle(
-            x * simulationSize.width / 2,
-            0,
-            y * simulationSize.depth / 2
-          );
+          try {
+            // Convert screen coordinates to world coordinates
+            const target = e.target as HTMLElement;
+            if (!target || typeof target.getBoundingClientRect !== 'function') return;
+            
+            const rect = target.getBoundingClientRect();
+            if (!rect) return;
+            
+            const x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            const y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            // Simple 3D point calculation
+            addObstacle(
+              x * simulationSize.width / 2,
+              0,
+              y * simulationSize.depth / 2
+            );
+          } catch (error) {
+            console.warn('Error handling canvas interaction:', error);
+          }
         }}
       >
         <Suspense fallback={null}>
