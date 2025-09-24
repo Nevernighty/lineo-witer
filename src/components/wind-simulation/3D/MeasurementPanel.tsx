@@ -40,7 +40,7 @@ export const MeasurementPanel: React.FC<MeasurementPanelProps> = ({
     : 0;
 
   return (
-    <div className="absolute top-4 left-4 space-y-3 max-w-xs">
+    <div className="absolute top-4 left-4 space-y-3 max-w-xs z-10 max-h-[calc(100%-2rem)] overflow-y-auto">
       {/* Wind Parameters */}
       <Card className="bg-slate-900/90 border-green-500/30">
         <CardHeader className="pb-2">

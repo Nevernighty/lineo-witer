@@ -74,11 +74,11 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   };
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full min-h-96">
       {/* 3D Canvas */}
       <Canvas
         camera={{ position: [50, 30, 50], fov: 60 }}
-        style={{ width: width, height: height }}
+        style={{ width: '100%', height: '100%' }}
         onPointerDown={(e) => {
           if (e.altKey) return; // Allow camera controls with Alt
           
@@ -155,7 +155,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       </Canvas>
 
       {/* Control Panel */}
-      <div className="absolute top-4 right-4 space-y-3 max-w-xs">
+      <div className="absolute top-4 right-4 space-y-3 max-w-xs z-10 max-h-[calc(100%-2rem)] overflow-y-auto">
         <div className="bg-slate-900/90 p-4 rounded-lg space-y-4 border border-green-500/20">
           <div className="space-y-3">
             <div>

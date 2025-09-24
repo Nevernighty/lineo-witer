@@ -120,8 +120,8 @@ const Index = () => {
           ) : (
             <>
               <LocationDisplay location={location} />
-              <div className="mt-4 p-4 bg-stalker-dark/30 rounded-lg">
-                <WindAnimation windSpeed={windSpeed} width={300} height={200} />
+              <div className="mt-4 relative w-full h-96 bg-stalker-dark/30 rounded-lg overflow-hidden">
+                <WindAnimation windSpeed={windSpeed} width={800} height={384} />
               </div>
             </>
           )}
