@@ -40,13 +40,13 @@ export const MeasurementPanel: React.FC<MeasurementPanelProps> = ({
     : 0;
 
   return (
-    <div className="absolute top-4 left-4 space-y-3 max-w-xs z-10 max-h-[calc(100%-2rem)] overflow-y-auto">
+    <div className="absolute top-4 left-4 space-y-2 max-w-xs z-10">
       {/* Wind Parameters */}
       <Card className="bg-slate-900/90 border-green-500/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-green-400">Wind Parameters</CardTitle>
+        <CardHeader className="pb-1 pt-2 px-3">
+          <CardTitle className="text-xs text-green-400">Wind Parameters</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-1 pt-1 px-3 pb-2">
           <div className="flex justify-between text-xs">
             <span className="text-slate-300">Speed:</span>
             <span className="text-green-400">{windSpeed.toFixed(1)} m/s</span>
@@ -67,10 +67,10 @@ export const MeasurementPanel: React.FC<MeasurementPanelProps> = ({
 
       {/* Collision Analysis */}
       <Card className="bg-slate-900/90 border-orange-500/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-orange-400">Collision Analysis</CardTitle>
+        <CardHeader className="pb-1 pt-2 px-3">
+          <CardTitle className="text-xs text-orange-400">Collision Analysis</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-1 pt-1 px-3 pb-2">
           <div className="flex justify-between text-xs">
             <span className="text-slate-300">Active:</span>
             <span className="text-orange-400">{activeCollisions}</span>
@@ -89,12 +89,12 @@ export const MeasurementPanel: React.FC<MeasurementPanelProps> = ({
         </CardContent>
       </Card>
 
-      {/* Obstacle Statistics */}
+      {/* Environment */}
       <Card className="bg-slate-900/90 border-blue-500/30">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm text-blue-400">Environment</CardTitle>
+        <CardHeader className="pb-1 pt-2 px-3">
+          <CardTitle className="text-xs text-blue-400">Environment</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-1 pt-1 px-3 pb-2">
           <div className="flex justify-between text-xs">
             <span className="text-slate-300">Particles:</span>
             <span className="text-blue-400">{particleCount}</span>

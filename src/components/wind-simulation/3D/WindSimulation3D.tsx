@@ -155,9 +155,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       </Canvas>
 
       {/* Control Panel */}
-      <div className="absolute top-4 right-4 space-y-3 max-w-xs z-10 max-h-[calc(100%-2rem)] overflow-y-auto">
-        <div className="bg-slate-900/90 p-4 rounded-lg space-y-4 border border-green-500/20">
-          <div className="space-y-3">
+      <div className="absolute top-4 right-4 space-y-2 max-w-xs z-10">
+        <div className="bg-slate-900/90 p-3 rounded-lg space-y-3 border border-green-500/20">
+          <div className="space-y-2">
             <div>
               <Label className="text-green-400 text-xs">Wind Speed: {windSpeed.toFixed(1)} m/s</Label>
               <Slider
@@ -207,7 +207,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             </div>
           </div>
 
-          <div className="space-y-2">
+          <div className="space-y-1">
             <Label className="text-blue-400 text-xs">Add Obstacle:</Label>
             <Select value={selectedObstacleType} onValueChange={setSelectedObstacleType}>
               <SelectTrigger className="h-8 text-xs">
@@ -244,8 +244,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             </Button>
           </div>
 
-          <div className="text-xs text-slate-400">
-            Click to add obstacles • Alt+Drag to rotate view
+          <div className="text-xs text-slate-400 leading-tight">
+            Click to add obstacles<br />Alt+Drag to rotate view
           </div>
         </div>
       </div>
