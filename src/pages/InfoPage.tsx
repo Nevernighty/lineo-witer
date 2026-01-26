@@ -1,119 +1,94 @@
-
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  Wind, Zap, ArrowLeft, BookOpen, Gauge, Factory, 
+  Leaf, TrendingUp, Globe, Battery, Settings, Thermometer,
+  FileText, Calculator, Target
+} from 'lucide-react';
 import { Card } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
+import { WindEnergyFundamentals } from '@/components/info/WindEnergyFundamentals';
 import { TurbineCategories } from '@/components/info/TurbineCategories';
 import { PrintableComponents } from '@/components/info/PrintableComponents';
-import { PrintingConsiderations } from '@/components/info/PrintingConsiderations';
-import { WindGenerationCharts } from '@/components/charts/WindGenerationCharts';
-import { WindTurbineModels } from '@/components/info/WindTurbineModels';
-import { Button } from '@/components/ui/button';
-import { HoverCard, HoverCardContent, HoverCardTrigger } from '@/components/ui/hover-card';
-
-const InfoSection = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      className="space-y-6"
-    >
-      {children}
-    </motion.div>
-  );
-};
+import { UkraineWindPotential } from '@/components/info/UkraineWindPotential';
+import { TechnicalSpecs } from '@/components/info/TechnicalSpecs';
 
 const InfoPage = () => {
-  const defaultGeneratorSpecs = {
-    bladeLength: 1.5,
-    efficiency: 0.85,
-    ratedPower: 1000,
-    cutInSpeed: 3,
-    cutOutSpeed: 25,
-    optimalWindSpeed: 12,
-    height: 10,
-    material: 'composite',
-    bladedesign: 'three-blade',
-    installationtype: 'rooftop',
-    powercategory: 'small',
-    purpose: 'off-grid'
-  };
-
   return (
-    <ScrollArea className="h-screen">
-      <div className="container mx-auto py-8 px-4">
-        <div className="grid gap-8">
-          <InfoSection>
-            <div className="grid md:grid-cols-2 gap-6">
-              <Card className="p-6 bg-stalker-dark/30">
-                <h2 className="text-2xl font-bold mb-4">Wind Energy Basics</h2>
-                <div className="space-y-4">
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start">
-                        Power Generation Principles
-                      </Button>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-80">
-                      <div className="space-y-2">
-                        <h4 className="font-medium">How Wind Turbines Work</h4>
-                        <p className="text-sm text-stalker-muted">
-                          Wind turbines convert kinetic energy from moving air into mechanical
-                          energy and then electrical power through electromagnetic induction.
-                        </p>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-
-                  <HoverCard>
-                    <HoverCardTrigger asChild>
-                      <Button variant="outline" className="w-full justify-start">
-                        Efficiency Factors
-                      </Button>
-                    </HoverCardTrigger>
-                    <HoverCardContent className="w-80">
-                      <div className="space-y-2">
-                        <h4 className="font-medium">Key Performance Factors</h4>
-                        <p className="text-sm text-stalker-muted">
-                          Turbine efficiency depends on blade design, wind speed, air density,
-                          and proper positioning relative to wind direction.
-                        </p>
-                      </div>
-                    </HoverCardContent>
-                  </HoverCard>
-                </div>
-              </Card>
-
-              <Card className="p-6 bg-stalker-dark/30">
-                <h2 className="text-2xl font-bold mb-4">Technical Specifications</h2>
-                <div className="space-y-4">
-                  <WindGenerationCharts 
-                    windSpeed={10} 
-                    generatorSpecs={defaultGeneratorSpecs} 
-                  />
-                </div>
-              </Card>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-50 bg-card/95 backdrop-blur-sm border-b border-border/50">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link 
+              to="/" 
+              className="p-2 rounded-lg hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div className="flex items-center gap-2">
+              <Wind className="w-5 h-5 text-primary" />
+              <h1 className="text-lg font-bold">Wind Energy Knowledge Base</h1>
             </div>
-          </InfoSection>
-
-          <InfoSection>
-            <WindTurbineModels />
-          </InfoSection>
-
-          <InfoSection>
-            <TurbineCategories />
-          </InfoSection>
-
-          <InfoSection>
-            <div className="grid md:grid-cols-2 gap-6">
-              <PrintableComponents />
-              <PrintingConsiderations />
-            </div>
-          </InfoSection>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            <BookOpen className="w-3 h-3 mr-1" />
+            Scientific Reference
+          </Badge>
         </div>
-      </div>
-    </ScrollArea>
+      </header>
+
+      {/* Main Content */}
+      <main className="container mx-auto px-4 py-6">
+        <Tabs defaultValue="fundamentals" className="space-y-6">
+          <TabsList className="grid grid-cols-5 gap-2 bg-card/50 p-1 h-auto">
+            <TabsTrigger value="fundamentals" className="flex items-center gap-2 py-2 text-xs">
+              <Zap className="w-4 h-4" />
+              <span className="hidden sm:inline">Fundamentals</span>
+            </TabsTrigger>
+            <TabsTrigger value="potential" className="flex items-center gap-2 py-2 text-xs">
+              <Globe className="w-4 h-4" />
+              <span className="hidden sm:inline">Wind Potential</span>
+            </TabsTrigger>
+            <TabsTrigger value="turbines" className="flex items-center gap-2 py-2 text-xs">
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Turbines</span>
+            </TabsTrigger>
+            <TabsTrigger value="printing" className="flex items-center gap-2 py-2 text-xs">
+              <Factory className="w-4 h-4" />
+              <span className="hidden sm:inline">3D Printing</span>
+            </TabsTrigger>
+            <TabsTrigger value="technical" className="flex items-center gap-2 py-2 text-xs">
+              <Calculator className="w-4 h-4" />
+              <span className="hidden sm:inline">Technical</span>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="fundamentals" className="space-y-6">
+            <WindEnergyFundamentals />
+          </TabsContent>
+
+          <TabsContent value="potential" className="space-y-6">
+            <UkraineWindPotential />
+          </TabsContent>
+
+          <TabsContent value="turbines" className="space-y-6">
+            <TurbineCategories />
+          </TabsContent>
+
+          <TabsContent value="printing" className="space-y-6">
+            <PrintableComponents />
+          </TabsContent>
+
+          <TabsContent value="technical" className="space-y-6">
+            <TechnicalSpecs />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
   );
 };
 
