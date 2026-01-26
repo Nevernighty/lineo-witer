@@ -1,8 +1,27 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { WindParticle, Obstacle } from '../types';
-import { Particle3D } from './Particle3D';
+import { Obstacle } from '../types';
+import { InstancedParticles } from './InstancedParticles';
 import * as THREE from 'three';
+
+interface WindParticle {
+  x: number;
+  y: number;
+  z: number;
+  size: number;
+  speedX: number;
+  speedY: number;
+  speedZ: number;
+  hasCollided: boolean;
+  collisionTimer: number;
+  power: number;
+}
+
+interface CollisionEvent {
+  id: string;
+  position: [number, number, number];
+  intensity: number;
+}
 
 interface ParticleSystem3DProps {
   windSpeed: number;
@@ -14,6 +33,7 @@ interface ParticleSystem3DProps {
   height: number;
   depth: number;
   onCollisionEnergyUpdate: (energy: number) => void;
+  onCollisionEvent?: (event: CollisionEvent) => void;
 }
 
 export const ParticleSystem3D: React.FC<ParticleSystem3DProps> = ({
@@ -25,196 +45,166 @@ export const ParticleSystem3D: React.FC<ParticleSystem3DProps> = ({
   width,
   height,
   depth,
-  onCollisionEnergyUpdate
+  onCollisionEnergyUpdate,
+  onCollisionEvent
 }) => {
-  const [particles, setParticles] = useState<WindParticle[]>([]);
-  const [collisionEnergy, setCollisionEnergy] = useState(0);
-  const systemRef = useRef<THREE.Group>(null);
+  const particlesRef = useRef<WindParticle[]>([]);
+  const collisionEnergyRef = useRef(0);
+  const [, forceUpdate] = useState(0);
 
   // Initialize particles
   useEffect(() => {
-    const newParticles: WindParticle[] = [];
     const angleRad = (windAngle * Math.PI) / 180;
     const elevationRad = (windElevation * Math.PI) / 180;
     
-    for (let i = 0; i < particleCount; i++) {
-      newParticles.push({
-        x: Math.random() * width - width / 2,
-        y: Math.random() * height - height / 2,
-        z: Math.random() * depth - depth / 2,
-        size: Math.random() * 0.3 + 0.2,
-        speedX: Math.cos(angleRad) * Math.cos(elevationRad) * windSpeed * (0.5 + Math.random() * 0.5),
-        speedY: Math.sin(elevationRad) * windSpeed * (0.5 + Math.random() * 0.5),
-        speedZ: Math.sin(angleRad) * Math.cos(elevationRad) * windSpeed * (0.5 + Math.random() * 0.5),
-        color: `rgba(57, 255, 20, ${0.6 + Math.random() * 0.4})`,
-        lifetime: Infinity,
-        trail: [],
-        hasCollided: false,
-        collisionTimer: 0,
-        power: windSpeed,
-        originalColor: `rgba(57, 255, 20, ${0.6 + Math.random() * 0.4})`
-      });
-    }
-    setParticles(newParticles);
+    particlesRef.current = Array.from({ length: particleCount }, () => ({
+      x: Math.random() * width - width / 2,
+      y: Math.random() * height * 0.8 + 2,
+      z: Math.random() * depth - depth / 2,
+      size: Math.random() * 0.4 + 0.3,
+      speedX: Math.cos(angleRad) * Math.cos(elevationRad) * windSpeed * (0.5 + Math.random() * 0.5),
+      speedY: Math.sin(elevationRad) * windSpeed * (0.5 + Math.random() * 0.5),
+      speedZ: Math.sin(angleRad) * Math.cos(elevationRad) * windSpeed * (0.5 + Math.random() * 0.5),
+      hasCollided: false,
+      collisionTimer: 0,
+      power: windSpeed * (0.5 + Math.random() * 0.5),
+    }));
+    forceUpdate(n => n + 1);
   }, [particleCount, width, height, depth]);
 
   // Check collision with obstacles
-  const checkCollision = (particle: WindParticle, obstacle: Obstacle): boolean => {
+  const checkCollision = useCallback((particle: WindParticle, obstacle: Obstacle): boolean => {
+    const halfW = obstacle.width / 2;
+    const halfH = obstacle.height / 2;
+    const halfD = obstacle.depth / 2;
+    const cx = obstacle.x + halfW;
+    const cy = obstacle.y + halfH;
+    const cz = obstacle.z + halfD;
+    
     return (
-      particle.x >= obstacle.x &&
-      particle.x <= obstacle.x + obstacle.width &&
-      particle.y >= obstacle.y &&
-      particle.y <= obstacle.y + obstacle.height &&
-      particle.z >= obstacle.z &&
-      particle.z <= obstacle.z + obstacle.depth
+      particle.x >= cx - halfW - 1 &&
+      particle.x <= cx + halfW + 1 &&
+      particle.y >= cy - halfH - 1 &&
+      particle.y <= cy + halfH + 1 &&
+      particle.z >= cz - halfD - 1 &&
+      particle.z <= cz + halfD + 1
     );
-  };
+  }, []);
 
-  // Handle collision response
-  const handleCollision = (particle: WindParticle, obstacle: Obstacle) => {
-    const speed = Math.sqrt(
-      particle.speedX ** 2 + particle.speedY ** 2 + particle.speedZ ** 2
-    );
-    const energy = 0.5 * particle.power! * speed * speed * (obstacle.resistance || 1);
-    
-    setCollisionEnergy(prev => {
-      const newEnergy = prev + energy;
-      onCollisionEnergyUpdate(newEnergy);
-      return newEnergy;
-    });
+  // Update particles every frame
+  useFrame((state, delta) => {
+    const angleRad = (windAngle * Math.PI) / 180;
+    const elevationRad = (windElevation * Math.PI) / 180;
+    const time = state.clock.elapsedTime;
 
-    // Calculate collision normal and reflect
-    const centerX = obstacle.x + obstacle.width / 2;
-    const centerY = obstacle.y + obstacle.height / 2;
-    const centerZ = obstacle.z + obstacle.depth / 2;
-    
-    const dx = particle.x - centerX;
-    const dy = particle.y - centerY;
-    const dz = particle.z - centerZ;
-    
-    // Determine dominant collision axis and reflect
-    const absDx = Math.abs(dx);
-    const absDy = Math.abs(dy);
-    const absDz = Math.abs(dz);
-    
-    if (absDx > absDy && absDx > absDz) {
-      particle.speedX *= -0.7 * (obstacle.resistance || 1);
-      particle.x = dx > 0 ? obstacle.x + obstacle.width + 2 : obstacle.x - 2;
-    } else if (absDy > absDz) {
-      particle.speedY *= -0.7 * (obstacle.resistance || 1);
-      particle.y = dy > 0 ? obstacle.y + obstacle.height + 2 : obstacle.y - 2;
-    } else {
-      particle.speedZ *= -0.7 * (obstacle.resistance || 1);
-      particle.z = dz > 0 ? obstacle.z + obstacle.depth + 2 : obstacle.z - 2;
-    }
+    particlesRef.current.forEach((particle) => {
+      // Add turbulence
+      const turbulence = Math.sin(time * 2 + particle.x * 0.1) * 0.2;
+      const finalAngle = angleRad + turbulence;
 
-    // Add randomness and set collision state
-    particle.speedX += (Math.random() - 0.5) * 2;
-    particle.speedY += (Math.random() - 0.5) * 2;
-    particle.speedZ += (Math.random() - 0.5) * 2;
-    
-    particle.hasCollided = true;
-    particle.collisionTimer = 60;
-    particle.size *= 1.5;
-  };
+      // Strong wind force
+      const windForce = Math.max(windSpeed * 1.5, 3);
+      const targetSpeedX = Math.cos(finalAngle) * Math.cos(elevationRad) * windForce;
+      const targetSpeedY = Math.sin(elevationRad) * windForce * 0.5;
+      const targetSpeedZ = Math.sin(finalAngle) * Math.cos(elevationRad) * windForce;
 
-  // Update particles
-  useFrame(() => {
-    setParticles(currentParticles => {
-      return currentParticles.map(particle => {
-        const updatedParticle = { ...particle };
-        
-        // Apply wind forces
-        const angleRad = (windAngle * Math.PI) / 180;
-        const elevationRad = (windElevation * Math.PI) / 180;
-        const time = performance.now() * 0.001;
-        
-        // Add turbulence
-        const turbulence = Math.sin(time + particle.x * 0.01) * 0.3;
-        const finalAngle = angleRad + turbulence;
-        
-        // Strong wind force for visibility
-        const windForceMultiplier = Math.max(windSpeed * 2, 5);
-        const targetSpeedX = Math.cos(finalAngle) * Math.cos(elevationRad) * windForceMultiplier;
-        const targetSpeedY = Math.sin(elevationRad) * windForceMultiplier;
-        const targetSpeedZ = Math.sin(finalAngle) * Math.cos(elevationRad) * windForceMultiplier;
-        
-        // Apply forces
-        updatedParticle.speedX = targetSpeedX + (Math.random() - 0.5) * 2;
-        updatedParticle.speedY = targetSpeedY + (Math.random() - 0.5) * 2;
-        updatedParticle.speedZ = targetSpeedZ + (Math.random() - 0.5) * 2;
-        
-        // Update position
-        updatedParticle.x += updatedParticle.speedX * 0.1;
-        updatedParticle.y += updatedParticle.speedY * 0.1;
-        updatedParticle.z += updatedParticle.speedZ * 0.1;
-        
-        // Boundary wrapping
-        if (updatedParticle.x < -width/2) updatedParticle.x = width/2;
-        if (updatedParticle.x > width/2) updatedParticle.x = -width/2;
-        if (updatedParticle.y < -height/2) updatedParticle.y = height/2;
-        if (updatedParticle.y > height/2) updatedParticle.y = -height/2;
-        if (updatedParticle.z < -depth/2) updatedParticle.z = depth/2;
-        if (updatedParticle.z > depth/2) updatedParticle.z = -depth/2;
-        
-        // Update trail
-        if (updatedParticle.trail) {
-          updatedParticle.trail.unshift({ 
-            x: updatedParticle.x, 
-            y: updatedParticle.y, 
-            z: updatedParticle.z 
-          });
-          if (updatedParticle.trail.length > 8) {
-            updatedParticle.trail.pop();
-          }
-        }
-        
-        // Check collisions
+      // Smooth interpolation
+      particle.speedX += (targetSpeedX - particle.speedX) * 0.05;
+      particle.speedY += (targetSpeedY - particle.speedY) * 0.05;
+      particle.speedZ += (targetSpeedZ - particle.speedZ) * 0.05;
+
+      // Add random jitter for more organic feel
+      particle.speedX += (Math.random() - 0.5) * 0.5;
+      particle.speedY += (Math.random() - 0.5) * 0.3;
+      particle.speedZ += (Math.random() - 0.5) * 0.5;
+
+      // Update position
+      particle.x += particle.speedX * delta * 3;
+      particle.y += particle.speedY * delta * 3;
+      particle.z += particle.speedZ * delta * 3;
+
+      // Boundary wrapping
+      if (particle.x < -width / 2) particle.x = width / 2;
+      if (particle.x > width / 2) particle.x = -width / 2;
+      if (particle.y < 1) particle.y = height * 0.5;
+      if (particle.y > height) particle.y = height * 0.5;
+      if (particle.z < -depth / 2) particle.z = depth / 2;
+      if (particle.z > depth / 2) particle.z = -depth / 2;
+
+      // Check collisions
+      if (!particle.hasCollided) {
         for (const obstacle of obstacles) {
-          if (checkCollision(updatedParticle, obstacle) && !updatedParticle.hasCollided) {
-            handleCollision(updatedParticle, obstacle);
+          if (checkCollision(particle, obstacle)) {
+            const speed = Math.sqrt(
+              particle.speedX ** 2 + particle.speedY ** 2 + particle.speedZ ** 2
+            );
+            const energy = 0.5 * particle.power * speed * (obstacle.resistance || 1);
+            
+            collisionEnergyRef.current += energy;
+            onCollisionEnergyUpdate(collisionEnergyRef.current);
+
+            // Emit collision event for volumetric effect
+            if (onCollisionEvent && Math.random() < 0.3) { // Throttle effects
+              onCollisionEvent({
+                id: `collision-${Date.now()}-${Math.random()}`,
+                position: [particle.x, particle.y, particle.z],
+                intensity: Math.min(speed * 0.3, 2)
+              });
+            }
+
+            // Reflect and deflect
+            const centerX = obstacle.x + obstacle.width / 2;
+            const centerY = obstacle.y + obstacle.height / 2;
+            const centerZ = obstacle.z + obstacle.depth / 2;
+            
+            const dx = particle.x - centerX;
+            const dy = particle.y - centerY;
+            const dz = particle.z - centerZ;
+            
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+            const absDz = Math.abs(dz);
+            
+            if (absDx > absDy && absDx > absDz) {
+              particle.speedX *= -0.5;
+              particle.x = dx > 0 ? obstacle.x + obstacle.width + 2 : obstacle.x - 2;
+            } else if (absDy > absDz) {
+              particle.speedY *= -0.5;
+              particle.y = dy > 0 ? obstacle.y + obstacle.height + 2 : obstacle.y - 2;
+            } else {
+              particle.speedZ *= -0.5;
+              particle.z = dz > 0 ? obstacle.z + obstacle.depth + 2 : obstacle.z - 2;
+            }
+
+            // Add deflection randomness
+            particle.speedX += (Math.random() - 0.5) * 3;
+            particle.speedY += (Math.random() - 0.5) * 3;
+            particle.speedZ += (Math.random() - 0.5) * 3;
+
+            particle.hasCollided = true;
+            particle.collisionTimer = 30;
             break;
           }
         }
-        
-        // Handle collision timer
-        if (updatedParticle.collisionTimer > 0) {
-          updatedParticle.collisionTimer--;
-          if (updatedParticle.collisionTimer === 0) {
-            updatedParticle.hasCollided = false;
-            updatedParticle.size = Math.max(0.2, updatedParticle.size / 1.5);
-          }
+      }
+
+      // Collision cooldown
+      if (particle.collisionTimer > 0) {
+        particle.collisionTimer--;
+        if (particle.collisionTimer === 0) {
+          particle.hasCollided = false;
         }
-        
-        return updatedParticle;
-      });
+      }
     });
 
     // Decay collision energy
-    setCollisionEnergy(prev => {
-      const decayed = prev * 0.995;
-      onCollisionEnergyUpdate(decayed);
-      return decayed;
-    });
+    collisionEnergyRef.current *= 0.99;
+    onCollisionEnergyUpdate(collisionEnergyRef.current);
+    
+    forceUpdate(n => n + 1);
   });
 
-  const updateParticle = (updatedParticle: WindParticle) => {
-    setParticles(current => 
-      current.map(p => 
-        p === updatedParticle ? updatedParticle : p
-      )
-    );
-  };
-
   return (
-    <group ref={systemRef}>
-      {particles.map((particle, index) => (
-        <Particle3D
-          key={index}
-          particle={particle}
-          onUpdate={updateParticle}
-        />
-      ))}
-    </group>
+    <InstancedParticles particles={particlesRef.current} />
   );
 };

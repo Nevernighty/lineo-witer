@@ -1,5 +1,6 @@
-import { MapPin, Cloud, Settings } from "lucide-react";
+import { MapPin, Cloud, Settings, Eye, EyeOff } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useState } from "react";
 
 interface HeaderControlsProps {
   location: { lat: number; lon: number } | null;
@@ -14,55 +15,72 @@ export const HeaderControls = ({
   setShowWeather, 
   setSettingsOpen 
 }: HeaderControlsProps) => {
+  const [showCoords, setShowCoords] = useState(false);
+
   return (
-    <div className="flex items-center gap-4 w-full md:w-auto">
-      <div className="text-sm text-stalker-muted flex-grow md:flex-grow-0">
-        {location && (
-          <div className="flex items-center justify-end gap-4">
-            <div className="flex gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    onClick={() => setShowWeather(false)}
-                    className={`p-1 transition-colors ${!showWeather ? 'text-stalker-accent' : 'text-stalker-muted hover:text-stalker-accent'}`}
-                  >
-                    <MapPin size={24} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Show Location
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button 
-                    onClick={() => setShowWeather(true)}
-                    className={`p-1 transition-colors ${showWeather ? 'text-stalker-accent' : 'text-stalker-muted hover:text-stalker-accent'}`}
-                  >
-                    <Cloud size={24} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  Show Weather
-                </TooltipContent>
-              </Tooltip>
-            </div>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button 
-                  className="stalker-button" 
-                  onClick={() => setSettingsOpen(true)}
-                >
-                  <Settings className="w-4 h-4" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>
-                Open Settings
-              </TooltipContent>
-            </Tooltip>
+    <div className="flex items-center gap-3 w-full md:w-auto">
+      {/* Location Display in Nav */}
+      {location && (
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-card/80 backdrop-blur-sm rounded-lg border border-border/50">
+          <MapPin className="w-4 h-4 text-primary" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-mono text-foreground">
+              {showCoords ? (
+                <>{location.lat.toFixed(2)}°N, {location.lon.toFixed(2)}°E</>
+              ) : (
+                <>••.••°N, ••.••°E</>
+              )}
+            </span>
+            <button
+              onClick={() => setShowCoords(!showCoords)}
+              className="text-muted-foreground hover:text-primary transition-colors"
+            >
+              {showCoords ? <EyeOff size={14} /> : <Eye size={14} />}
+            </button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* View Toggle Buttons */}
+      {location && (
+        <div className="flex gap-1 bg-card/80 backdrop-blur-sm rounded-lg border border-border/50 p-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button 
+                onClick={() => setShowWeather(false)}
+                className={`p-1.5 rounded transition-colors ${!showWeather ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}
+              >
+                <MapPin size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Show Simulation</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button 
+                onClick={() => setShowWeather(true)}
+                className={`p-1.5 rounded transition-colors ${showWeather ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}
+              >
+                <Cloud size={18} />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent>Show Weather</TooltipContent>
+          </Tooltip>
+        </div>
+      )}
+
+      {/* Settings Button */}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button 
+            className="p-2 bg-card/80 backdrop-blur-sm rounded-lg border border-border/50 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors" 
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent>Open Settings</TooltipContent>
+      </Tooltip>
     </div>
   );
 };

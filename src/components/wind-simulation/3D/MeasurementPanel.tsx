@@ -1,8 +1,8 @@
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Obstacle, OBSTACLE_CATEGORIES } from '../types';
+import { Wind, Zap, Box, Activity } from 'lucide-react';
 
 interface MeasurementPanelProps {
   windSpeed: number;
@@ -23,7 +23,6 @@ export const MeasurementPanel: React.FC<MeasurementPanelProps> = ({
   collisionEnergy,
   activeCollisions
 }) => {
-  // Calculate obstacle statistics
   const obstacleStats = Object.entries(OBSTACLE_CATEGORIES).map(([key, category]) => {
     const count = obstacles.filter(obs => 
       category.types.includes(obs.type)
@@ -40,83 +39,80 @@ export const MeasurementPanel: React.FC<MeasurementPanelProps> = ({
     : 0;
 
   return (
-    <div className="absolute top-4 left-4 space-y-2 max-w-xs z-10">
+    <div className="absolute top-3 left-3 space-y-2 w-44 z-10">
       {/* Wind Parameters */}
-      <Card className="bg-slate-900/90 border-green-500/30">
-        <CardHeader className="pb-1 pt-2 px-3">
-          <CardTitle className="text-xs text-green-400">Wind Parameters</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 pt-1 px-3 pb-2">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Speed:</span>
-            <span className="text-green-400">{windSpeed.toFixed(1)} m/s</span>
+      <div className="bg-card/95 backdrop-blur-sm rounded-lg border border-primary/30 overflow-hidden shadow-lg shadow-primary/5">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-primary/10 border-b border-primary/20">
+          <Wind className="w-3 h-3 text-primary" />
+          <span className="text-[10px] font-semibold text-primary uppercase tracking-wide">Wind</span>
+        </div>
+        <div className="p-2 space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-muted-foreground">Speed</span>
+            <span className="text-xs font-mono text-primary">{windSpeed.toFixed(1)} m/s</span>
           </div>
-          <Progress value={(windSpeed / 20) * 100} className="h-1" />
-          
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Direction:</span>
-            <span className="text-green-400">{windAngle}°</span>
+          <Progress value={(windSpeed / 25) * 100} className="h-1" />
+          <div className="flex justify-between">
+            <span className="text-[10px] text-muted-foreground">Dir</span>
+            <span className="text-xs font-mono text-primary">{windAngle}°</span>
           </div>
-          
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Elevation:</span>
-            <span className="text-green-400">{windElevation}°</span>
+          <div className="flex justify-between">
+            <span className="text-[10px] text-muted-foreground">Elev</span>
+            <span className="text-xs font-mono text-primary">{windElevation}°</span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Collision Analysis */}
-      <Card className="bg-slate-900/90 border-orange-500/30">
-        <CardHeader className="pb-1 pt-2 px-3">
-          <CardTitle className="text-xs text-orange-400">Collision Analysis</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 pt-1 px-3 pb-2">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Active:</span>
-            <span className="text-orange-400">{activeCollisions}</span>
+      <div className="bg-card/95 backdrop-blur-sm rounded-lg border border-orange-500/30 overflow-hidden shadow-lg shadow-orange-500/5">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-orange-500/10 border-b border-orange-500/20">
+          <Zap className="w-3 h-3 text-orange-400" />
+          <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-wide">Collisions</span>
+        </div>
+        <div className="p-2 space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-muted-foreground">Active</span>
+            <span className="text-xs font-mono text-orange-400">{activeCollisions}</span>
           </div>
-          
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Energy:</span>
-            <span className="text-orange-400">{collisionEnergy.toFixed(1)} J</span>
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-muted-foreground">Energy</span>
+            <span className="text-xs font-mono text-orange-400">{collisionEnergy.toFixed(1)} J</span>
           </div>
-          <Progress value={Math.min((collisionEnergy / 1000) * 100, 100)} className="h-1" />
-          
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Avg Resistance:</span>
-            <span className="text-orange-400">{averageResistance.toFixed(2)}</span>
+          <Progress value={Math.min((collisionEnergy / 500) * 100, 100)} className="h-1" />
+          <div className="flex justify-between">
+            <span className="text-[10px] text-muted-foreground">Resistance</span>
+            <span className="text-xs font-mono text-orange-400">{averageResistance.toFixed(2)}</span>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Environment */}
-      <Card className="bg-slate-900/90 border-blue-500/30">
-        <CardHeader className="pb-1 pt-2 px-3">
-          <CardTitle className="text-xs text-blue-400">Environment</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-1 pt-1 px-3 pb-2">
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Particles:</span>
-            <span className="text-blue-400">{particleCount}</span>
+      <div className="bg-card/95 backdrop-blur-sm rounded-lg border border-blue-500/30 overflow-hidden shadow-lg shadow-blue-500/5">
+        <div className="flex items-center gap-1.5 px-2.5 py-1.5 bg-blue-500/10 border-b border-blue-500/20">
+          <Box className="w-3 h-3 text-blue-400" />
+          <span className="text-[10px] font-semibold text-blue-400 uppercase tracking-wide">Environment</span>
+        </div>
+        <div className="p-2 space-y-1.5">
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-muted-foreground">Particles</span>
+            <span className="text-xs font-mono text-blue-400">{particleCount}</span>
           </div>
-          
-          <div className="flex justify-between text-xs">
-            <span className="text-slate-300">Total Volume:</span>
-            <span className="text-blue-400">{totalVolume.toFixed(0)} m³</span>
+          <div className="flex justify-between items-center">
+            <span className="text-[10px] text-muted-foreground">Volume</span>
+            <span className="text-xs font-mono text-blue-400">{totalVolume.toFixed(0)} m³</span>
           </div>
-          
           {obstacleStats.map(({ category, count, key }) => (
             count > 0 && (
-              <div key={key} className="flex justify-between items-center text-xs">
-                <span className="text-slate-300">{category}:</span>
-                <Badge variant="outline" className="text-xs h-4">
+              <div key={key} className="flex justify-between items-center">
+                <span className="text-[10px] text-muted-foreground">{category}</span>
+                <Badge variant="outline" className="text-[10px] h-4 px-1.5 text-blue-400 border-blue-500/30">
                   {count}
                 </Badge>
               </div>
             )
           ))}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
