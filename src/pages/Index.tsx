@@ -1,12 +1,10 @@
 import { useState, useEffect } from "react";
-import { Wind, Zap, MapPin, Settings, Recycle, HelpCircle, Cloud, Info } from "lucide-react";
+import { Wind, Zap, Recycle, Info } from "lucide-react";
 import { Link } from "react-router-dom";
 import { WindTurbine } from "@/components/WindTurbine";
-import { WindMap } from "@/components/WindMap";
 import { GeneratorSettings } from "@/components/GeneratorSettings";
 import { GENERATOR_PRESETS, type WindGeneratorSpecs } from "@/utils/windCalculations";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { LocationDisplay } from "@/components/LocationDisplay";
 import { WeatherDisplay } from "@/components/WeatherDisplay";
 import { HeaderControls } from "@/components/HeaderControls";
 import WindAnimation from "@/components/WindAnimation";
@@ -44,30 +42,28 @@ const Index = () => {
   }, []);
 
   return (
-    <div className="min-h-screen p-6 animate-fade-in">
-      <header className="mb-8">
-        <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-2 gap-4">
-          <div className="flex items-center gap-4">
-            <h1 className="text-4xl font-bold tracking-tight flex items-center gap-2">
+    <div className="min-h-screen p-4 md:p-6 animate-fade-in flex flex-col">
+      {/* Header */}
+      <header className="mb-4">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight flex items-center gap-2">
               <Recycle 
-                className="text-stalker-accent animate-[spin_6s_linear_infinite] hover:animate-[spin_0.4s_linear_infinite] active:animate-[spin_0.2s_linear_infinite] transition-all" 
+                className="text-primary w-6 h-6 md:w-8 md:h-8 animate-[spin_6s_linear_infinite] hover:animate-[spin_0.4s_linear_infinite]" 
               />
-              LINE-O 
-              <Wind 
-                className="text-stalker-accent animate-wiggle-slow group-hover:animate-wiggle-fast" 
-              />
-              WITER
+              <span className="text-foreground">LINE-O</span>
+              <Wind className="text-primary w-5 h-5 md:w-6 md:h-6 animate-wiggle-slow" />
+              <span className="text-foreground">WITER</span>
             </h1>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Link to="/info" className="p-2 hover:text-stalker-accent transition-colors">
-                  <Info className="w-5 h-5" />
+                <Link to="/info" className="p-1.5 rounded-lg hover:bg-card text-muted-foreground hover:text-primary transition-colors">
+                  <Info className="w-4 h-4" />
                 </Link>
               </TooltipTrigger>
-              <TooltipContent>
-                View detailed information about wind turbines and 3D printing
-              </TooltipContent>
+              <TooltipContent>View turbine info</TooltipContent>
             </Tooltip>
+            <div className="stalker-badge text-xs">ACTIVE</div>
           </div>
           <HeaderControls 
             location={location}
@@ -76,59 +72,58 @@ const Index = () => {
             setSettingsOpen={setSettingsOpen}
           />
         </div>
-        <div className="stalker-badge animate-glow">
-          MONITORING ACTIVE
-        </div>
       </header>
 
-      {/* Main content layout */}
-      <div className="flex flex-col gap-6">
-        {/* Wind Speed Card */}
-        <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.1s" }}>
-          <div className="flex items-center justify-between mb-4">
-            <Wind className="w-5 h-5 text-stalker-accent" />
-            <span className="text-sm text-stalker-muted">WIND SPEED</span>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col gap-4">
+        {/* Stats Row */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Wind Speed */}
+          <div className="stalker-card py-3 px-4">
+            <div className="flex items-center justify-between mb-2">
+              <Wind className="w-4 h-4 text-primary" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Wind Speed</span>
+            </div>
+            <div className="text-2xl md:text-3xl font-bold text-foreground">{windSpeed} <span className="text-sm text-muted-foreground">m/s</span></div>
+            <div className="h-1.5 bg-background rounded-full overflow-hidden mt-2">
+              <div 
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${(windSpeed / 20) * 100}%` }}
+              />
+            </div>
           </div>
-          <div className="text-4xl font-bold mb-2">{windSpeed} m/s</div>
-          <div className="h-2 bg-stalker-dark rounded overflow-hidden">
-            <div 
-              className="h-full bg-stalker-accent transition-all duration-300"
-              style={{ width: `${(windSpeed / 20) * 100}%` }}
-            />
+
+          {/* Power Output */}
+          <div className="stalker-card py-3 px-4">
+            <div className="flex items-center justify-between mb-2">
+              <Zap className="w-4 h-4 text-primary" />
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Power</span>
+            </div>
+            <div className="text-2xl md:text-3xl font-bold text-foreground">{power} <span className="text-sm text-muted-foreground">W</span></div>
+            <div className="h-1.5 bg-background rounded-full overflow-hidden mt-2">
+              <div 
+                className="h-full bg-primary transition-all duration-500"
+                style={{ width: `${(power / 1000) * 100}%` }}
+              />
+            </div>
           </div>
         </div>
 
-        {/* Power Output Card */}
-        <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.2s" }}>
-          <div className="flex items-center justify-between mb-4">
-            <Zap className="w-5 h-5 text-stalker-accent" />
-            <span className="text-sm text-stalker-muted">POWER OUTPUT</span>
-          </div>
-          <div className="text-4xl font-bold mb-2">{power}W</div>
-          <div className="h-2 bg-stalker-dark rounded overflow-hidden">
-            <div 
-              className="h-full bg-stalker-accent transition-all duration-300"
-              style={{ width: `${(power / 1000) * 100}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Location/Weather Card with Wind Animation */}
-        <div className="stalker-card animate-fade-up" style={{ animationDelay: "0.3s" }}>
+        {/* Main Simulation/Weather Area - Takes remaining space */}
+        <div className="stalker-card flex-1 min-h-[400px] md:min-h-[500px] p-0 overflow-hidden">
           {showWeather ? (
-            <WeatherDisplay location={location} />
+            <div className="p-4 h-full">
+              <WeatherDisplay location={location} />
+            </div>
           ) : (
-            <>
-              <LocationDisplay location={location} />
-              <div className="mt-4 relative w-full h-96 bg-stalker-dark/30 rounded-lg overflow-hidden">
-                <WindAnimation windSpeed={windSpeed} width={800} height={384} />
-              </div>
-            </>
+            <div className="w-full h-full">
+              <WindAnimation windSpeed={windSpeed} />
+            </div>
           )}
         </div>
 
-        {/* Generator Settings Card */}
-        <div className="stalker-card col-span-1 lg:col-span-3 animate-fade-up" style={{ animationDelay: "0.4s" }}>
+        {/* Generator Card */}
+        <div className="stalker-card">
           <WindTurbine windSpeed={windSpeed} generatorSpecs={generatorSpecs} />
         </div>
       </div>
