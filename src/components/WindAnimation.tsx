@@ -1,4 +1,3 @@
-
 import React from "react";
 import { WindSimulation3D } from "./wind-simulation/3D/WindSimulation3D";
 
@@ -10,16 +9,13 @@ export interface WindAnimationProps {
 }
 
 export const WindAnimation: React.FC<WindAnimationProps> = ({
-  windSpeed: initialWindSpeed = 1,
-  width = 800,
-  height = 400,
+  windSpeed: initialWindSpeed = 8,
   onWindSpeedChange
 }) => {
   return (
     <WindSimulation3D 
       windSpeed={initialWindSpeed}
-      width={width}
-      height={height}
+      onWindSpeedChange={onWindSpeedChange}
     />
   );
 };
