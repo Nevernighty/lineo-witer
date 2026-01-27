@@ -1,15 +1,13 @@
 import React, { useState, Suspense, useCallback, useRef, useEffect } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Stats } from '@react-three/drei';
-import { Button } from '@/components/ui/button';
-import { Slider } from '@/components/ui/slider';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ParticleSystem3D } from './ParticleSystem3D';
+import { AdvancedParticleSystem } from './AdvancedParticleSystem';
 import { Obstacle3D } from './Obstacle3D';
-import { MeasurementPanel } from './MeasurementPanel';
+import { AdvancedMeasurementPanel } from './AdvancedMeasurementPanel';
+import { AdvancedWindControls } from './AdvancedWindControls';
 import { GhostObstacle } from './GhostObstacle';
 import { CollisionEffectsManager } from './CollisionEffect';
+import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
 import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType } from '../types';
 import * as THREE from 'three';
 
@@ -46,10 +44,11 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   windSpeed: initialWindSpeed = 8,
   onWindSpeedChange
 }) => {
-  const [windSpeed, setWindSpeed] = useState(initialWindSpeed);
-  const [windAngle, setWindAngle] = useState(0);
-  const [windElevation, setWindElevation] = useState(0);
-  const [particleCount, setParticleCount] = useState(200);
+  const [physicsConfig, setPhysicsConfig] = useState<WindPhysicsConfig>({
+    ...DEFAULT_WIND_PHYSICS,
+    windSpeed: initialWindSpeed
+  });
+  const [particleCount, setParticleCount] = useState(250);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [selectedObstacleType, setSelectedObstacleType] = useState<string>('building');
   const [collisionEnergy, setCollisionEnergy] = useState(0);
@@ -63,12 +62,12 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   // Sync with parent wind speed
   useEffect(() => {
-    setWindSpeed(initialWindSpeed);
+    setPhysicsConfig(prev => ({ ...prev, windSpeed: initialWindSpeed }));
   }, [initialWindSpeed]);
 
-  const handleWindSpeedChange = (value: number) => {
-    setWindSpeed(value);
-    onWindSpeedChange?.(value);
+  const handleConfigChange = (newConfig: WindPhysicsConfig) => {
+    setPhysicsConfig(newConfig);
+    onWindSpeedChange?.(newConfig.windSpeed);
   };
 
   const simulationSize = {
@@ -77,7 +76,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     depth: 100
   };
 
-  const activeCollisions = obstacles.filter(() => Math.random() < 0.1).length;
+  const activeCollisions = obstacles.length;
 
   const addObstacle = useCallback((x: number, y: number, z: number) => {
     const category = Object.entries(OBSTACLE_CATEGORIES).find(([_, cat]) => 
@@ -95,9 +94,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       x: x - 5,
       y: 0,
       z: z - 5,
-      width: selectedObstacleType === 'skyscraper' ? 15 : 10,
-      height: selectedObstacleType === 'tree' ? 20 : selectedObstacleType === 'skyscraper' ? 40 : 15,
-      depth: 10,
+      width: selectedObstacleType === 'skyscraper' ? 15 : selectedObstacleType === 'tower' ? 5 : 10,
+      height: selectedObstacleType === 'tree' ? 20 : selectedObstacleType === 'skyscraper' ? 45 : selectedObstacleType === 'tower' ? 35 : 15,
+      depth: selectedObstacleType === 'tower' ? 5 : 10,
       density: categoryData.defaultProperties.density,
       material: categoryData.defaultProperties.material,
       resistance: categoryData.defaultProperties.resistance
@@ -108,6 +107,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const clearObstacles = () => {
     setObstacles([]);
+    setCollisionEnergy(0);
   };
 
   const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number }) => {
@@ -122,7 +122,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     <div className="relative w-full h-full">
       {/* 3D Canvas - Full size */}
       <Canvas
-        camera={{ position: [60, 40, 60], fov: 55 }}
+        camera={{ position: [70, 45, 70], fov: 50 }}
         className="!absolute inset-0"
         onPointerDown={(e) => {
           if (e.altKey) return;
@@ -133,10 +133,11 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       >
         <Suspense fallback={null}>
           {/* Enhanced Lighting */}
-          <ambientLight intensity={0.3} />
-          <directionalLight position={[20, 30, 10]} intensity={0.8} color="#ffffff" />
-          <pointLight position={[-20, 20, -20]} intensity={0.4} color="#39ff14" />
-          <pointLight position={[20, 10, 20]} intensity={0.3} color="#00ffff" />
+          <ambientLight intensity={0.35} />
+          <directionalLight position={[30, 40, 20]} intensity={0.9} color="#ffffff" />
+          <pointLight position={[-30, 25, -30]} intensity={0.5} color="#39ff14" />
+          <pointLight position={[30, 15, 30]} intensity={0.4} color="#00ffff" />
+          <hemisphereLight args={['#87CEEB', '#363636', 0.3]} />
 
           {/* Mouse Tracker */}
           <MouseTracker 
@@ -148,12 +149,12 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           <Grid 
             args={[simulationSize.width, simulationSize.depth]}
             cellSize={5}
-            cellThickness={0.6}
+            cellThickness={0.5}
             cellColor="#1a4a3a"
             sectionSize={20}
-            sectionThickness={1.2}
+            sectionThickness={1}
             sectionColor="#39ff14"
-            fadeDistance={120}
+            fadeDistance={150}
             fadeStrength={1}
             followCamera={false}
             infiniteGrid={false}
@@ -168,11 +169,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             />
           )}
 
-          {/* Particle System */}
-          <ParticleSystem3D
-            windSpeed={windSpeed}
-            windAngle={windAngle}
-            windElevation={windElevation}
+          {/* Advanced Particle System */}
+          <AdvancedParticleSystem
+            config={physicsConfig}
             particleCount={particleCount}
             obstacles={obstacles}
             width={simulationSize.width}
@@ -201,123 +200,31 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             enablePan={true} 
             enableZoom={true} 
             enableRotate={true}
-            minDistance={20}
-            maxDistance={150}
+            minDistance={25}
+            maxDistance={180}
+            maxPolarAngle={Math.PI / 2.1}
           />
           
           {showStats && <Stats />}
         </Suspense>
       </Canvas>
 
-      {/* Control Panel - Right side - Compact */}
+      {/* Advanced Control Panel - Right side */}
       <div className="absolute top-3 right-3 w-52 z-10">
-        <div className="bg-card/95 backdrop-blur-sm p-2.5 rounded-lg space-y-2 border border-primary/30 shadow-lg">
-          <div className="space-y-1.5">
-            <div>
-              <Label className="text-primary text-[10px] font-semibold uppercase tracking-wide">
-                Wind Speed: {windSpeed.toFixed(1)} m/s
-              </Label>
-              <Slider
-                value={[windSpeed]}
-                onValueChange={(value) => handleWindSpeedChange(value[0])}
-                min={0}
-                max={25}
-                step={0.5}
-                className="mt-0.5"
-              />
-            </div>
-            
-            <div>
-              <Label className="text-primary text-[10px] font-semibold uppercase tracking-wide">
-                Direction: {windAngle}°
-              </Label>
-              <Slider
-                value={[windAngle]}
-                onValueChange={(value) => setWindAngle(value[0])}
-                min={0}
-                max={360}
-                step={5}
-                className="mt-0.5"
-              />
-            </div>
-            
-            <div>
-              <Label className="text-primary text-[10px] font-semibold uppercase tracking-wide">
-                Elevation: {windElevation}°
-              </Label>
-              <Slider
-                value={[windElevation]}
-                onValueChange={(value) => setWindElevation(value[0])}
-                min={-45}
-                max={45}
-                step={5}
-                className="mt-0.5"
-              />
-            </div>
-            
-            <div>
-              <Label className="text-primary text-[10px] font-semibold uppercase tracking-wide">
-                Particles: {particleCount}
-              </Label>
-              <Slider
-                value={[particleCount]}
-                onValueChange={(value) => setParticleCount(value[0])}
-                min={50}
-                max={500}
-                step={25}
-                className="mt-0.5"
-              />
-            </div>
-          </div>
-
-          <div className="pt-1.5 border-t border-border/30">
-            <Label className="text-muted-foreground text-[10px] uppercase tracking-wide">Add Obstacle</Label>
-            <Select value={selectedObstacleType} onValueChange={setSelectedObstacleType}>
-              <SelectTrigger className="h-7 text-xs mt-0.5">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(OBSTACLE_CATEGORIES).map(([categoryKey, category]) => 
-                  category.types.map(type => (
-                    <SelectItem key={type} value={type} className="text-xs">
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </SelectItem>
-                  ))
-                )}
-              </SelectContent>
-            </Select>
-          </div>
-
-          <div className="flex gap-1.5 pt-1">
-            <Button
-              onClick={clearObstacles}
-              variant="destructive"
-              size="sm"
-              className="text-[10px] flex-1 h-6 px-2"
-            >
-              Clear
-            </Button>
-            <Button
-              onClick={() => setShowStats(!showStats)}
-              variant="outline"
-              size="sm"
-              className="text-[10px] flex-1 h-6 px-2"
-            >
-              Stats
-            </Button>
-          </div>
-
-          <p className="text-[9px] text-muted-foreground text-center pt-1 border-t border-border/20">
-            Click to place • Alt+Drag to rotate
-          </p>
-        </div>
+        <AdvancedWindControls
+          config={physicsConfig}
+          onConfigChange={handleConfigChange}
+          selectedObstacleType={selectedObstacleType}
+          onObstacleTypeChange={setSelectedObstacleType}
+          onClearObstacles={clearObstacles}
+          onToggleStats={() => setShowStats(!showStats)}
+          showStats={showStats}
+        />
       </div>
 
-      {/* Measurement Panel - Left side */}
-      <MeasurementPanel
-        windSpeed={windSpeed}
-        windAngle={windAngle}
-        windElevation={windElevation}
+      {/* Advanced Measurement Panel - Left side */}
+      <AdvancedMeasurementPanel
+        config={physicsConfig}
         particleCount={particleCount}
         obstacles={obstacles}
         collisionEnergy={collisionEnergy}
