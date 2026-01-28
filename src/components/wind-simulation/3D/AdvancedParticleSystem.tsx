@@ -25,12 +25,14 @@ interface WindParticle {
   power: number;
   mass: number;
   age: number;
+  lastObstacleId?: string;
 }
 
 interface CollisionEvent {
   id: string;
   position: [number, number, number];
   intensity: number;
+  obstacleId?: string;
 }
 
 interface AdvancedParticleSystemProps {
@@ -42,6 +44,7 @@ interface AdvancedParticleSystemProps {
   depth: number;
   onCollisionEnergyUpdate: (energy: number) => void;
   onCollisionEvent?: (event: CollisionEvent) => void;
+  onObstacleEnergyUpdate?: (energies: Map<string, number>) => void;
 }
 
 export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
@@ -52,10 +55,12 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
   height,
   depth,
   onCollisionEnergyUpdate,
-  onCollisionEvent
+  onCollisionEvent,
+  onObstacleEnergyUpdate
 }) => {
   const particlesRef = useRef<WindParticle[]>([]);
   const collisionEnergyRef = useRef(0);
+  const obstacleEnergyRef = useRef<Map<string, number>>(new Map());
   const [, forceUpdate] = useState(0);
 
   // Precompute wind direction vector
@@ -97,6 +102,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         age: Math.random() * 100
       };
     });
+    
+    // Reset obstacle energies
+    obstacleEnergyRef.current.clear();
+    
     forceUpdate(n => n + 1);
   }, [particleCount, width, height, depth]);
 
@@ -131,6 +140,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       ? calculateGust(time, config.gustFrequency, config.gustIntensity, 1)
       : 1;
 
+    // Decay obstacle energies over time
+    obstacleEnergyRef.current.forEach((energy, id) => {
+      obstacleEnergyRef.current.set(id, energy * 0.995);
+    });
+
     particlesRef.current.forEach((particle) => {
       particle.age += delta;
 
@@ -145,7 +159,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       // Apply gust
       const effectiveSpeed = heightAdjustedSpeed * gustMultiplier;
 
-      // Calculate turbulence
+      // Calculate turbulence with improved noise
       const turbX = turbulenceNoise(particle.x, particle.y, particle.z, time, config.turbulenceScale);
       const turbY = turbulenceNoise(particle.x + 100, particle.y + 100, particle.z, time * 1.3, config.turbulenceScale);
       const turbZ = turbulenceNoise(particle.x, particle.y, particle.z + 100, time * 0.7, config.turbulenceScale);
@@ -222,23 +236,35 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         for (const obstacle of obstacles) {
           if (checkCollision(particle, obstacle)) {
             const physics = OBSTACLE_DRAG_COEFFICIENTS[obstacle.type] || OBSTACLE_DRAG_COEFFICIENTS.building;
+            const obstacleId = obstacle.id || `${obstacle.x}-${obstacle.z}`;
             
             const speed = Math.sqrt(
               particle.speedX ** 2 + particle.speedY ** 2 + particle.speedZ ** 2
             );
             
-            // Energy calculation: E = 0.5 * m * v² * Cd
+            // Energy calculation: E = 0.5 * m * v² * Cd * ρ
             const energy = 0.5 * particle.mass * speed * speed * physics.dragCoefficient * config.airDensity;
             
+            // Update total collision energy
             collisionEnergyRef.current += energy;
             onCollisionEnergyUpdate(collisionEnergyRef.current);
+            
+            // Track per-obstacle energy for hotspots
+            const currentObstacleEnergy = obstacleEnergyRef.current.get(obstacleId) || 0;
+            obstacleEnergyRef.current.set(obstacleId, currentObstacleEnergy + energy);
+            
+            // Report obstacle energies
+            if (onObstacleEnergyUpdate) {
+              onObstacleEnergyUpdate(new Map(obstacleEnergyRef.current));
+            }
 
             // Emit collision effect
             if (onCollisionEvent && Math.random() < 0.25) {
               onCollisionEvent({
                 id: `collision-${Date.now()}-${Math.random()}`,
                 position: [particle.x, particle.y, particle.z],
-                intensity: Math.min(speed * physics.dragCoefficient * 0.15, 2)
+                intensity: Math.min(speed * physics.dragCoefficient * 0.15, 2),
+                obstacleId
               });
             }
 
@@ -286,6 +312,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
 
             particle.hasCollided = true;
             particle.collisionTimer = 20;
+            particle.lastObstacleId = obstacleId;
             break;
           }
         }
