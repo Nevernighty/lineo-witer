@@ -7,6 +7,7 @@ import { AdvancedMeasurementPanel } from './AdvancedMeasurementPanel';
 import { AdvancedWindControls } from './AdvancedWindControls';
 import { GhostObstacle } from './GhostObstacle';
 import { CollisionEffectsManager } from './CollisionEffect';
+import { CollisionHotspotManager } from './CollisionHotspot';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
 import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType } from '../types';
 import * as THREE from 'three';
@@ -53,7 +54,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [selectedObstacleType, setSelectedObstacleType] = useState<string>('building');
   const [collisionEnergy, setCollisionEnergy] = useState(0);
   const [showStats, setShowStats] = useState(false);
+  const [showHotspots, setShowHotspots] = useState(false);
+  const [showWakeZones, setShowWakeZones] = useState(false);
   const [ghostPosition, setGhostPosition] = useState<[number, number, number] | null>(null);
+  const [obstacleEnergies, setObstacleEnergies] = useState<Map<string, number>>(new Map());
   const [collisionEffects, setCollisionEffects] = useState<Array<{
     id: string;
     position: [number, number, number];
@@ -86,8 +90,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     if (!category) return;
 
     const [categoryKey, categoryData] = category;
+    const obstacleId = `obstacle-${Date.now()}`;
     const newObstacle: Obstacle = {
-      id: `obstacle-${Date.now()}`,
+      id: obstacleId,
       type: selectedObstacleType as ObstacleType,
       category: categoryKey as "vegetation" | "structure" | "barrier",
       shape: 'regular',
@@ -108,6 +113,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const clearObstacles = () => {
     setObstacles([]);
     setCollisionEnergy(0);
+    setObstacleEnergies(new Map());
   };
 
   const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number }) => {
@@ -116,6 +122,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const handleRemoveCollision = useCallback((id: string) => {
     setCollisionEffects(prev => prev.filter(c => c.id !== id));
+  }, []);
+
+  const handleObstacleEnergyUpdate = useCallback((energies: Map<string, number>) => {
+    setObstacleEnergies(energies);
   }, []);
 
   return (
@@ -179,12 +189,22 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             depth={simulationSize.depth}
             onCollisionEnergyUpdate={setCollisionEnergy}
             onCollisionEvent={handleCollisionEvent}
+            onObstacleEnergyUpdate={handleObstacleEnergyUpdate}
           />
 
           {/* Collision Effects */}
           <CollisionEffectsManager
             collisions={collisionEffects}
             onRemoveCollision={handleRemoveCollision}
+          />
+
+          {/* Collision Hotspots & Wake Zones */}
+          <CollisionHotspotManager
+            obstacles={obstacles}
+            obstacleEnergies={obstacleEnergies}
+            showHotspots={showHotspots}
+            showWakeZones={showWakeZones}
+            windAngle={physicsConfig.windAngle}
           />
 
           {/* Obstacles */}
@@ -210,7 +230,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       </Canvas>
 
       {/* Advanced Control Panel - Right side */}
-      <div className="absolute top-3 right-3 w-52 z-10">
+      <div className="absolute top-3 right-3 w-56 z-10">
         <AdvancedWindControls
           config={physicsConfig}
           onConfigChange={handleConfigChange}
@@ -219,6 +239,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           onClearObstacles={clearObstacles}
           onToggleStats={() => setShowStats(!showStats)}
           showStats={showStats}
+          showHotspots={showHotspots}
+          onToggleHotspots={() => setShowHotspots(!showHotspots)}
+          showWakeZones={showWakeZones}
+          onToggleWakeZones={() => setShowWakeZones(!showWakeZones)}
         />
       </div>
 
