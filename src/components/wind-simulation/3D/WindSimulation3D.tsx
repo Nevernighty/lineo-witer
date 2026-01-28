@@ -205,6 +205,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             showHotspots={showHotspots}
             showWakeZones={showWakeZones}
             windAngle={physicsConfig.windAngle}
+            windSpeed={physicsConfig.windSpeed}
           />
 
           {/* Obstacles */}
