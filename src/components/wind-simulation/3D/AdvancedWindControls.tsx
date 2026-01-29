@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Wind, Waves, Thermometer, Mountain, RotateCcw, Target } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Wind, Waves, Thermometer, Mountain, RotateCcw, Target, Info } from 'lucide-react';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
 import { OBSTACLE_CATEGORIES, ObstacleType } from '../types';
 
@@ -23,7 +24,26 @@ interface AdvancedWindControlsProps {
   onToggleWakeZones?: () => void;
 }
 
-// Custom slider with green glow effect
+// Setting descriptions for info tooltips
+const SETTING_INFO: Record<string, string> = {
+  speed: "Wind velocity affects particle speed and collision energy (E = 0.5mv²). Higher speeds = more energy transfer to obstacles.",
+  direction: "Horizontal wind angle in degrees. 0° = East, 90° = South, 180° = West, 270° = North. Controls flow direction.",
+  elevation: "Vertical wind angle. Positive = upward slope, negative = downward. Affects vertical particle distribution.",
+  turbulenceIntensity: "Random velocity variations as % of wind speed. Higher values create chaotic, swirling particle motion.",
+  turbulenceScale: "Size of turbulence eddies. Larger scale = broader swirling patterns, smaller = fine-grain fluctuations.",
+  gustFrequency: "Number of wind gusts per minute. Gusts temporarily increase wind speed by the Gust Power percentage.",
+  gustPower: "Maximum gust strength as % increase over base wind speed. 50% = gusts can be 1.5x normal speed.",
+  temperature: "Air temperature affects density calculation. Cold air is denser = more energy per particle collision.",
+  humidity: "Atmospheric moisture. Higher humidity slightly reduces air density and affects visual particle appearance.",
+  altitude: "Height above sea level. Higher altitudes = lower air pressure = reduced air density and collision energy.",
+  airDensity: "Mass per volume (kg/m³). Directly affects collision energy. Sea level ≈ 1.225, mountains ≈ 1.0.",
+  surfaceRoughness: "Terrain friction coefficient. Water ≈ 0.001, grassland ≈ 0.03, urban ≈ 0.5-2.0. Affects wind shear profile.",
+  refHeight: "Reference measurement height for wind shear calculations. Wind speed reduces logarithmically closer to ground.",
+  hotspots: "Shows energy concentration at obstacles. Colors indicate intensity: Green (low) → Yellow → Orange → Red (critical).",
+  wakeZones: "Visualizes turbulent wake regions behind obstacles. Shows velocity deficit and recovery distance downstream."
+};
+
+// Custom slider with green glow effect and info icon
 const GlowSlider: React.FC<{
   value: number;
   onChange: (value: number) => void;
@@ -32,14 +52,32 @@ const GlowSlider: React.FC<{
   step: number;
   label: string;
   displayValue: string;
-}> = ({ value, onChange, min, max, step, label, displayValue }) => {
+  infoKey?: string;
+}> = ({ value, onChange, min, max, step, label, displayValue, infoKey }) => {
   const percentage = ((value - min) / (max - min)) * 100;
   
   return (
     <div className="space-y-1.5">
       <div className="flex justify-between items-center">
-        <span className="text-xs font-medium text-primary/90 uppercase tracking-wider">{label}</span>
-        <span className="text-xs font-mono text-muted-foreground">{displayValue}</span>
+        <div className="flex items-center gap-1">
+          <span className="text-xs font-medium text-primary/90 uppercase tracking-wider">{label}</span>
+          {infoKey && SETTING_INFO[infoKey] && (
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-primary/50 hover:text-primary cursor-help transition-colors" />
+                </TooltipTrigger>
+                <TooltipContent 
+                  side="right" 
+                  className="max-w-[280px] bg-[#0d1117] border-primary/40 text-xs leading-relaxed"
+                >
+                  <p>{SETTING_INFO[infoKey]}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
+        <span className="text-xs font-mono text-primary font-semibold">{displayValue}</span>
       </div>
       <div className="relative h-2">
         {/* Track background */}
@@ -130,6 +168,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={0.5}
             label="Speed"
             displayValue={`${config.windSpeed.toFixed(1)} m/s`}
+            infoKey="speed"
           />
           <GlowSlider
             value={config.windAngle}
@@ -139,6 +178,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={5}
             label="Direction"
             displayValue={`${config.windAngle}°`}
+            infoKey="direction"
           />
           <GlowSlider
             value={config.windElevation}
@@ -148,6 +188,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={5}
             label="Elevation"
             displayValue={`${config.windElevation}°`}
+            infoKey="elevation"
           />
         </TabsContent>
 
@@ -161,6 +202,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={0.05}
             label="Intensity"
             displayValue={`${(config.turbulenceIntensity * 100).toFixed(0)}%`}
+            infoKey="turbulenceIntensity"
           />
           <GlowSlider
             value={config.turbulenceScale}
@@ -170,6 +212,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={0.1}
             label="Scale"
             displayValue={`${config.turbulenceScale.toFixed(1)}x`}
+            infoKey="turbulenceScale"
           />
           <GlowSlider
             value={config.gustFrequency}
@@ -179,6 +222,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={1}
             label="Gust Freq"
             displayValue={`${config.gustFrequency}/min`}
+            infoKey="gustFrequency"
           />
           <GlowSlider
             value={config.gustIntensity}
@@ -188,6 +232,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={0.05}
             label="Gust Power"
             displayValue={`${(config.gustIntensity * 100).toFixed(0)}%`}
+            infoKey="gustPower"
           />
         </TabsContent>
 
@@ -201,6 +246,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={1}
             label="Temperature"
             displayValue={`${config.temperature}°C`}
+            infoKey="temperature"
           />
           <GlowSlider
             value={config.humidity}
@@ -210,6 +256,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={5}
             label="Humidity"
             displayValue={`${config.humidity}%`}
+            infoKey="humidity"
           />
           <GlowSlider
             value={config.altitude}
@@ -219,6 +266,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={100}
             label="Altitude"
             displayValue={`${config.altitude}m`}
+            infoKey="altitude"
           />
           <GlowSlider
             value={config.airDensity}
@@ -228,6 +276,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={0.01}
             label="Air Density"
             displayValue={`${config.airDensity.toFixed(3)} kg/m³`}
+            infoKey="airDensity"
           />
         </TabsContent>
 
@@ -241,6 +290,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={0.01}
             label="Surface Roughness"
             displayValue={config.surfaceRoughness.toFixed(2)}
+            infoKey="surfaceRoughness"
           />
           <div className="flex justify-between text-[9px] text-muted-foreground -mt-1">
             <span>Water</span>
@@ -256,6 +306,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             step={1}
             label="Ref. Height"
             displayValue={`${config.referenceHeight}m`}
+            infoKey="refHeight"
           />
 
           <div className="pt-2 border-t border-primary/20">
@@ -282,32 +333,56 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
       <div className="px-3 py-2 border-t border-primary/20 bg-background/20">
         <div className="flex items-center gap-1.5 mb-2">
           <Target className="w-3 h-3 text-orange-400" />
-          <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-wide">Visualize</span>
+          <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-wide">Analysis Layers</span>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          <label className="flex items-center gap-1.5 cursor-pointer group">
-            <Checkbox 
-              checked={showHotspots}
-              onCheckedChange={onToggleHotspots}
-              className="h-3.5 w-3.5 border-orange-500/50 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
-            />
-            <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">Hotspots</span>
+        <div className="grid grid-cols-1 gap-2">
+          <label className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                checked={showHotspots}
+                onCheckedChange={onToggleHotspots}
+                className="h-3.5 w-3.5 border-orange-500/50 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500"
+              />
+              <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">Collision Hotspots</span>
+            </div>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-orange-500/50 hover:text-orange-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-[240px] bg-[#0d1117] border-orange-500/40 text-xs">
+                  <p>{SETTING_INFO.hotspots}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer group">
-            <Checkbox 
-              checked={showWakeZones}
-              onCheckedChange={onToggleWakeZones}
-              className="h-3.5 w-3.5 border-cyan-500/50 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
-            />
-            <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">Wake Zones</span>
+          <label className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                checked={showWakeZones}
+                onCheckedChange={onToggleWakeZones}
+                className="h-3.5 w-3.5 border-cyan-500/50 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500"
+              />
+              <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">Wake Zones</span>
+            </div>
+            <TooltipProvider delayDuration={200}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Info className="w-3 h-3 text-cyan-500/50 hover:text-cyan-400 cursor-help" />
+                </TooltipTrigger>
+                <TooltipContent side="left" className="max-w-[240px] bg-[#0d1117] border-cyan-500/40 text-xs">
+                  <p>{SETTING_INFO.wakeZones}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </label>
-          <label className="flex items-center gap-1.5 cursor-pointer group">
+          <label className="flex items-center gap-2 cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
             <Checkbox 
               checked={showStats}
               onCheckedChange={onToggleStats}
               className="h-3.5 w-3.5 border-primary/50 data-[state=checked]:bg-primary data-[state=checked]:border-primary"
             />
-            <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">FPS Stats</span>
+            <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">Performance Stats</span>
           </label>
         </div>
       </div>
@@ -320,7 +395,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           size="sm"
           className="text-xs flex-1 h-7 bg-destructive/80 hover:bg-destructive border border-destructive/50"
         >
-          Clear
+          Clear All
         </Button>
         <Button
           onClick={resetToDefaults}
@@ -334,7 +409,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
 
       {/* Footer hint */}
       <p className="text-[9px] text-muted-foreground/70 text-center py-1.5 border-t border-primary/10 bg-background/10">
-        Click to place • Alt+Drag to rotate
+        Click terrain to place obstacle • Alt+Drag to rotate view
       </p>
     </div>
   );
