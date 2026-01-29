@@ -174,74 +174,52 @@ interface WakeZoneVisualizerProps {
   windAngle: number;
   windSpeed: number;
   visible: boolean;
-  isSelected?: boolean;
 }
 
 export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
   obstacle,
   windAngle,
   windSpeed,
-  visible,
-  isSelected = false
+  visible
 }) => {
-  const flowFieldRef = useRef<THREE.Points>(null);
-  const coneRef = useRef<THREE.Mesh>(null);
+  const trailRef = useRef<THREE.Mesh>(null);
   
   const physics = OBSTACLE_DRAG_COEFFICIENTS[obstacle.type] || OBSTACLE_DRAG_COEFFICIENTS.building;
   const baseSize = Math.max(obstacle.width, obstacle.depth);
-  const wakeLength = physics.wakeLength * baseSize * (0.8 + windSpeed * 0.03);
-  const wakeWidth = baseSize * 0.8;
+  const wakeLength = physics.wakeLength * baseSize * (0.6 + windSpeed * 0.02);
   
   const angleRad = (windAngle * Math.PI) / 180;
-  const velocityDeficit = ((1 - physics.porosityFactor) * 100).toFixed(0);
 
-  // Create streamline particles for wake flow
-  const streamlineGeometry = useMemo(() => {
-    const count = 30;
-    const positions = new Float32Array(count * 3);
+  // Create gradient trail geometry
+  const trailGeometry = useMemo(() => {
+    const segments = 12;
+    const geometry = new THREE.PlaneGeometry(wakeLength, baseSize * 0.6, segments, 1);
     
-    for (let i = 0; i < count; i++) {
-      const progress = Math.random();
-      const spread = progress * wakeWidth * 0.4;
-      const side = (Math.random() - 0.5) * 2;
-      
-      positions[i * 3] = progress * wakeLength * 0.9;
-      positions[i * 3 + 1] = obstacle.height * 0.3 + Math.random() * obstacle.height * 0.4;
-      positions[i * 3 + 2] = side * spread;
-    }
-    
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geometry;
-  }, [wakeLength, wakeWidth, obstacle.height]);
-
-  // Animate flow particles
-  useFrame((state) => {
-    if (!visible || !flowFieldRef.current) return;
-    
-    const positions = flowFieldRef.current.geometry.attributes.position;
-    const speedFactor = windSpeed * 0.04;
+    // Add vertex colors for gradient fade
+    const colors = [];
+    const positions = geometry.attributes.position;
     
     for (let i = 0; i < positions.count; i++) {
-      let x = positions.getX(i);
-      x += speedFactor;
+      const x = positions.getX(i);
+      const progress = (x / wakeLength + 0.5); // 0 at start, 1 at end
       
-      if (x > wakeLength * 0.9) {
-        x = 0;
-        positions.setY(i, obstacle.height * 0.3 + Math.random() * obstacle.height * 0.4);
-        const spread = (x / wakeLength) * wakeWidth * 0.4;
-        positions.setZ(i, (Math.random() - 0.5) * spread * 2);
-      }
-      
-      positions.setX(i, x);
+      // Fade from cyan to transparent
+      const alpha = Math.pow(1 - progress, 1.5);
+      colors.push(0.05, 0.65, 0.9, alpha * 0.4);
     }
     
-    positions.needsUpdate = true;
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
+    return geometry;
+  }, [wakeLength, baseSize]);
 
-    // Subtle cone animation
-    if (coneRef.current) {
-      const pulse = 1 + Math.sin(state.clock.elapsedTime * 2) * 0.02;
-      coneRef.current.scale.x = pulse;
+  // Subtle animation
+  useFrame((state) => {
+    if (!visible || !trailRef.current) return;
+    const time = state.clock.elapsedTime;
+    // Very subtle pulse
+    const material = trailRef.current.material as THREE.MeshBasicMaterial;
+    if (material) {
+      material.opacity = 0.15 + Math.sin(time * 2) * 0.03;
     }
   });
 
@@ -249,74 +227,55 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
 
   const obstacleCenter: [number, number, number] = [
     obstacle.x + obstacle.width / 2,
-    0,
+    obstacle.height * 0.4,
     obstacle.z + obstacle.depth / 2
   ];
 
   return (
     <group position={obstacleCenter} rotation={[0, -angleRad + Math.PI, 0]}>
-      {/* Wake cone - simple translucent shape */}
+      {/* Simple gradient trail on ground */}
       <mesh 
-        ref={coneRef}
-        position={[wakeLength / 2, obstacle.height * 0.35, 0]} 
-        rotation={[0, 0, Math.PI / 2]}
+        ref={trailRef}
+        position={[wakeLength / 2, -obstacle.height * 0.35, 0]} 
+        rotation={[-Math.PI / 2, 0, 0]}
       >
-        <coneGeometry args={[wakeWidth * 0.5, wakeLength, 16, 1, true]} />
+        <planeGeometry args={[wakeLength, baseSize * 0.5, 8, 1]} />
         <meshBasicMaterial
           color="#0ea5e9"
           transparent
-          opacity={0.08}
+          opacity={0.12}
+          depthWrite={false}
           side={THREE.DoubleSide}
-          depthWrite={false}
         />
       </mesh>
 
-      {/* Wake cone wireframe outline */}
-      <lineSegments position={[wakeLength / 2, obstacle.height * 0.35, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <edgesGeometry args={[new THREE.ConeGeometry(wakeWidth * 0.5, wakeLength, 8, 1)]} />
-        <lineBasicMaterial color="#0ea5e9" transparent opacity={0.3} />
-      </lineSegments>
+      {/* Thin trailing lines - simple streamlines */}
+      {[-0.15, 0, 0.15].map((offset, i) => (
+        <mesh 
+          key={i}
+          position={[wakeLength / 2, 0, offset * baseSize]} 
+          rotation={[0, 0, 0]}
+        >
+          <boxGeometry args={[wakeLength, 0.08, 0.08]} />
+          <meshBasicMaterial
+            color="#0ea5e9"
+            transparent
+            opacity={0.25 - Math.abs(offset) * 0.5}
+            depthWrite={false}
+          />
+        </mesh>
+      ))}
 
-      {/* Animated flow particles */}
-      <points ref={flowFieldRef} geometry={streamlineGeometry}>
-        <pointsMaterial
-          color="#0ea5e9"
-          size={0.3}
-          transparent
-          opacity={0.6}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
-      </points>
-
-      {/* Ground wake shadow - gradient fade */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[wakeLength / 2, 0.1, 0]}>
-        <planeGeometry args={[wakeLength, wakeWidth * 0.6]} />
+      {/* Arrow indicator at end */}
+      <mesh position={[wakeLength - 1, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
+        <coneGeometry args={[0.3, 0.8, 4]} />
         <meshBasicMaterial
           color="#0ea5e9"
           transparent
-          opacity={0.06}
+          opacity={0.3}
           depthWrite={false}
         />
       </mesh>
-
-      {/* Simple single marker at wake end showing velocity deficit */}
-      <Html
-        position={[wakeLength * 0.7, 0.5, 0]}
-        center
-        style={{ pointerEvents: 'none' }}
-      >
-        <div 
-          className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-mono"
-          style={{ 
-            backgroundColor: 'rgba(14,165,233,0.2)',
-            border: '1px solid rgba(14,165,233,0.4)',
-            color: '#0ea5e9'
-          }}
-        >
-          <span className="opacity-70">−{velocityDeficit}%</span>
-        </div>
-      </Html>
     </group>
   );
 };
