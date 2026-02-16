@@ -82,6 +82,13 @@ export const OBSTACLE_DRAG_COEFFICIENTS: Record<string, ObstaclePhysics> = {
     turbulenceGeneration: 0.7,
     wakeLength: 8,
     separationAngle: 25
+  },
+  wind_generator: {
+    dragCoefficient: 0.3,
+    porosityFactor: 0.7,
+    turbulenceGeneration: 0.4,
+    wakeLength: 12,
+    separationAngle: 35
   }
 };
 

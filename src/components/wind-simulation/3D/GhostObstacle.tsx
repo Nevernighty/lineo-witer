@@ -15,94 +15,88 @@ export const GhostObstacle: React.FC<GhostObstacleProps> = ({
   visible 
 }) => {
   const dimensions = useMemo(() => {
-    const width = obstacleType === 'skyscraper' ? 15 : 10;
-    const height = obstacleType === 'tree' ? 20 : obstacleType === 'skyscraper' ? 40 : 15;
-    const depth = 10;
-    return { width, height, depth };
+    switch (obstacleType) {
+      case 'skyscraper': return { width: 15, height: 45, depth: 10 };
+      case 'tree': return { width: 10, height: 20, depth: 10 };
+      case 'tower': return { width: 5, height: 35, depth: 5 };
+      case 'fence': return { width: 10, height: 3, depth: 1 };
+      case 'wall': return { width: 10, height: 8, depth: 3 };
+      case 'house': return { width: 10, height: 12, depth: 10 };
+      case 'wind_generator': return { width: 6, height: 30, depth: 6 };
+      default: return { width: 10, height: 15, depth: 10 };
+    }
   }, [obstacleType]);
 
-  const ghostMaterial = useMemo(() => {
-    return new THREE.MeshBasicMaterial({
-      color: '#39ff14',
-      transparent: true,
-      opacity: 0.2,
-      side: THREE.DoubleSide,
-    });
-  }, []);
+  const ghostMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: '#39ff14', transparent: true, opacity: 0.15, side: THREE.DoubleSide,
+  }), []);
 
-  const wireframeMaterial = useMemo(() => {
-    return new THREE.MeshBasicMaterial({
-      color: '#39ff14',
-      transparent: true,
-      opacity: 0.6,
-      wireframe: true,
-    });
-  }, []);
+  const wireMat = useMemo(() => new THREE.MeshBasicMaterial({
+    color: '#39ff14', transparent: true, opacity: 0.5, wireframe: true,
+  }), []);
 
   if (!visible) return null;
 
   const renderGhost = () => {
-    const centerPos: [number, number, number] = [
-      position[0],
-      position[1] + dimensions.height / 2,
-      position[2]
-    ];
+    const p: [number, number, number] = [position[0], 0, position[2]];
 
     switch (obstacleType) {
       case 'tree':
         return (
-          <group position={centerPos}>
-            {/* Tree trunk ghost */}
-            <Cylinder
-              args={[dimensions.width * 0.2, dimensions.width * 0.3, dimensions.height * 0.6, 8]}
-              position={[0, -dimensions.height * 0.2, 0]}
-              material={ghostMaterial}
-            />
-            {/* Tree crown ghost */}
-            <Sphere
-              args={[dimensions.width * 0.4, 8, 8]}
-              position={[0, dimensions.height * 0.2, 0]}
-              material={ghostMaterial}
-            />
-            {/* Wireframe overlay */}
-            <Cylinder
-              args={[dimensions.width * 0.2, dimensions.width * 0.3, dimensions.height * 0.6, 8]}
-              position={[0, -dimensions.height * 0.2, 0]}
-              material={wireframeMaterial}
-            />
-            <Sphere
-              args={[dimensions.width * 0.4, 8, 8]}
-              position={[0, dimensions.height * 0.2, 0]}
-              material={wireframeMaterial}
-            />
+          <group position={p}>
+            <Cylinder args={[dimensions.width * 0.1, dimensions.width * 0.18, dimensions.height * 0.5, 8]} 
+              position={[0, dimensions.height * 0.25, 0]} material={wireMat} />
+            <Sphere args={[dimensions.width * 0.45, 8, 8]} 
+              position={[0, dimensions.height * 0.7, 0]} material={wireMat} />
           </group>
         );
 
       case 'tower':
         return (
-          <group position={centerPos}>
-            <Cylinder
-              args={[dimensions.width * 0.3, dimensions.width * 0.5, dimensions.height, 8]}
-              material={ghostMaterial}
-            />
-            <Cylinder
-              args={[dimensions.width * 0.3, dimensions.width * 0.5, dimensions.height, 8]}
-              material={wireframeMaterial}
-            />
+          <group position={p}>
+            <Cylinder args={[dimensions.width * 0.2, dimensions.width * 0.4, dimensions.height, 6]} 
+              position={[0, dimensions.height / 2, 0]} material={wireMat} />
+          </group>
+        );
+
+      case 'fence':
+        return (
+          <group position={p}>
+            <Box args={[dimensions.width, dimensions.height, 0.2]} 
+              position={[0, dimensions.height / 2, 0]} material={wireMat} />
+          </group>
+        );
+
+      case 'wind_generator':
+        return (
+          <group position={p}>
+            <Cylinder args={[0.3, 0.5, dimensions.height, 6]} 
+              position={[0, dimensions.height / 2, 0]} material={wireMat} />
+            {/* Rotor circle */}
+            <mesh position={[0, dimensions.height, 0]} rotation={[0, 0, 0]}>
+              <ringGeometry args={[dimensions.width * 0.8, dimensions.width * 0.9, 24]} />
+              <meshBasicMaterial color="#39ff14" transparent opacity={0.3} side={THREE.DoubleSide} />
+            </mesh>
+          </group>
+        );
+
+      case 'house':
+        return (
+          <group position={p}>
+            <Box args={[dimensions.width, dimensions.height * 0.65, dimensions.depth]} 
+              position={[0, dimensions.height * 0.325, 0]} material={wireMat} />
+            <mesh position={[0, dimensions.height * 0.65 + dimensions.height * 0.175, 0]}>
+              <coneGeometry args={[dimensions.width * 0.75, dimensions.height * 0.35, 4]} />
+              <meshBasicMaterial color="#39ff14" transparent opacity={0.5} wireframe />
+            </mesh>
           </group>
         );
 
       default:
         return (
-          <group position={centerPos}>
-            <Box
-              args={[dimensions.width, dimensions.height, dimensions.depth]}
-              material={ghostMaterial}
-            />
-            <Box
-              args={[dimensions.width, dimensions.height, dimensions.depth]}
-              material={wireframeMaterial}
-            />
+          <group position={p}>
+            <Box args={[dimensions.width, dimensions.height, dimensions.depth]} 
+              position={[0, dimensions.height / 2, 0]} material={wireMat} />
           </group>
         );
     }
@@ -111,7 +105,6 @@ export const GhostObstacle: React.FC<GhostObstacleProps> = ({
   return (
     <group>
       {renderGhost()}
-      {/* Ground marker */}
       <mesh position={[position[0], 0.1, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[dimensions.width * 0.4, dimensions.width * 0.5, 32]} />
         <meshBasicMaterial color="#39ff14" transparent opacity={0.4} side={THREE.DoubleSide} />
