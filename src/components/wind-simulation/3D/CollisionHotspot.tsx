@@ -12,7 +12,6 @@ interface CollisionHotspotProps {
   visible: boolean;
 }
 
-// Energy classification thresholds
 const ENERGY_LEVELS = {
   low: { threshold: 0.25, label: 'LOW', color: '#22c55e' },
   medium: { threshold: 0.5, label: 'MED', color: '#eab308' },
@@ -28,253 +27,165 @@ const getEnergyLevel = (intensity: number) => {
 };
 
 export const CollisionHotspot: React.FC<CollisionHotspotProps> = ({
-  obstacle,
-  energy,
-  maxEnergy,
-  visible
+  obstacle, energy, maxEnergy, visible
 }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const ringRefs = useRef<THREE.Mesh[]>([]);
   const pulseRef = useRef<THREE.Mesh>(null);
   
-  const intensity = useMemo(() => {
-    if (maxEnergy <= 0) return 0;
-    return Math.min(energy / maxEnergy, 1);
-  }, [energy, maxEnergy]);
-
+  const intensity = useMemo(() => maxEnergy <= 0 ? 0 : Math.min(energy / maxEnergy, 1), [energy, maxEnergy]);
   const energyLevel = useMemo(() => getEnergyLevel(intensity), [intensity]);
 
-  // Animate the hotspot
   useFrame((state) => {
-    if (!visible || !groupRef.current) return;
-    
+    if (!visible || !pulseRef.current) return;
     const time = state.clock.elapsedTime;
-    
-    // Animate concentric rings - expanding outward
-    ringRefs.current.forEach((ring, i) => {
-      if (ring) {
-        const phase = (time * 1.5 + i * 0.3) % 1.5;
-        const scale = 0.8 + phase * 0.6;
-        ring.scale.setScalar(scale);
-        if (ring.material instanceof THREE.MeshBasicMaterial) {
-          ring.material.opacity = (1 - phase / 1.5) * intensity * 0.5;
-        }
-      }
-    });
-
-    // Pulse the center indicator
-    if (pulseRef.current) {
-      const pulse = 0.9 + Math.sin(time * 4) * 0.1;
-      pulseRef.current.scale.setScalar(pulse);
-    }
+    const pulse = 0.9 + Math.sin(time * 4) * 0.1;
+    pulseRef.current.scale.setScalar(pulse);
   });
 
   if (!visible || intensity < 0.02) return null;
 
-  const position: [number, number, number] = [
-    obstacle.x + obstacle.width / 2,
-    obstacle.y + obstacle.height + 0.5,
-    obstacle.z + obstacle.depth / 2
-  ];
-
+  const cx = obstacle.x + obstacle.width / 2;
+  const cy = obstacle.y + obstacle.height + 0.5;
+  const cz = obstacle.z + obstacle.depth / 2;
   const color = new THREE.Color(energyLevel.color);
-  const size = Math.max(obstacle.width, obstacle.depth) * 0.4;
+  const size = Math.max(obstacle.width, obstacle.depth) * 0.3;
 
   return (
-    <group ref={groupRef} position={position}>
-      {/* Central energy indicator - glowing sphere */}
+    <group ref={groupRef} position={[cx, cy, cz]}>
+      {/* Central glow */}
       <mesh ref={pulseRef}>
-        <sphereGeometry args={[size * 0.15, 16, 16]} />
-        <meshBasicMaterial
-          color={color}
-          transparent
-          opacity={0.8 + intensity * 0.2}
-        />
+        <sphereGeometry args={[size * 0.15, 12, 12]} />
+        <meshBasicMaterial color={color} transparent opacity={0.8 + intensity * 0.2} />
       </mesh>
-
-      {/* Outer glow */}
       <mesh>
-        <sphereGeometry args={[size * 0.25, 16, 16]} />
-        <meshBasicMaterial
-          color={color}
-          transparent
-          opacity={intensity * 0.3}
-          blending={THREE.AdditiveBlending}
-          depthWrite={false}
-        />
+        <sphereGeometry args={[size * 0.25, 12, 12]} />
+        <meshBasicMaterial color={color} transparent opacity={intensity * 0.25} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
 
-      {/* Concentric pulse rings - horizontal */}
-      {[0, 1, 2].map((i) => (
-        <mesh 
-          key={i}
-          ref={(el) => { if (el) ringRefs.current[i] = el; }}
-          rotation={[-Math.PI / 2, 0, 0]}
-          position={[0, -0.5, 0]}
-        >
-          <ringGeometry args={[size * 0.4, size * 0.45, 24]} />
-          <meshBasicMaterial
-            color={color}
-            transparent
-            opacity={intensity * 0.4}
-            side={THREE.DoubleSide}
-            depthWrite={false}
-            blending={THREE.AdditiveBlending}
-          />
-        </mesh>
-      ))}
-
-      {/* Vertical beam indicator */}
-      <mesh position={[0, -obstacle.height / 2 - 0.25, 0]}>
-        <cylinderGeometry args={[0.08, 0.15, obstacle.height, 8]} />
-        <meshBasicMaterial
-          color={color}
-          transparent
-          opacity={intensity * 0.25}
-          depthWrite={false}
-          blending={THREE.AdditiveBlending}
-        />
+      {/* Ground heatmap circle */}
+      <mesh position={[0, -cy + 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[size * 0.8, 24]} />
+        <meshBasicMaterial color={color} transparent opacity={intensity * 0.2} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Compact data label */}
-      <Html
-        position={[0, 2, 0]}
-        center
-        style={{ pointerEvents: 'none' }}
-      >
-        <div 
-          className="rounded px-2 py-1 text-center border shadow-lg"
-          style={{ 
-            backgroundColor: 'rgba(0,0,0,0.85)',
-            borderColor: `${energyLevel.color}50`,
-            minWidth: '60px'
-          }}
-        >
-          <div 
-            className="text-[9px] font-bold tracking-wider"
-            style={{ color: energyLevel.color }}
-          >
-            {energyLevel.label}
-          </div>
-          <div className="text-white text-sm font-mono font-semibold">
-            {energy.toFixed(1)}
-            <span className="text-[9px] ml-0.5 opacity-70">J</span>
-          </div>
-          <div className="text-[8px] opacity-60 text-white">
-            {(intensity * 100).toFixed(0)}%
-          </div>
+      {/* Compact label */}
+      <Html position={[0, 1.5, 0]} center style={{ pointerEvents: 'none' }}>
+        <div className="rounded px-1.5 py-0.5 text-center border shadow-lg"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)', borderColor: `${energyLevel.color}50`, minWidth: '50px' }}>
+          <div className="text-[8px] font-bold tracking-wider" style={{ color: energyLevel.color }}>{energyLevel.label}</div>
+          <div className="text-white text-xs font-mono font-semibold">{energy.toFixed(1)}<span className="text-[8px] ml-0.5 opacity-70">J</span></div>
         </div>
       </Html>
     </group>
   );
 };
 
+// Clean wake zone visualization - tapered ribbon on ground
 interface WakeZoneVisualizerProps {
   obstacle: Obstacle;
   windAngle: number;
   windSpeed: number;
   visible: boolean;
+  obstacleCount: number;
 }
 
 export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
-  obstacle,
-  windAngle,
-  windSpeed,
-  visible
+  obstacle, windAngle, windSpeed, visible, obstacleCount
 }) => {
   const trailRef = useRef<THREE.Mesh>(null);
   
   const physics = OBSTACLE_DRAG_COEFFICIENTS[obstacle.type] || OBSTACLE_DRAG_COEFFICIENTS.building;
   const baseSize = Math.max(obstacle.width, obstacle.depth);
-  const wakeLength = physics.wakeLength * baseSize * (0.6 + windSpeed * 0.02);
+  const wakeLength = physics.wakeLength * (0.8 + windSpeed * 0.04) * Math.min(baseSize * 0.3, 15);
+  const wakeWidth = baseSize * 0.5;
   
   const angleRad = (windAngle * Math.PI) / 180;
 
-  // Create gradient trail geometry
-  const trailGeometry = useMemo(() => {
-    const segments = 12;
-    const geometry = new THREE.PlaneGeometry(wakeLength, baseSize * 0.6, segments, 1);
-    
+  // Create tapered shape geometry
+  const shape = useMemo(() => {
+    const s = new THREE.Shape();
+    // Trapezoid: wide at obstacle, narrow at end
+    s.moveTo(0, -wakeWidth / 2);
+    s.lineTo(0, wakeWidth / 2);
+    s.lineTo(wakeLength, wakeWidth * 0.15);
+    s.lineTo(wakeLength, -wakeWidth * 0.15);
+    s.closePath();
+    return s;
+  }, [wakeLength, wakeWidth]);
+
+  const shapeGeometry = useMemo(() => {
+    const geo = new THREE.ShapeGeometry(shape);
     // Add vertex colors for gradient fade
-    const colors = [];
-    const positions = geometry.attributes.position;
-    
+    const positions = geo.attributes.position;
+    const colors = new Float32Array(positions.count * 4);
     for (let i = 0; i < positions.count; i++) {
       const x = positions.getX(i);
-      const progress = (x / wakeLength + 0.5); // 0 at start, 1 at end
-      
-      // Fade from cyan to transparent
-      const alpha = Math.pow(1 - progress, 1.5);
-      colors.push(0.05, 0.65, 0.9, alpha * 0.4);
+      const progress = x / wakeLength;
+      const alpha = Math.pow(1 - progress, 2) * 0.3;
+      colors[i * 4] = 0.05;
+      colors[i * 4 + 1] = 0.55;
+      colors[i * 4 + 2] = 0.85;
+      colors[i * 4 + 3] = alpha;
     }
-    
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
-    return geometry;
-  }, [wakeLength, baseSize]);
+    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
+    return geo;
+  }, [shape, wakeLength]);
 
-  // Subtle animation
   useFrame((state) => {
     if (!visible || !trailRef.current) return;
     const time = state.clock.elapsedTime;
-    // Very subtle pulse
-    const material = trailRef.current.material as THREE.MeshBasicMaterial;
-    if (material) {
-      material.opacity = 0.15 + Math.sin(time * 2) * 0.03;
-    }
+    const mat = trailRef.current.material as THREE.MeshBasicMaterial;
+    if (mat) mat.opacity = 0.18 + Math.sin(time * 1.5) * 0.04;
   });
 
   if (!visible) return null;
 
-  const obstacleCenter: [number, number, number] = [
-    obstacle.x + obstacle.width / 2,
-    obstacle.height * 0.4,
-    obstacle.z + obstacle.depth / 2
-  ];
+  const cx = obstacle.x + obstacle.width / 2;
+  const cz = obstacle.z + obstacle.depth / 2;
+
+  // Show velocity deficit markers only when few obstacles
+  const showMarkers = obstacleCount <= 5;
 
   return (
-    <group position={obstacleCenter} rotation={[0, -angleRad + Math.PI, 0]}>
-      {/* Simple gradient trail on ground */}
-      <mesh 
-        ref={trailRef}
-        position={[wakeLength / 2, -obstacle.height * 0.35, 0]} 
-        rotation={[-Math.PI / 2, 0, 0]}
-      >
-        <planeGeometry args={[wakeLength, baseSize * 0.5, 8, 1]} />
-        <meshBasicMaterial
-          color="#0ea5e9"
-          transparent
-          opacity={0.12}
-          depthWrite={false}
-          side={THREE.DoubleSide}
-        />
+    <group position={[cx, 0.15, cz]} rotation={[0, -angleRad + Math.PI, 0]}>
+      {/* Ground ribbon */}
+      <mesh ref={trailRef} rotation={[-Math.PI / 2, 0, 0]}>
+        <shapeGeometry args={[shape]} />
+        <meshBasicMaterial color="#0ea5e9" transparent opacity={0.18} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Thin trailing lines - simple streamlines */}
-      {[-0.15, 0, 0.15].map((offset, i) => (
-        <mesh 
-          key={i}
-          position={[wakeLength / 2, 0, offset * baseSize]} 
-          rotation={[0, 0, 0]}
-        >
-          <boxGeometry args={[wakeLength, 0.08, 0.08]} />
-          <meshBasicMaterial
-            color="#0ea5e9"
-            transparent
-            opacity={0.25 - Math.abs(offset) * 0.5}
-            depthWrite={false}
-          />
-        </mesh>
-      ))}
+      {/* Center streamline with animated dash */}
+      <mesh position={[wakeLength / 2, 0.05, 0]}>
+        <boxGeometry args={[wakeLength, 0.06, 0.06]} />
+        <meshBasicMaterial color="#0ea5e9" transparent opacity={0.35} depthWrite={false} />
+      </mesh>
 
-      {/* Arrow indicator at end */}
-      <mesh position={[wakeLength - 1, 0, 0]} rotation={[0, 0, -Math.PI / 2]}>
-        <coneGeometry args={[0.3, 0.8, 4]} />
-        <meshBasicMaterial
-          color="#0ea5e9"
-          transparent
-          opacity={0.3}
-          depthWrite={false}
-        />
+      {/* Velocity deficit markers at 2D, 5D, 10D */}
+      {showMarkers && [2, 5, 10].map(multiplier => {
+        const dist = baseSize * multiplier * 0.3;
+        if (dist > wakeLength) return null;
+        const deficit = Math.round(60 * Math.exp(-2 * dist / wakeLength));
+        return (
+          <group key={multiplier} position={[dist, 0, 0]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[0.15, wakeWidth * (1 - dist / wakeLength) * 0.8]} />
+              <meshBasicMaterial color="#0ea5e9" transparent opacity={0.4} depthWrite={false} side={THREE.DoubleSide} />
+            </mesh>
+            <Html position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}>
+              <div className="text-[7px] font-mono px-1 rounded" style={{
+                backgroundColor: 'rgba(0,0,0,0.7)', color: '#38bdf8', whiteSpace: 'nowrap'
+              }}>
+                {multiplier}D: -{deficit}%
+              </div>
+            </Html>
+          </group>
+        );
+      })}
+
+      {/* Terminal arrow */}
+      <mesh position={[wakeLength - 0.5, 0.1, 0]} rotation={[0, 0, -Math.PI / 2]}>
+        <coneGeometry args={[0.2, 0.6, 4]} />
+        <meshBasicMaterial color="#0ea5e9" transparent opacity={0.25} depthWrite={false} />
       </mesh>
     </group>
   );
@@ -290,18 +201,11 @@ interface CollisionHotspotManagerProps {
 }
 
 export const CollisionHotspotManager: React.FC<CollisionHotspotManagerProps> = ({
-  obstacles,
-  obstacleEnergies,
-  showHotspots,
-  showWakeZones,
-  windAngle,
-  windSpeed = 8
+  obstacles, obstacleEnergies, showHotspots, showWakeZones, windAngle, windSpeed = 8
 }) => {
   const maxEnergy = useMemo(() => {
     let max = 1;
-    obstacleEnergies.forEach((energy) => {
-      if (energy > max) max = energy;
-    });
+    obstacleEnergies.forEach((energy) => { if (energy > max) max = energy; });
     return max;
   }, [obstacleEnergies]);
 
@@ -323,6 +227,7 @@ export const CollisionHotspotManager: React.FC<CollisionHotspotManagerProps> = (
               windAngle={windAngle}
               windSpeed={windSpeed}
               visible={showWakeZones}
+              obstacleCount={obstacles.length}
             />
           )}
         </group>

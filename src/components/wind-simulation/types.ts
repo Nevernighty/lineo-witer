@@ -1,7 +1,7 @@
 
 export type ObstacleShape = "regular" | "L" | "T" | "Y" | "Z" | "Q" | "P" | "N" | "irregular" | "cylindrical" | "rectangular";
-export type ObstacleType = "tree" | "building" | "skyscraper" | "tower" | "house" | "wall" | "fence";
-export type ObstacleCategory = "vegetation" | "structure" | "barrier";
+export type ObstacleType = "tree" | "building" | "skyscraper" | "tower" | "house" | "wall" | "fence" | "wind_generator";
+export type ObstacleCategory = "vegetation" | "structure" | "barrier" | "energy";
 export type ObstacleMaterial = "wood" | "concrete" | "steel" | "glass" | "brick";
 
 export interface WindParticle {
@@ -75,6 +75,15 @@ export const OBSTACLE_CATEGORIES: Record<ObstacleCategory, ObstacleCategoryConfi
       density: 0.7,
       resistance: 1.0,
       material: 'wood'
+    }
+  },
+  energy: {
+    name: 'Energy',
+    types: ['wind_generator'],
+    defaultProperties: {
+      density: 0.5,
+      resistance: 0.3,
+      material: 'steel'
     }
   }
 };
