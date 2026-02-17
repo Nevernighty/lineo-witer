@@ -1,179 +1,171 @@
 
 
-# Comprehensive Simulation Overhaul: Ukrainian-First, Wind Generators, Advanced Objects, Clean Wake Zones
+# Комплексне оновлення симуляції вітру
 
-## Overview
+## Проблеми, які вирішуються
 
-This plan transforms the wind simulation into a professionally informative, Ukrainian-first scientific tool with placeable wind generators, animated collision energy popups ("local hits"), improved obstacle shapes, proper wake zone visualization, and a clean compact UI.
-
----
-
-## 1. Ukrainian Language as Default + EN/UA Toggle
-
-**File: `src/pages/Index.tsx`**
-- Add `useState<'ua' | 'en'>('ua')` for language state
-- Add a small toggle button in the header (UA / EN pill switcher)
-- Pass `lang` prop down to child components
-
-**New file: `src/utils/i18n.ts`**
-- Create a translations dictionary for all UI labels (controls, panel headers, obstacle names, tooltips, footer hints)
-- Ukrainian as primary, English as secondary
-- Example keys: `windSpeed`, `direction`, `elevation`, `clearAll`, `placeObstacle`, `collisionEnergy`, etc.
-
-**Files updated with i18n:** `AdvancedWindControls.tsx`, `AdvancedMeasurementPanel.tsx`, `WindSimulation3D.tsx`, `Index.tsx`
+1. **Інфо-панелі блокуються Canvas** - контрольні панелі (справа) перехоплюються Canvas pointer events, тому слайдери/селекти не працюють коректно
+2. **Turbine Info Panel** - показує безкорисну інформацію ("NESW", "Power: 14000000") без наукового контексту
+3. **Generator Configuration** - примітивне меню без глибини
+4. **Weather forecast coming soon** - заглушка без реальних даних
+5. **Info Page** - англійською, потребує українську + більше наукових деталей
+6. **Wake zones** - потребують більше параметрів та інформативності
+7. **3D об'єкти** - потребують більшої деталізації і різноманіття
+8. **Вітрогенератори** - потрібно більше типів (HAWT, VAWT, Darrieus, Savonius)
+9. **Площина/рельєф** - немає можливості налаштувати кут/нахил поверхні
 
 ---
 
-## 2. Replace "Performance Stats" with "Local Hits" (Animated Collision Popups)
+## Частина 1: Виправлення блокування інфо-панелей
 
-**File: `src/components/wind-simulation/3D/WindSimulation3D.tsx`**
-- Remove `showStats` state and `<Stats />` component
-- Replace with `showLocalHits` toggle
-- When enabled, each collision event spawns an animated 3D popup (Html label) showing energy in Joules at the collision point, floating upward and fading out over ~1.5s
-
-**File: `src/components/wind-simulation/3D/LocalHitPopup.tsx`** (NEW)
-- React Three Fiber component using `<Html>` from drei
-- Shows energy value (e.g., "0.42 J") with color-coded background
-- Animates: position.y += over time, opacity fades to 0
-- Auto-removes after animation completes
-- Manager component tracks active popups (max ~15 to avoid clutter)
-
-**File: `src/components/wind-simulation/3D/AdvancedWindControls.tsx`**
-- Replace "Performance Stats" checkbox with "Локальні удари / Local Hits" checkbox
+**Файл: `src/components/wind-simulation/3D/WindSimulation3D.tsx`**
+- Додати `pointer-events: none` на Canvas wrapper
+- Додати `pointer-events: auto` на панелі управління та вимірювань
+- Використовувати `e.stopPropagation()` на інтерактивних елементах контрольної панелі
+- Canvas отримає події лише коли курсор безпосередньо на ньому
 
 ---
 
-## 3. More Advanced Obstacle Shapes
+## Частина 2: Заміна WindTurbine Info Panel
 
-**File: `src/components/wind-simulation/types.ts`**
-- Add new obstacle types: `"wind_generator"` to ObstacleType
-- Add `"energy"` to ObstacleCategory
-
-**File: `src/components/wind-simulation/3D/Obstacle3D.tsx`** - Major overhaul
-- **Building**: Add roof geometry (pyramid on top), window lines (thin box inserts)
-- **House**: Pitched roof (ConeGeometry), chimney cylinder, distinct from building
-- **Skyscraper**: Stepped/tapered shape, antenna on top, glass material with reflections
-- **Tower**: Lattice-style look using thin cylinders for legs + cross-braces
-- **Fence**: **Fix: position at y=0 on ground**, use multiple vertical posts (cylinders) + horizontal rails (thin boxes)
-- **Wall**: Thick, grounded, brick-textured appearance
-- **Tree**: Multi-sphere crown (3 overlapping spheres), more realistic trunk
-- **Wind Generator**: Nacelle box + 3 rotating blades (animated with useFrame) + tower cylinder. Can be placed on ground or on top of buildings
-
-**File: `src/components/wind-simulation/3D/WindGenerator3D.tsx`** (NEW)
-- Dedicated component for wind turbine/generator 3D model
-- Tower (tall cylinder), nacelle (small box at top), 3 blades (thin elongated geometries)
-- Blades rotate based on current `windSpeed` from config
-- Generates power readout: P = 0.5 * rho * A * v^3 * Cp (Betz limit Cp=0.40)
-- Shows small power label above (e.g., "1.2 kW")
+**Файл: `src/components/WindTurbine.tsx`** - Повний перепис
+- Замість примітивного відображення (NESW/компас) зробити науково-інформативну панель:
+  - Візуалізація кривої потужності (P vs V) поточного генератора
+  - Розрахунок Annual Energy Production (AEP)
+  - Формула P = 0.5 * rho * A * V^3 * Cp з поточними значеннями
+  - Ефективність Betz Limit (59.3%) vs реальна
+  - Tip-Speed Ratio (TSR) = omega * R / V
+  - Таблиця потужності при різних швидкостях
+  - Все українською з формулами
 
 ---
 
-## 4. Wind Generator Placement System
+## Частина 3: Заміна Generator Configuration
 
-**File: `src/components/wind-simulation/3D/WindSimulation3D.tsx`**
-- When obstacle type is `wind_generator`, the addObstacle function creates a generator with appropriate dimensions
-- Generators placed on ground get full tower height; generators placed on buildings get shorter mast
-- Track generator power output and display in measurement panel
-
-**File: `src/components/wind-simulation/3D/AdvancedWindControls.tsx`**
-- Add "wind_generator" option in the obstacle type selector with label "Вітрогенератор / Wind Generator"
-- Add elevation/height science info tooltip: "Wind speed increases with height following power law V = V_ref * (h/h_ref)^alpha. Doubling height increases power by ~40-80%."
-
-**File: `src/components/wind-simulation/3D/WindPhysicsEngine.ts`**
-- Add `wind_generator` to OBSTACLE_DRAG_COEFFICIENTS (low Cd ~0.3, cylindrical wake)
-- Add power calculation function for generators
+**Файл: `src/components/GeneratorSettings.tsx`** - Глибинний перепис
+- Замість простих Select'ів - інтерактивна інженерна панель:
+  - **Аеродинаміка**: Профіль лопаті (NACA серії), кут атаки, кількість лопатей з поясненнями
+  - **Конструкція**: Матеріали з таблицею властивостей (модуль Юнга, міцність, щільність)
+  - **Електрика**: Тип генератора (PMSG/DFIG), кількість полюсів, напруга
+  - **Розрахунок**: Live-обчислення потужності, крутного моменту, відцентрової сили
+  - Формули: F_centrifugal = m * omega^2 * r, Torque = P / omega
+  - Все українською (з EN перемикачем)
 
 ---
 
-## 5. Better Wake Zone Visualization
+## Частина 4: Погода (замість заглушки)
 
-**File: `src/components/wind-simulation/3D/CollisionHotspot.tsx`** - `WakeZoneVisualizer` rewrite
-- Replace current messy approach with a **single clean tapered ribbon** per obstacle:
-  - Use `ShapeGeometry` to create a tapered trapezoid (wide at obstacle, narrowing downstream)
-  - Flat on the ground plane (y=0.15)
-  - Gradient from semi-transparent blue at obstacle to fully transparent at end
-  - Length proportional to obstacle size * drag coefficient
-  - Width proportional to obstacle cross-section
-- Add **velocity deficit markers**: small dashes at 2D, 5D, 10D distances with % labels (only when few obstacles, hidden when >5 to avoid clutter)
-- Single thin center streamline with animated dash pattern
-- No 3D cones, no floating labels, no overlapping geometry
-- Wake zones merge/overlap gracefully due to transparency
+**Файл: `src/components/WeatherDisplay.tsx`** - Переробка
+- Оскільки API ключів немає, замість реального API зробити:
+  - Синтетичний прогноз на основі геолокації + сезону + часу доби
+  - Розрахунок типової швидкості вітру для регіону України
+  - Відображення: швидкість вітру, напрямок, температура, тиск, висота хмар
+  - Пояснення зв'язку погодних умов з потенціалом вітрової енергії
+  - Кнопка "Застосувати до симуляції" - переносить погодні параметри в симуляцію
+  - Все українською
 
 ---
 
-## 6. Enhanced Particle Graphics
+## Частина 5: Українська мова в Info Page + поглиблення контенту
 
-**File: `src/components/wind-simulation/3D/InstancedParticles.tsx`**
-- Increase particle elongation based on velocity (faster = longer trail)
-- Add subtle size pulsing for visual interest
-- Improve collision color transition: smooth gradient from green -> yellow -> orange -> red based on collision energy
-- Add faint secondary trail layer with longer persistence for flow visualization
+**Файл: `src/pages/InfoPage.tsx`**
+- Додати lang prop та UA/EN перемикач в header
+- Всі заголовки і таби українською
 
----
-
-## 7. Science-Based Elevation Info for Wind Energy
-
-**File: `src/components/wind-simulation/3D/AdvancedWindControls.tsx`**
-- Enhance info tooltips with Ukrainian text (primary) + English in parentheses
-- Add elevation science to terrain tab: display calculated wind speed at different heights
-- Show power law profile: "At 10m: X m/s, At 50m: Y m/s, At 100m: Z m/s"
-- Add wind generator specific note about optimal placement height
-
----
-
-## 8. Settings That Actually Influence the Simulation
-
-Currently many settings already feed into `WindPhysicsConfig` and affect particle behavior. Enhancements:
-
-**File: `src/components/wind-simulation/3D/AdvancedParticleSystem.tsx`**
-- Make `humidity` affect particle visual size (higher humidity = slightly larger, more visible particles)
-- Make `altitude` auto-calculate and update `airDensity` when changed (linked)
-- Make `surfaceRoughness` visually change the ground grid color/density
-- Ensure gust effects are visually dramatic (brief particle acceleration bursts)
-
-**File: `src/components/wind-simulation/3D/AdvancedWindControls.tsx`**
-- Link altitude slider to auto-compute air density (with override option)
-- Show computed values: "Calculated rho: X.XXX kg/m3" when altitude changes
+**Файли інфо-компонентів** (всі 6 файлів):
+- Додати підтримку lang prop
+- Додати формули:
+  - Закон Бернуллі: P + 0.5*rho*v^2 + rho*g*h = const
+  - Ротор: P = Cp * 0.5 * rho * A * V^3
+  - Зсув вітру: V(h) = V_ref * (h/h_ref)^alpha
+  - Розподіл Вейбулла: f(v) = (k/c)(v/c)^(k-1) * exp(-(v/c)^k)
+  - Число Рейнольдса: Re = rho*v*L/mu
+  - TSR = omega*R/V
+  - Сила Коріоліса для великомасштабних вітрових систем
 
 ---
 
-## 9. Clean, Compact UI
+## Частина 6: Різноманіття вітрогенераторів
 
-**File: `src/components/wind-simulation/3D/AdvancedMeasurementPanel.tsx`**
-- Rename "Scene" section to "Середовище / Environment"
-- Remove Reynolds number card (too specialized, clutters UI)
-- Add "Генератори / Generators" section showing total power output from placed wind generators
-- All labels bilingual: Ukrainian primary, abbreviations in English for scientific terms
+**Файл: `src/components/wind-simulation/3D/WindGenerator3D.tsx`** - Розширення
+- Додати типи генераторів: 
+  - **HAWT 3-лопатевий** (поточний) - горизонтальна вісь
+  - **HAWT 2-лопатевий** - швидший, менш стабільний
+  - **Darrieus (VAWT)** - вертикальна вісь, С-подібні лопаті
+  - **Savonius (VAWT)** - S-подібний, працює при низьких швидкостях
+  - **Мікро-турбіна** - маленька, для дахів
+- Кожен тип має різний Cp, cut-in/cut-out speed, optimal TSR
+- Вибір типу в контрольній панелі
 
-**File: `src/components/wind-simulation/3D/WindSimulation3D.tsx`**
-- Keep layout: controls right (w-56), measurements left (w-44)
-- Ensure no overflow, no scrollbars
-
----
-
-## 10. Hotspot Enhancement
-
-**File: `src/components/wind-simulation/3D/CollisionHotspot.tsx`**
-- Keep existing hotspot visualization (user said "hotspots are OK, enhance further")
-- Add ground heatmap patch: colored circle on ground below obstacle matching energy level
-- Add energy particle sparks: small particles emanating from hotspot proportional to energy
+**Файл: `src/components/wind-simulation/types.ts`**
+- Додати підтип генератора: `generatorSubtype: 'hawt3' | 'hawt2' | 'darrieus' | 'savonius' | 'micro'`
 
 ---
 
-## Technical Sequence
+## Частина 7: Покращення Wake Zones
 
-1. `src/utils/i18n.ts` - Create translation system
-2. `src/components/wind-simulation/types.ts` - Add wind_generator type
-3. `src/components/wind-simulation/3D/WindPhysicsEngine.ts` - Add generator physics
-4. `src/components/wind-simulation/3D/WindGenerator3D.tsx` - New 3D generator model
-5. `src/components/wind-simulation/3D/LocalHitPopup.tsx` - New collision popup system
-6. `src/components/wind-simulation/3D/Obstacle3D.tsx` - Advanced shapes + ground-fixed fence
-7. `src/components/wind-simulation/3D/GhostObstacle.tsx` - Update for new types
-8. `src/components/wind-simulation/3D/CollisionHotspot.tsx` - Clean wake zones + enhanced hotspots
-9. `src/components/wind-simulation/3D/InstancedParticles.tsx` - Better particle effects
-10. `src/components/wind-simulation/3D/AdvancedParticleSystem.tsx` - Humidity/altitude influence
-11. `src/components/wind-simulation/3D/AdvancedWindControls.tsx` - UA labels, generator option, linked settings
-12. `src/components/wind-simulation/3D/AdvancedMeasurementPanel.tsx` - UA labels, generator power
-13. `src/components/wind-simulation/3D/WindSimulation3D.tsx` - Local hits, generator tracking
-14. `src/pages/Index.tsx` - UA/EN toggle in header
+**Файл: `src/components/wind-simulation/3D/CollisionHotspot.tsx`**
+- Wake zones тепер залежать від:
+  - Drag coefficient перешкоди
+  - Поточна швидкість вітру (довша при сильному вітрі)
+  - Турбулентність (ширше при високій турбулентності)
+  - Висота перешкоди (вище = довше)
+  - Шорсткість поверхні
+- Відображення інформації:
+  - Довжина сліду в діаметрах перешкоди (xD)
+  - Дефіцит швидкості у % (при наведенні)
+  - Зона відновлення (де вітер повертається до 90% швидкості)
+  - Колір градієнт: темно-синій (макс. дефіцит) -> прозорий
+
+---
+
+## Частина 8: Нахил площини/рельєф
+
+**Файл: `src/components/wind-simulation/3D/WindPhysicsEngine.ts`**
+- Додати до WindPhysicsConfig:
+  - `terrainSlopeX: number` (градуси нахилу по X)
+  - `terrainSlopeZ: number` (градуси нахилу по Z)
+  - Впливає на швидкість та напрямок вітру (hill speedup effect)
+  - Формула прискорення на пагорбі: deltaV/V = slope_factor * (H/L)
+
+**Файл: `src/components/wind-simulation/3D/AdvancedWindControls.tsx`**
+- Додати слайдери нахилу у вкладку Terrain
+- Інфо-тултіп: "Нахил рельєфу впливає на прискорення вітру. На вершині пагорба швидкість може зрости на 20-80%"
+
+**Файл: `src/components/wind-simulation/3D/WindSimulation3D.tsx`**
+- Нахилити Grid відповідно до параметрів рельєфу
+- Вплив на розміщення перешкод (вони слідують за рельєфом)
+
+---
+
+## Частина 9: Більш деталізовані 3D об'єкти
+
+**Файл: `src/components/wind-simulation/3D/Obstacle3D.tsx`**
+- **Будівля**: Додати балкони, кондиціонери на стінах, двері
+- **Хмарочос**: Скляний фасад з відблисками, освітлення верхніх поверхів, кран на даху
+- **Будинок**: Димохід з "димом", водостічна труба, ґанок
+- **Вежа**: Більше горизонтальних зв'язків, сходи, параболічна антена зверху
+- **Паркан**: Виправити позиціонування (y=0), додати стовпчики з кулями зверху
+- **Стіна**: Контрфорси, тріщини
+- **Дерево**: Анімація крони при вітрі (subtle sway), різні розміри крон
+
+---
+
+## Технічна послідовність виконання
+
+1. `WindSimulation3D.tsx` - виправлення pointer events (блокування панелей)
+2. `WindPhysicsEngine.ts` - додати terrain slope та генератор підтипи
+3. `types.ts` - додати генератор підтипи
+4. `i18n.ts` - розширити переклади для нового контенту
+5. `WindGenerator3D.tsx` - 5 типів генераторів
+6. `Obstacle3D.tsx` - деталізовані 3D моделі
+7. `GhostObstacle.tsx` - оновити під нові типи
+8. `CollisionHotspot.tsx` - wake zones з більше параметрів
+9. `AdvancedWindControls.tsx` - terrain slope + вибір типу генератора
+10. `AdvancedMeasurementPanel.tsx` - деталі генераторів по типах
+11. `WeatherDisplay.tsx` - синтетична погода
+12. `WindTurbine.tsx` - наукова панель замість компаса
+13. `GeneratorSettings.tsx` - інженерна конфігурація
+14. `InfoPage.tsx` + всі info компоненти - українська + формули
+15. `Index.tsx` - передати lang в info, оновити turbine panel
 
