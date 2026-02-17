@@ -52,7 +52,6 @@ export const CollisionHotspot: React.FC<CollisionHotspotProps> = ({
 
   return (
     <group ref={groupRef} position={[cx, cy, cz]}>
-      {/* Central glow */}
       <mesh ref={pulseRef}>
         <sphereGeometry args={[size * 0.15, 12, 12]} />
         <meshBasicMaterial color={color} transparent opacity={0.8 + intensity * 0.2} />
@@ -61,14 +60,10 @@ export const CollisionHotspot: React.FC<CollisionHotspotProps> = ({
         <sphereGeometry args={[size * 0.25, 12, 12]} />
         <meshBasicMaterial color={color} transparent opacity={intensity * 0.25} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-
-      {/* Ground heatmap circle */}
       <mesh position={[0, -cy + 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[size * 0.8, 24]} />
         <meshBasicMaterial color={color} transparent opacity={intensity * 0.2} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-
-      {/* Compact label */}
       <Html position={[0, 1.5, 0]} center style={{ pointerEvents: 'none' }}>
         <div className="rounded px-1.5 py-0.5 text-center border shadow-lg"
           style={{ backgroundColor: 'rgba(0,0,0,0.85)', borderColor: `${energyLevel.color}50`, minWidth: '50px' }}>
@@ -80,31 +75,44 @@ export const CollisionHotspot: React.FC<CollisionHotspotProps> = ({
   );
 };
 
-// Clean wake zone visualization - tapered ribbon on ground
+// Enhanced wake zone with more parameter dependencies
 interface WakeZoneVisualizerProps {
   obstacle: Obstacle;
   windAngle: number;
   windSpeed: number;
   visible: boolean;
   obstacleCount: number;
+  turbulenceIntensity?: number;
+  surfaceRoughness?: number;
 }
 
 export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
-  obstacle, windAngle, windSpeed, visible, obstacleCount
+  obstacle, windAngle, windSpeed, visible, obstacleCount,
+  turbulenceIntensity = 0.3, surfaceRoughness = 0.3
 }) => {
   const trailRef = useRef<THREE.Mesh>(null);
   
   const physics = OBSTACLE_DRAG_COEFFICIENTS[obstacle.type] || OBSTACLE_DRAG_COEFFICIENTS.building;
   const baseSize = Math.max(obstacle.width, obstacle.depth);
-  const wakeLength = physics.wakeLength * (0.8 + windSpeed * 0.04) * Math.min(baseSize * 0.3, 15);
-  const wakeWidth = baseSize * 0.5;
+  
+  // Wake length depends on: Cd, wind speed, obstacle height, surface roughness
+  const cdFactor = physics.dragCoefficient / 1.4; // normalized to building Cd
+  const speedFactor = 0.8 + windSpeed * 0.04;
+  const heightFactor = Math.min(obstacle.height / 15, 2.5); // taller = longer wake
+  const roughnessFactor = 1 + surfaceRoughness * 0.3; // rougher = faster recovery = shorter wake
+  const wakeLength = physics.wakeLength * speedFactor * cdFactor * heightFactor / roughnessFactor * Math.min(baseSize * 0.3, 15);
+  
+  // Wake width depends on turbulence
+  const turbWidthFactor = 1 + turbulenceIntensity * 0.8; // higher TI = wider wake
+  const wakeWidth = baseSize * 0.5 * turbWidthFactor;
   
   const angleRad = (windAngle * Math.PI) / 180;
 
-  // Create tapered shape geometry
+  // Recovery distance (where wind returns to 90% of free-stream)
+  const recoveryDist = wakeLength * 0.85;
+
   const shape = useMemo(() => {
     const s = new THREE.Shape();
-    // Trapezoid: wide at obstacle, narrow at end
     s.moveTo(0, -wakeWidth / 2);
     s.lineTo(0, wakeWidth / 2);
     s.lineTo(wakeLength, wakeWidth * 0.15);
@@ -112,24 +120,6 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
     s.closePath();
     return s;
   }, [wakeLength, wakeWidth]);
-
-  const shapeGeometry = useMemo(() => {
-    const geo = new THREE.ShapeGeometry(shape);
-    // Add vertex colors for gradient fade
-    const positions = geo.attributes.position;
-    const colors = new Float32Array(positions.count * 4);
-    for (let i = 0; i < positions.count; i++) {
-      const x = positions.getX(i);
-      const progress = x / wakeLength;
-      const alpha = Math.pow(1 - progress, 2) * 0.3;
-      colors[i * 4] = 0.05;
-      colors[i * 4 + 1] = 0.55;
-      colors[i * 4 + 2] = 0.85;
-      colors[i * 4 + 3] = alpha;
-    }
-    geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 4));
-    return geo;
-  }, [shape, wakeLength]);
 
   useFrame((state) => {
     if (!visible || !trailRef.current) return;
@@ -142,9 +132,15 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
 
   const cx = obstacle.x + obstacle.width / 2;
   const cz = obstacle.z + obstacle.depth / 2;
+  const showMarkers = obstacleCount <= 6;
 
-  // Show velocity deficit markers only when few obstacles
-  const showMarkers = obstacleCount <= 5;
+  // Velocity deficit at various distances
+  const deficitMarkers = [2, 5, 10].map(multiplier => {
+    const dist = baseSize * multiplier * 0.3;
+    if (dist > wakeLength) return null;
+    const deficit = Math.round(60 * Math.exp(-2 * dist / wakeLength) * cdFactor);
+    return { multiplier, dist, deficit };
+  }).filter(Boolean) as { multiplier: number; dist: number; deficit: number }[];
 
   return (
     <group position={[cx, 0.15, cz]} rotation={[0, -angleRad + Math.PI, 0]}>
@@ -154,33 +150,54 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
         <meshBasicMaterial color="#0ea5e9" transparent opacity={0.18} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
 
-      {/* Center streamline with animated dash */}
+      {/* Center streamline */}
       <mesh position={[wakeLength / 2, 0.05, 0]}>
         <boxGeometry args={[wakeLength, 0.06, 0.06]} />
         <meshBasicMaterial color="#0ea5e9" transparent opacity={0.35} depthWrite={false} />
       </mesh>
 
-      {/* Velocity deficit markers at 2D, 5D, 10D */}
-      {showMarkers && [2, 5, 10].map(multiplier => {
-        const dist = baseSize * multiplier * 0.3;
-        if (dist > wakeLength) return null;
-        const deficit = Math.round(60 * Math.exp(-2 * dist / wakeLength));
-        return (
-          <group key={multiplier} position={[dist, 0, 0]}>
-            <mesh rotation={[-Math.PI / 2, 0, 0]}>
-              <planeGeometry args={[0.15, wakeWidth * (1 - dist / wakeLength) * 0.8]} />
-              <meshBasicMaterial color="#0ea5e9" transparent opacity={0.4} depthWrite={false} side={THREE.DoubleSide} />
-            </mesh>
-            <Html position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}>
-              <div className="text-[7px] font-mono px-1 rounded" style={{
-                backgroundColor: 'rgba(0,0,0,0.7)', color: '#38bdf8', whiteSpace: 'nowrap'
-              }}>
-                {multiplier}D: -{deficit}%
-              </div>
-            </Html>
-          </group>
-        );
-      })}
+      {/* Recovery zone marker */}
+      {showMarkers && recoveryDist < wakeLength && (
+        <group position={[recoveryDist, 0, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.2, wakeWidth * 0.3]} />
+            <meshBasicMaterial color="#22c55e" transparent opacity={0.4} depthWrite={false} side={THREE.DoubleSide} />
+          </mesh>
+          <Html position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}>
+            <div className="text-[7px] font-mono px-1 rounded" style={{
+              backgroundColor: 'rgba(0,0,0,0.7)', color: '#22c55e', whiteSpace: 'nowrap'
+            }}>90%</div>
+          </Html>
+        </group>
+      )}
+
+      {/* Velocity deficit markers */}
+      {showMarkers && deficitMarkers.map(({ multiplier, dist, deficit }) => (
+        <group key={multiplier} position={[dist, 0, 0]}>
+          <mesh rotation={[-Math.PI / 2, 0, 0]}>
+            <planeGeometry args={[0.15, wakeWidth * (1 - dist / wakeLength) * 0.8]} />
+            <meshBasicMaterial color="#0ea5e9" transparent opacity={0.4} depthWrite={false} side={THREE.DoubleSide} />
+          </mesh>
+          <Html position={[0, 0.5, 0]} center style={{ pointerEvents: 'none' }}>
+            <div className="text-[7px] font-mono px-1 rounded" style={{
+              backgroundColor: 'rgba(0,0,0,0.7)', color: '#38bdf8', whiteSpace: 'nowrap'
+            }}>
+              {multiplier}D: -{deficit}%
+            </div>
+          </Html>
+        </group>
+      ))}
+
+      {/* Wake info label at start */}
+      {showMarkers && (
+        <Html position={[1, 1, 0]} center style={{ pointerEvents: 'none' }}>
+          <div className="text-[7px] font-mono px-1 rounded" style={{
+            backgroundColor: 'rgba(0,0,0,0.75)', color: '#67e8f9', whiteSpace: 'nowrap'
+          }}>
+            L={wakeLength.toFixed(0)}m Cd={physics.dragCoefficient}
+          </div>
+        </Html>
+      )}
 
       {/* Terminal arrow */}
       <mesh position={[wakeLength - 0.5, 0.1, 0]} rotation={[0, 0, -Math.PI / 2]}>
@@ -198,10 +215,13 @@ interface CollisionHotspotManagerProps {
   showWakeZones: boolean;
   windAngle: number;
   windSpeed?: number;
+  turbulenceIntensity?: number;
+  surfaceRoughness?: number;
 }
 
 export const CollisionHotspotManager: React.FC<CollisionHotspotManagerProps> = ({
-  obstacles, obstacleEnergies, showHotspots, showWakeZones, windAngle, windSpeed = 8
+  obstacles, obstacleEnergies, showHotspots, showWakeZones, windAngle, 
+  windSpeed = 8, turbulenceIntensity = 0.3, surfaceRoughness = 0.3
 }) => {
   const maxEnergy = useMemo(() => {
     let max = 1;
@@ -228,6 +248,8 @@ export const CollisionHotspotManager: React.FC<CollisionHotspotManagerProps> = (
               windSpeed={windSpeed}
               visible={showWakeZones}
               obstacleCount={obstacles.length}
+              turbulenceIntensity={turbulenceIntensity}
+              surfaceRoughness={surfaceRoughness}
             />
           )}
         </group>

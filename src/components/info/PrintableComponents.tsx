@@ -75,7 +75,7 @@ const materialComparison = [
   { name: 'CF-PETG', tensile: '75 MPa', uv: 'Good', tempMax: '85°C', fatigue: 'Very Good', cost: '€€€' },
 ];
 
-export const PrintableComponents = () => {
+export const PrintableComponents = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
       {/* Material Comparison */}

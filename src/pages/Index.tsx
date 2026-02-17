@@ -35,6 +35,11 @@ const Index = () => {
     setPower(Math.round(windSpeed * windSpeed * 3.2));
   }, [windSpeed]);
 
+  const handleWeatherApply = (data: { windSpeed: number; temperature: number; humidity: number; windAngle: number }) => {
+    setWindSpeed(data.windSpeed);
+    setShowWeather(false);
+  };
+
   return (
     <div className="h-screen w-screen overflow-hidden flex flex-col bg-background">
       <header className="flex-shrink-0 px-4 py-2 border-b border-border/50 bg-card/80 backdrop-blur-sm z-20">
@@ -70,18 +75,13 @@ const Index = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* UA/EN toggle */}
             <div className="flex bg-background/50 rounded-lg border border-border/30 p-0.5">
-              <button
-                onClick={() => setLang('ua')}
-                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}
-              >
+              <button onClick={() => setLang('ua')}
+                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
                 UA
               </button>
-              <button
-                onClick={() => setLang('en')}
-                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}
-              >
+              <button onClick={() => setLang('en')}
+                className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
                 EN
               </button>
             </div>
@@ -126,7 +126,7 @@ const Index = () => {
         {showWeather ? (
           <div className="h-full p-4 overflow-auto">
             <div className="stalker-card max-w-2xl mx-auto">
-              <WeatherDisplay location={location} />
+              <WeatherDisplay location={location} lang={lang} onApplyToSimulation={handleWeatherApply} />
             </div>
           </div>
         ) : (
@@ -140,11 +140,11 @@ const Index = () => {
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-foreground">
-                  {lang === 'ua' ? 'Інфо генератора' : 'Generator Info'}
+                  {lang === 'ua' ? 'Аналіз турбіни' : 'Turbine Analysis'}
                 </h3>
                 <button onClick={() => setShowTurbinePanel(false)} className="text-muted-foreground hover:text-foreground">×</button>
               </div>
-              <WindTurbine windSpeed={windSpeed} generatorSpecs={generatorSpecs} />
+              <WindTurbine windSpeed={windSpeed} generatorSpecs={generatorSpecs} lang={lang} />
             </div>
           </div>
         )}
@@ -153,7 +153,7 @@ const Index = () => {
       <GeneratorSettings
         open={settingsOpen} onOpenChange={setSettingsOpen}
         currentSettings={generatorSpecs} onSettingsChange={setGeneratorSpecs}
-        windSpeed={windSpeed}
+        windSpeed={windSpeed} lang={lang}
       />
     </div>
   );

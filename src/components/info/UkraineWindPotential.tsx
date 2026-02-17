@@ -37,7 +37,7 @@ const seasonalData = [
   { month: 'Dec', speed: 8.0, gen: 'High' },
 ];
 
-export const UkraineWindPotential = () => {
+export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
       {/* Key Stats */}

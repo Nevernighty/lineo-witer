@@ -1,94 +1,141 @@
-import { RotateCw, Compass } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
 import { calculatePowerOutput, calculateHeightAdjustedWindSpeed, type WindGeneratorSpecs } from "@/utils/windCalculations";
 
 interface WindTurbineProps {
   windSpeed: number;
   generatorSpecs: WindGeneratorSpecs;
+  lang?: 'ua' | 'en';
 }
 
-export const WindTurbine = ({ windSpeed, generatorSpecs }: WindTurbineProps) => {
-  const [rotationSpeed, setRotationSpeed] = useState(0);
-  const [adjustedWindSpeed, setAdjustedWindSpeed] = useState(windSpeed);
-  const [power, setPower] = useState(0);
-  const MAX_ROTATION_SPEED = 20;
-
-  useEffect(() => {
+export const WindTurbine = ({ windSpeed, generatorSpecs, lang = 'ua' }: WindTurbineProps) => {
+  const analysis = useMemo(() => {
     const adjusted = calculateHeightAdjustedWindSpeed(windSpeed, 10, generatorSpecs.height);
-    setAdjustedWindSpeed(adjusted);
+    const power = calculatePowerOutput(adjusted, generatorSpecs);
+    const sweptArea = Math.PI * Math.pow(generatorSpecs.bladeLength, 2);
+    const rho = 1.225;
     
-    const powerOutput = calculatePowerOutput(adjusted, generatorSpecs);
-    setPower(powerOutput);
+    // Available wind power
+    const availablePower = 0.5 * rho * sweptArea * Math.pow(adjusted, 3);
+    const actualEff = availablePower > 0 ? (power / availablePower) * 100 : 0;
     
-    const speedFactor = Math.min(adjusted / generatorSpecs.optimalWindSpeed, 1);
-    setRotationSpeed(MAX_ROTATION_SPEED * speedFactor);
+    // TSR calculation (approximate omega from power and torque)
+    const omega = adjusted > 0 ? (generatorSpecs.optimalWindSpeed * 7) / generatorSpecs.bladeLength : 0;
+    const tsr = adjusted > 0 ? (omega * generatorSpecs.bladeLength) / adjusted : 0;
+    
+    // Torque
+    const torque = omega > 0 ? power / omega : 0;
+    
+    // AEP estimate (simplified using capacity factor assumption)
+    const capacityFactor = 0.3;
+    const aep = generatorSpecs.ratedPower * 8760 * capacityFactor;
+    
+    // Power at various speeds
+    const powerCurve = [3, 5, 8, 10, 12, 15, 20, 25].map(v => {
+      const adjV = calculateHeightAdjustedWindSpeed(v, 10, generatorSpecs.height);
+      const p = calculatePowerOutput(adjV, generatorSpecs);
+      return { v, p };
+    });
+    
+    return { adjusted, power, sweptArea, availablePower, actualEff, tsr, torque, aep, powerCurve };
   }, [windSpeed, generatorSpecs]);
 
+  const formatPower = (w: number) => {
+    if (w >= 1e6) return `${(w / 1e6).toFixed(2)} MW`;
+    if (w >= 1e3) return `${(w / 1e3).toFixed(1)} kW`;
+    return `${w.toFixed(0)} W`;
+  };
+
+  const label = (ua: string, en: string) => lang === 'ua' ? ua : en;
+
   return (
-    <div className="relative h-48 flex items-center justify-center bg-stalker-dark/50 rounded-lg overflow-hidden">
-      {/* Wind vectors */}
-      <div className="absolute inset-0">
-        {[...Array(8)].map((_, i) => (
-          <div
-            key={i}
-            className="absolute"
-            style={{
-              left: `${50 + 30 * Math.cos(i * Math.PI / 4)}%`,
-              top: `${50 + 30 * Math.sin(i * Math.PI / 4)}%`,
-              transform: `rotate(${i * 45}deg)`,
-            }}
-          >
-            <div
-              className="h-px bg-stalker-accent/30"
-              style={{
-                width: `${Math.min(adjustedWindSpeed * 5, 30)}px`,
-                transition: "width 0.3s ease-out"
-              }}
-            />
+    <div className="space-y-3">
+      {/* Power formula */}
+      <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{label('Формула потужності', 'Power Formula')}</div>
+        <p className="text-sm font-mono text-primary text-center">P = ½ · ρ · A · V³ · Cp</p>
+      </div>
+
+      {/* Current values */}
+      <div className="space-y-1.5">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{label('Поточні значення', 'Current Values')}</div>
+        {[
+          [label('Швидкість (h-корекція)', 'Speed (h-adjusted)'), `${analysis.adjusted.toFixed(1)} m/s`],
+          [label('Потужність', 'Power'), formatPower(analysis.power)],
+          [label('Площа ометання', 'Swept Area'), `${analysis.sweptArea.toFixed(0)} m²`],
+          [label('Доступна потужність', 'Available Power'), formatPower(analysis.availablePower)],
+        ].map(([k, v], i) => (
+          <div key={i} className="flex justify-between items-center py-0.5 border-b border-border/30">
+            <span className="text-xs text-muted-foreground">{k}</span>
+            <span className="text-xs font-mono text-primary">{v}</span>
           </div>
         ))}
       </div>
-      
-      {/* Compass marks */}
-      <div className="absolute inset-0">
-        <Compass className="absolute top-2 left-2 text-stalker-muted/30" size={16} />
-        {["N", "E", "S", "W"].map((direction, i) => (
-          <span
-            key={direction}
-            className="absolute text-xs text-stalker-muted/50"
-            style={{
-              left: `${50 + 40 * Math.cos(i * Math.PI / 2)}%`,
-              top: `${50 + 40 * Math.sin(i * Math.PI / 2)}%`,
-              transform: "translate(-50%, -50%)"
-            }}
-          >
-            {direction}
-          </span>
-        ))}
+
+      {/* Efficiency comparison */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="p-2 bg-secondary/10 rounded-lg border border-border/30 text-center">
+          <div className="text-[9px] text-muted-foreground uppercase">{label('Ліміт Бетца', 'Betz Limit')}</div>
+          <p className="text-base font-mono font-bold">59.3%</p>
+          <div className="text-[9px] text-muted-foreground">{label('Теорет. макс.', 'Theoretical Max')}</div>
+        </div>
+        <div className="p-2 bg-primary/5 rounded-lg border border-primary/20 text-center">
+          <div className="text-[9px] text-muted-foreground uppercase">{label('Реальна ефективність', 'Actual Efficiency')}</div>
+          <p className="text-base font-mono font-bold text-primary">{analysis.actualEff.toFixed(1)}%</p>
+          <div className="text-[9px] text-muted-foreground">Cp = {generatorSpecs.efficiency}</div>
+        </div>
       </div>
-      
-      {/* Interactive turbine */}
-      <button 
-        className="relative z-10 bg-stalker-dark/80 rounded-full p-8 hover:bg-stalker-dark transition-colors group"
-        onClick={() => setRotationSpeed(prev => prev > 0 ? 0 : MAX_ROTATION_SPEED)}
-      >
-        <RotateCw 
-          className="text-stalker-accent group-hover:scale-110 transition-transform" 
-          size={48}
-          style={{
-            animation: rotationSpeed > 0 ? `spin ${Math.max(20 - rotationSpeed, 1)}s linear infinite` : "none",
-          }}
-        />
-      </button>
-      
-      {/* Wind speed and power output indicators */}
-      <div className="absolute bottom-4 left-4 space-y-1">
-        <div className="text-sm text-stalker-accent/80">
-          Wind: {adjustedWindSpeed.toFixed(1)} m/s
+
+      {/* TSR & Torque */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="p-2 bg-secondary/10 rounded-lg border border-border/30">
+          <div className="text-[9px] text-muted-foreground uppercase">TSR (λ)</div>
+          <p className="text-sm font-mono font-bold">{analysis.tsr.toFixed(1)}</p>
+          <div className="text-[8px] text-muted-foreground font-mono">λ = ωR/V</div>
         </div>
-        <div className="text-sm text-stalker-accent/80">
-          Power: {power.toFixed(0)}W
+        <div className="p-2 bg-secondary/10 rounded-lg border border-border/30">
+          <div className="text-[9px] text-muted-foreground uppercase">{label('Крутний момент', 'Torque')}</div>
+          <p className="text-sm font-mono font-bold">{analysis.torque > 1000 ? `${(analysis.torque/1000).toFixed(1)} kNm` : `${analysis.torque.toFixed(0)} Nm`}</p>
+          <div className="text-[8px] text-muted-foreground font-mono">τ = P/ω</div>
         </div>
+      </div>
+
+      {/* AEP */}
+      <div className="p-2 bg-primary/5 rounded-lg border border-primary/20">
+        <div className="flex justify-between items-center">
+          <span className="text-xs text-muted-foreground">{label('Оцінка AEP (CF=30%)', 'AEP Estimate (CF=30%)')}</span>
+          <span className="text-xs font-mono text-primary font-bold">{(analysis.aep / 1e6).toFixed(1)} GWh/{label('рік', 'yr')}</span>
+        </div>
+        <div className="text-[8px] text-muted-foreground mt-1">AEP = P_rated × 8760h × CF</div>
+      </div>
+
+      {/* Power curve table */}
+      <div>
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">{label('Потужність при різних V', 'Power at Various V')}</div>
+        <div className="grid grid-cols-4 gap-1">
+          {analysis.powerCurve.map(({ v, p }) => (
+            <div key={v} className="p-1.5 bg-secondary/10 rounded text-center border border-border/20">
+              <div className="text-[8px] text-muted-foreground">{v} m/s</div>
+              <div className="text-[9px] font-mono text-foreground">{formatPower(p)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Specs */}
+      <div className="space-y-1 text-xs">
+        <div className="text-[10px] text-muted-foreground uppercase tracking-wide">{label('Характеристики', 'Specifications')}</div>
+        {[
+          [label('Довжина лопаті', 'Blade Length'), `${generatorSpecs.bladeLength}m`],
+          [label('Висота маточини', 'Hub Height'), `${generatorSpecs.height}m`],
+          [label('Вхідна швидкість', 'Cut-in Speed'), `${generatorSpecs.cutInSpeed} m/s`],
+          [label('Вихідна швидкість', 'Cut-out Speed'), `${generatorSpecs.cutOutSpeed} m/s`],
+          [label('Номінальна потужність', 'Rated Power'), formatPower(generatorSpecs.ratedPower)],
+        ].map(([k, v], i) => (
+          <div key={i} className="flex justify-between py-0.5 border-b border-border/20">
+            <span className="text-muted-foreground">{k}</span>
+            <span className="font-mono">{v}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

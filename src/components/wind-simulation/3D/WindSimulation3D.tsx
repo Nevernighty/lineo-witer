@@ -11,7 +11,7 @@ import { CollisionEffectsManager } from './CollisionEffect';
 import { CollisionHotspotManager } from './CollisionHotspot';
 import { LocalHitManager } from './LocalHitPopup';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
-import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType } from '../types';
+import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '../types';
 import { type Lang } from '@/utils/i18n';
 import * as THREE from 'three';
 
@@ -24,13 +24,22 @@ interface WindSimulation3DProps {
 const MouseTracker: React.FC<{
   onPositionChange: (pos: [number, number, number] | null) => void;
   simulationSize: { width: number; height: number; depth: number };
-}> = ({ onPositionChange, simulationSize }) => {
+  slopeX: number;
+  slopeZ: number;
+}> = ({ onPositionChange, simulationSize, slopeX, slopeZ }) => {
   const { camera } = useThree();
   const raycaster = useRef(new THREE.Raycaster());
   const plane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const intersectPoint = useRef(new THREE.Vector3());
 
   useFrame(({ mouse }) => {
+    // Update plane normal based on terrain slope
+    const nx = Math.sin((slopeX * Math.PI) / 180);
+    const nz = Math.sin((slopeZ * Math.PI) / 180);
+    const ny = Math.cos((slopeX * Math.PI) / 180) * Math.cos((slopeZ * Math.PI) / 180);
+    plane.current.normal.set(nx, ny, nz).normalize();
+    plane.current.constant = 0;
+
     raycaster.current.setFromCamera(mouse, camera);
     const didIntersect = raycaster.current.ray.intersectPlane(plane.current, intersectPoint.current);
     if (didIntersect) {
@@ -54,6 +63,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [particleCount] = useState(250);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [selectedObstacleType, setSelectedObstacleType] = useState<string>('building');
+  const [selectedGeneratorSubtype, setSelectedGeneratorSubtype] = useState<GeneratorSubtype>('hawt3');
   const [collisionEnergy, setCollisionEnergy] = useState(0);
   const [showHotspots, setShowHotspots] = useState(false);
   const [showWakeZones, setShowWakeZones] = useState(false);
@@ -75,18 +85,14 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const simulationSize = { width: 100, height: 50, depth: 100 };
 
-  // Calculate total generator power
   const generatorPower = useMemo(() => {
     return obstacles
       .filter(o => o.type === 'wind_generator')
       .reduce((sum, o) => {
         return sum + calculateGeneratorPower(
-          physicsConfig.airDensity,
-          o.width * 1.8,
-          physicsConfig.windSpeed,
-          o.height + o.y,
-          physicsConfig.referenceHeight,
-          physicsConfig.surfaceRoughness
+          physicsConfig.airDensity, o.width * 1.8, physicsConfig.windSpeed,
+          o.height + o.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness,
+          o.generatorSubtype || 'hawt3'
         );
       }, 0);
   }, [obstacles, physicsConfig]);
@@ -116,17 +122,16 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       type: selectedObstacleType as ObstacleType,
       category: categoryKey as any,
       shape: 'regular',
-      x: x - width / 2,
-      y: 0,
-      z: z - depth / 2,
+      x: x - width / 2, y: 0, z: z - depth / 2,
       width, height, depth,
       density: categoryData.defaultProperties.density,
       material: categoryData.defaultProperties.material,
-      resistance: categoryData.defaultProperties.resistance
+      resistance: categoryData.defaultProperties.resistance,
+      ...(selectedObstacleType === 'wind_generator' ? { generatorSubtype: selectedGeneratorSubtype } : {})
     };
     
     setObstacles(prev => [...prev, newObstacle]);
-  }, [selectedObstacleType]);
+  }, [selectedObstacleType, selectedGeneratorSubtype]);
 
   const clearObstacles = () => {
     setObstacles([]);
@@ -136,7 +141,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number }) => {
     setCollisionEffects(prev => [...prev, event]);
-    // Fire local hit popup
     if ((window as any).__localHitAdd) {
       const speed = event.intensity;
       const energy = 0.5 * 0.015 * speed * speed * physicsConfig.airDensity;
@@ -152,11 +156,20 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     setObstacleEnergies(energies);
   }, []);
 
+  // Terrain slope rotation
+  const terrainRotation: [number, number, number] = [
+    (physicsConfig.terrainSlopeZ * Math.PI) / 180,
+    0,
+    -(physicsConfig.terrainSlopeX * Math.PI) / 180
+  ];
+
   return (
     <div className="relative w-full h-full">
+      {/* Canvas with pointer-events: auto by default, panels overlay on top */}
       <Canvas
         camera={{ position: [70, 45, 70], fov: 50 }}
         className="!absolute inset-0"
+        style={{ pointerEvents: 'auto' }}
         onPointerDown={(e) => {
           if (e.altKey) return;
           if (ghostPosition) {
@@ -171,46 +184,49 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           <pointLight position={[30, 15, 30]} intensity={0.4} color="#00ffff" />
           <hemisphereLight args={['#87CEEB', '#363636', 0.3]} />
 
-          <MouseTracker onPositionChange={setGhostPosition} simulationSize={simulationSize} />
+          <MouseTracker onPositionChange={setGhostPosition} simulationSize={simulationSize} slopeX={physicsConfig.terrainSlopeX} slopeZ={physicsConfig.terrainSlopeZ} />
 
-          <Grid 
-            args={[simulationSize.width, simulationSize.depth]}
-            cellSize={5} cellThickness={0.5} cellColor="#1a4a3a"
-            sectionSize={20} sectionThickness={1} sectionColor="#39ff14"
-            fadeDistance={150} fadeStrength={1} followCamera={false} infiniteGrid={false}
-          />
+          <group rotation={terrainRotation}>
+            <Grid 
+              args={[simulationSize.width, simulationSize.depth]}
+              cellSize={5} cellThickness={0.5} cellColor="#1a4a3a"
+              sectionSize={20} sectionThickness={1} sectionColor="#39ff14"
+              fadeDistance={150} fadeStrength={1} followCamera={false} infiniteGrid={false}
+            />
 
-          {ghostPosition && (
-            <GhostObstacle position={ghostPosition} obstacleType={selectedObstacleType as ObstacleType} visible={true} />
-          )}
+            {ghostPosition && (
+              <GhostObstacle position={ghostPosition} obstacleType={selectedObstacleType as ObstacleType} visible={true} generatorSubtype={selectedGeneratorSubtype} />
+            )}
 
-          <AdvancedParticleSystem
-            config={physicsConfig} particleCount={particleCount}
-            obstacles={obstacles} width={simulationSize.width}
-            height={simulationSize.height} depth={simulationSize.depth}
-            onCollisionEnergyUpdate={setCollisionEnergy}
-            onCollisionEvent={handleCollisionEvent}
-            onObstacleEnergyUpdate={handleObstacleEnergyUpdate}
-          />
+            <AdvancedParticleSystem
+              config={physicsConfig} particleCount={particleCount}
+              obstacles={obstacles} width={simulationSize.width}
+              height={simulationSize.height} depth={simulationSize.depth}
+              onCollisionEnergyUpdate={setCollisionEnergy}
+              onCollisionEvent={handleCollisionEvent}
+              onObstacleEnergyUpdate={handleObstacleEnergyUpdate}
+            />
 
-          <CollisionEffectsManager collisions={collisionEffects} onRemoveCollision={handleRemoveCollision} />
-          
-          <CollisionHotspotManager
-            obstacles={obstacles} obstacleEnergies={obstacleEnergies}
-            showHotspots={showHotspots} showWakeZones={showWakeZones}
-            windAngle={physicsConfig.windAngle} windSpeed={physicsConfig.windSpeed}
-          />
+            <CollisionEffectsManager collisions={collisionEffects} onRemoveCollision={handleRemoveCollision} />
+            
+            <CollisionHotspotManager
+              obstacles={obstacles} obstacleEnergies={obstacleEnergies}
+              showHotspots={showHotspots} showWakeZones={showWakeZones}
+              windAngle={physicsConfig.windAngle} windSpeed={physicsConfig.windSpeed}
+              turbulenceIntensity={physicsConfig.turbulenceIntensity}
+              surfaceRoughness={physicsConfig.surfaceRoughness}
+            />
 
-          <LocalHitManager enabled={showLocalHits} />
+            <LocalHitManager enabled={showLocalHits} />
 
-          {/* Obstacles */}
-          {obstacles.map((obstacle, index) => (
-            obstacle.type === 'wind_generator' ? (
-              <WindGenerator3D key={obstacle.id || index} obstacle={obstacle} config={physicsConfig} />
-            ) : (
-              <Obstacle3D key={obstacle.id || index} obstacle={obstacle} />
-            )
-          ))}
+            {obstacles.map((obstacle, index) => (
+              obstacle.type === 'wind_generator' ? (
+                <WindGenerator3D key={obstacle.id || index} obstacle={obstacle} config={physicsConfig} />
+              ) : (
+                <Obstacle3D key={obstacle.id || index} obstacle={obstacle} />
+              )
+            ))}
+          </group>
 
           <OrbitControls 
             enablePan enableZoom enableRotate
@@ -219,11 +235,12 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </Suspense>
       </Canvas>
 
-      {/* Controls */}
-      <div className="absolute top-3 right-3 w-56 z-10">
+      {/* Controls - pointer-events: auto so they're clickable above canvas */}
+      <div className="absolute top-3 right-3 w-56 z-10" style={{ pointerEvents: 'auto' }}>
         <AdvancedWindControls
           config={physicsConfig} onConfigChange={handleConfigChange}
           selectedObstacleType={selectedObstacleType} onObstacleTypeChange={setSelectedObstacleType}
+          selectedGeneratorSubtype={selectedGeneratorSubtype} onGeneratorSubtypeChange={setSelectedGeneratorSubtype}
           onClearObstacles={clearObstacles}
           showHotspots={showHotspots} onToggleHotspots={() => setShowHotspots(!showHotspots)}
           showWakeZones={showWakeZones} onToggleWakeZones={() => setShowWakeZones(!showWakeZones)}
@@ -232,13 +249,15 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         />
       </div>
 
-      {/* Measurements */}
-      <AdvancedMeasurementPanel
-        config={physicsConfig} particleCount={particleCount}
-        obstacles={obstacles} collisionEnergy={collisionEnergy}
-        activeCollisions={obstacles.length} generatorPower={generatorPower}
-        lang={lang}
-      />
+      {/* Measurements - pointer-events: auto */}
+      <div style={{ pointerEvents: 'auto' }}>
+        <AdvancedMeasurementPanel
+          config={physicsConfig} particleCount={particleCount}
+          obstacles={obstacles} collisionEnergy={collisionEnergy}
+          activeCollisions={obstacles.length} generatorPower={generatorPower}
+          lang={lang}
+        />
+      </div>
     </div>
   );
 };
