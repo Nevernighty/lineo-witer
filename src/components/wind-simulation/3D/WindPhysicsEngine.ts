@@ -22,6 +22,10 @@ export interface WindPhysicsConfig {
   // Wind Shear (height effect)
   surfaceRoughness: number;    // 0.0001 (water) to 1.0 (city)
   referenceHeight: number;     // meters
+
+  // Terrain slope
+  terrainSlopeX: number;       // degrees (-30 to 30)
+  terrainSlopeZ: number;       // degrees (-30 to 30)
 }
 
 export interface ObstaclePhysics {
@@ -94,13 +98,12 @@ export const OBSTACLE_DRAG_COEFFICIENTS: Record<string, ObstaclePhysics> = {
 
 // Calculate air density based on altitude and temperature
 export function calculateAirDensity(altitude: number, temperature: number): number {
-  // Standard atmosphere model
-  const T0 = 288.15; // Standard temperature at sea level (K)
-  const P0 = 101325; // Standard pressure at sea level (Pa)
-  const L = 0.0065;  // Temperature lapse rate (K/m)
-  const g = 9.81;    // Gravitational acceleration (m/s²)
-  const M = 0.0289644; // Molar mass of dry air (kg/mol)
-  const R = 8.3145;  // Universal gas constant
+  const T0 = 288.15;
+  const P0 = 101325;
+  const L = 0.0065;
+  const g = 9.81;
+  const M = 0.0289644;
+  const R = 8.3145;
   
   const T = T0 - L * altitude;
   const P = P0 * Math.pow(T / T0, g * M / (R * L));
@@ -116,11 +119,22 @@ export function calculateWindShear(
   targetHeight: number,
   roughnessLength: number
 ): number {
-  // Power law exponent based on surface roughness
   const alpha = 0.096 * Math.log10(roughnessLength) + 0.016 * Math.pow(Math.log10(roughnessLength), 2) + 0.24;
   const clampedAlpha = Math.max(0.1, Math.min(0.4, alpha));
   
   return baseSpeed * Math.pow(targetHeight / baseHeight, clampedAlpha);
+}
+
+// Terrain slope speedup effect (hill speedup)
+// deltaV/V = slopeFactor * (H/L) where H = height gain, L = horizontal distance
+export function calculateTerrainSpeedup(
+  baseSpeed: number,
+  slopeAngleDeg: number
+): number {
+  const slopeRad = (slopeAngleDeg * Math.PI) / 180;
+  const slopeFactor = 1.6; // Empirical factor for smooth hills
+  const speedup = 1 + slopeFactor * Math.abs(Math.tan(slopeRad)) * 0.5;
+  return baseSpeed * Math.min(speedup, 1.8); // Cap at 80% increase
 }
 
 // Turbulence intensity calculation
@@ -129,10 +143,9 @@ export function calculateTurbulenceIntensity(
   surfaceRoughness: number,
   height: number
 ): number {
-  // Based on IEC 61400-1 turbulence model
   const z0 = surfaceRoughness;
   const sigma = 1.0 / Math.log(height / z0);
-  const Iref = 0.16; // Reference turbulence intensity
+  const Iref = 0.16;
   
   return Iref * (0.75 + 5.6 / meanWindSpeed);
 }
@@ -157,10 +170,9 @@ export function calculateGust(
   gustIntensity: number,
   baseSpeed: number
 ): number {
-  const gustPeriod = 60 / gustFrequency; // seconds per gust
+  const gustPeriod = 60 / gustFrequency;
   const phase = (time % gustPeriod) / gustPeriod;
   
-  // Smooth gust profile (rise and fall)
   const gustProfile = phase < 0.3 
     ? Math.sin(phase / 0.3 * Math.PI / 2) 
     : phase < 0.5 
@@ -187,10 +199,7 @@ export function calculateDragForce(
   
   if (speed < 0.01) return { x: 0, y: 0, z: 0 };
   
-  // Drag force: F = 0.5 * ρ * v² * Cd * A
   const dragMagnitude = 0.5 * airDensity * speed * speed * obstaclePhysics.dragCoefficient * particleArea;
-  
-  // Apply porosity reduction
   const effectiveDrag = dragMagnitude * (1 - obstaclePhysics.porosityFactor);
   
   return {
@@ -208,20 +217,17 @@ export function isInWakeZone(
   windDirection: { x: number; z: number },
   wakeLength: number
 ): boolean {
-  // Direction from obstacle to particle
   const toParticle = {
     x: particlePos.x - obstaclePos.x,
     z: particlePos.z - obstaclePos.z
   };
   
-  // Check if particle is downwind of obstacle
   const dotProduct = toParticle.x * windDirection.x + toParticle.z * windDirection.z;
-  if (dotProduct < 0) return false; // Upwind
+  if (dotProduct < 0) return false;
   
   const distance = Math.sqrt(toParticle.x ** 2 + toParticle.z ** 2);
   if (distance > wakeLength) return false;
   
-  // Check if within wake cone
   const wakeWidth = Math.max(obstacleSize.width, obstacleSize.depth) * (1 + distance / wakeLength);
   const crossProduct = Math.abs(toParticle.x * windDirection.z - toParticle.z * windDirection.x);
   
@@ -234,7 +240,6 @@ export function calculateWakeVelocity(
   wakeLength: number,
   originalSpeed: number
 ): number {
-  // Velocity deficit decreases with distance
   const normalizedDistance = distance / wakeLength;
   const velocityDeficit = Math.exp(-2 * normalizedDistance);
   
@@ -255,5 +260,7 @@ export const DEFAULT_WIND_PHYSICS: WindPhysicsConfig = {
   humidity: 50,
   altitude: 0,
   surfaceRoughness: 0.3,
-  referenceHeight: 10
+  referenceHeight: 10,
+  terrainSlopeX: 0,
+  terrainSlopeZ: 0
 };

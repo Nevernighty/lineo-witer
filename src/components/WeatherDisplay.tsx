@@ -1,21 +1,205 @@
-import { Cloud } from "lucide-react";
+import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets } from "lucide-react";
+import { useMemo } from "react";
 
 interface WeatherDisplayProps {
   location: { lat: number; lon: number } | null;
+  lang?: 'ua' | 'en';
+  onApplyToSimulation?: (data: { windSpeed: number; temperature: number; humidity: number; windAngle: number }) => void;
 }
 
-export const WeatherDisplay = ({ location }: WeatherDisplayProps) => {
-  if (!location) return <div className="text-stalker-muted">Acquiring location...</div>;
+// Synthetic weather generation based on location, season, time of day
+function generateSyntheticWeather(lat: number, lon: number) {
+  const now = new Date();
+  const month = now.getMonth(); // 0-11
+  const hour = now.getHours();
+  
+  // Season classification
+  const isWinter = month >= 10 || month <= 2;
+  const isSummer = month >= 5 && month <= 7;
+  const isSpring = month >= 3 && month <= 4;
+  
+  // Base wind speed for Ukraine region (southern = higher)
+  const latFactor = Math.max(0, (52 - lat) / 10); // Southern Ukraine has more wind
+  const baseWind = isWinter ? 7.5 : isSummer ? 4.5 : isSpring ? 6.0 : 6.8;
+  const diurnalVar = Math.sin((hour - 6) * Math.PI / 12) * 1.5; // Peak afternoon
+  const windSpeed = Math.max(1, baseWind + latFactor * 1.5 + diurnalVar + (Math.random() - 0.5) * 2);
+  
+  // Wind direction - NW dominant in winter, variable in summer
+  const baseAngle = isWinter ? 315 : isSummer ? 225 : 270;
+  const windAngle = (baseAngle + (Math.random() - 0.5) * 60) % 360;
+  
+  // Temperature
+  const baseTempByMonth = [-3, -1, 4, 12, 18, 22, 25, 24, 18, 11, 4, 0];
+  const baseTemp = baseTempByMonth[month];
+  const diurnalTemp = Math.sin((hour - 6) * Math.PI / 12) * 5;
+  const temperature = baseTemp + diurnalTemp + (Math.random() - 0.5) * 3;
+  
+  // Pressure
+  const pressure = 1013 + (isWinter ? 8 : -3) + (Math.random() - 0.5) * 10;
+  
+  // Humidity
+  const humidity = isWinter ? 80 : isSummer ? 55 : 65;
+  
+  // Cloud cover
+  const cloudCover = isWinter ? 70 : isSummer ? 30 : 50;
+  
+  // Season name
+  const season = isWinter ? 'winter' : isSummer ? 'summer' : isSpring ? 'spring' : 'autumn';
+  
+  // Wind power density
+  const rho = 1.225 * (1 - 0.00012 * 0); // sea level approximation
+  const wpd = 0.5 * rho * Math.pow(windSpeed, 3);
+  
+  // Energy potential classification
+  const potentialClass = wpd > 500 ? 'excellent' : wpd > 300 ? 'good' : wpd > 150 ? 'moderate' : 'low';
+
+  return {
+    windSpeed: Math.round(windSpeed * 10) / 10,
+    windAngle: Math.round(windAngle),
+    temperature: Math.round(temperature * 10) / 10,
+    pressure: Math.round(pressure),
+    humidity: Math.round(humidity + (Math.random() - 0.5) * 15),
+    cloudCover: Math.round(Math.max(0, Math.min(100, cloudCover + (Math.random() - 0.5) * 20))),
+    season,
+    wpd: Math.round(wpd),
+    potentialClass,
+    hour,
+    month
+  };
+}
+
+const seasonNames = {
+  winter: { ua: 'Зима', en: 'Winter' },
+  spring: { ua: 'Весна', en: 'Spring' },
+  summer: { ua: 'Літо', en: 'Summer' },
+  autumn: { ua: 'Осінь', en: 'Autumn' }
+};
+
+const potentialNames = {
+  excellent: { ua: 'Відмінний', en: 'Excellent', color: 'text-green-400' },
+  good: { ua: 'Добрий', en: 'Good', color: 'text-primary' },
+  moderate: { ua: 'Помірний', en: 'Moderate', color: 'text-yellow-400' },
+  low: { ua: 'Низький', en: 'Low', color: 'text-orange-400' }
+};
+
+const windDirName = (angle: number, lang: 'ua' | 'en') => {
+  const dirs = lang === 'ua' 
+    ? ['Пн', 'ПнСх', 'Сх', 'ПдСх', 'Пд', 'ПдЗх', 'Зх', 'ПнЗх']
+    : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+  return dirs[Math.round(angle / 45) % 8];
+};
+
+export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: WeatherDisplayProps) => {
+  const weather = useMemo(() => {
+    if (!location) return null;
+    return generateSyntheticWeather(location.lat, location.lon);
+  }, [location]);
+
+  if (!location || !weather) {
+    return <div className="text-muted-foreground">{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
+  }
+
+  const pot = potentialNames[weather.potentialClass as keyof typeof potentialNames];
+  const seasonLabel = seasonNames[weather.season as keyof typeof seasonNames][lang];
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <Cloud className="w-5 h-5 text-stalker-accent" />
-        <span className="text-sm text-stalker-muted">WEATHER FORECAST</span>
+    <div className="space-y-4">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Cloud className="w-5 h-5 text-primary" />
+          <span className="text-sm font-semibold">{lang === 'ua' ? 'Синтетична погода' : 'Synthetic Weather'}</span>
+        </div>
+        <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">{seasonLabel}</span>
       </div>
-      <div className="text-stalker-muted text-center py-8">
-        Weather forecast coming soon...
+      
+      <p className="text-xs text-muted-foreground">
+        {lang === 'ua' 
+          ? 'Синтетичні дані на основі геолокації, сезону та часу доби для регіону України.'
+          : 'Synthetic data based on geolocation, season, and time of day for Ukraine region.'}
+      </p>
+
+      {/* Main metrics grid */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Wind className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] text-muted-foreground uppercase">{lang === 'ua' ? 'Швидкість вітру' : 'Wind Speed'}</span>
+          </div>
+          <p className="text-lg font-mono font-bold">{weather.windSpeed} <span className="text-xs text-muted-foreground">m/s</span></p>
+        </div>
+        
+        <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+          <div className="flex items-center gap-1.5 mb-1">
+            <ArrowUp className="w-3.5 h-3.5 text-primary" style={{ transform: `rotate(${weather.windAngle}deg)` }} />
+            <span className="text-[10px] text-muted-foreground uppercase">{lang === 'ua' ? 'Напрямок' : 'Direction'}</span>
+          </div>
+          <p className="text-lg font-mono font-bold">{windDirName(weather.windAngle, lang)} <span className="text-xs text-muted-foreground">{weather.windAngle}°</span></p>
+        </div>
+        
+        <div className="p-3 bg-secondary/10 rounded-lg border border-border/30">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Thermometer className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] text-muted-foreground uppercase">{lang === 'ua' ? 'Температура' : 'Temperature'}</span>
+          </div>
+          <p className="text-lg font-mono font-bold">{weather.temperature}°C</p>
+        </div>
+        
+        <div className="p-3 bg-secondary/10 rounded-lg border border-border/30">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Gauge className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] text-muted-foreground uppercase">{lang === 'ua' ? 'Тиск' : 'Pressure'}</span>
+          </div>
+          <p className="text-lg font-mono font-bold">{weather.pressure} <span className="text-xs text-muted-foreground">hPa</span></p>
+        </div>
+
+        <div className="p-3 bg-secondary/10 rounded-lg border border-border/30">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Droplets className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] text-muted-foreground uppercase">{lang === 'ua' ? 'Вологість' : 'Humidity'}</span>
+          </div>
+          <p className="text-lg font-mono font-bold">{weather.humidity}%</p>
+        </div>
+
+        <div className="p-3 bg-secondary/10 rounded-lg border border-border/30">
+          <div className="flex items-center gap-1.5 mb-1">
+            <Cloud className="w-3.5 h-3.5 text-primary" />
+            <span className="text-[10px] text-muted-foreground uppercase">{lang === 'ua' ? 'Хмарність' : 'Cloud Cover'}</span>
+          </div>
+          <p className="text-lg font-mono font-bold">{weather.cloudCover}%</p>
+        </div>
       </div>
+
+      {/* Wind Energy Potential */}
+      <div className="p-3 bg-primary/5 rounded-lg border border-primary/20">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-semibold">{lang === 'ua' ? 'Потенціал вітрової енергії' : 'Wind Energy Potential'}</span>
+          <span className={`text-xs font-bold ${pot.color}`}>{pot[lang]}</span>
+        </div>
+        <div className="flex justify-between text-xs text-muted-foreground">
+          <span>{lang === 'ua' ? 'Густ. потужності' : 'Power Density'}</span>
+          <span className="font-mono text-primary">{weather.wpd} W/m²</span>
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2">
+          {lang === 'ua'
+            ? 'P = ½ρV³ — густина потужності вітру визначає енергетичний потенціал ділянки. >400 W/m² = відмінні умови для вітрогенерації.'
+            : 'P = ½ρV³ — wind power density determines site energy potential. >400 W/m² = excellent for wind generation.'}
+        </p>
+      </div>
+
+      {/* Apply button */}
+      {onApplyToSimulation && (
+        <button
+          onClick={() => onApplyToSimulation({
+            windSpeed: weather.windSpeed,
+            temperature: weather.temperature,
+            humidity: weather.humidity,
+            windAngle: weather.windAngle
+          })}
+          className="w-full py-2 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/40 text-primary text-sm font-semibold transition-colors"
+        >
+          {lang === 'ua' ? '🌬️ Застосувати до симуляції' : '🌬️ Apply to Simulation'}
+        </button>
+      )}
     </div>
   );
 };

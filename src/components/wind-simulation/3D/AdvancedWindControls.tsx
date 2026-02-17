@@ -8,7 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Wind, Waves, Thermometer, Mountain, RotateCcw, Target, Info } from 'lucide-react';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateAirDensity, calculateWindShear } from './WindPhysicsEngine';
-import { OBSTACLE_CATEGORIES, ObstacleType } from '../types';
+import { OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype, GENERATOR_SUBTYPES } from '../types';
 import { t, getObstacleLabel, type Lang } from '@/utils/i18n';
 
 interface AdvancedWindControlsProps {
@@ -16,6 +16,8 @@ interface AdvancedWindControlsProps {
   onConfigChange: (config: WindPhysicsConfig) => void;
   selectedObstacleType: string;
   onObstacleTypeChange: (type: string) => void;
+  selectedGeneratorSubtype: GeneratorSubtype;
+  onGeneratorSubtypeChange: (subtype: GeneratorSubtype) => void;
   onClearObstacles: () => void;
   showHotspots?: boolean;
   onToggleHotspots?: () => void;
@@ -73,13 +75,13 @@ const GlowSlider: React.FC<{
 
 export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   config, onConfigChange, selectedObstacleType, onObstacleTypeChange,
+  selectedGeneratorSubtype, onGeneratorSubtypeChange,
   onClearObstacles, showHotspots = false, onToggleHotspots,
   showWakeZones = false, onToggleWakeZones, showLocalHits = false,
   onToggleLocalHits, lang
 }) => {
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
     const newConfig = { ...config, [key]: value };
-    // Auto-link altitude to air density
     if (key === 'altitude' || key === 'temperature') {
       newConfig.airDensity = parseFloat(calculateAirDensity(
         key === 'altitude' ? value : config.altitude,
@@ -91,7 +93,6 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
 
   const resetToDefaults = () => onConfigChange(DEFAULT_WIND_PHYSICS);
 
-  // Height profile calculation
   const heightProfile = useMemo(() => {
     return [10, 30, 50, 80, 100].map(h => ({
       height: h,
@@ -170,6 +171,14 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             min={1} max={100} step={1} label={t('refHeight', lang)} displayValue={`${config.referenceHeight}m`}
             infoText={t('infoRefHeight', lang)} />
 
+          {/* Terrain slope controls */}
+          <GlowSlider value={config.terrainSlopeX} onChange={(v) => updateConfig('terrainSlopeX', v)}
+            min={-30} max={30} step={1} label={t('terrainSlopeX', lang)} displayValue={`${config.terrainSlopeX}°`}
+            infoText={t('infoTerrainSlope', lang)} />
+          <GlowSlider value={config.terrainSlopeZ} onChange={(v) => updateConfig('terrainSlopeZ', v)}
+            min={-30} max={30} step={1} label={t('terrainSlopeZ', lang)} displayValue={`${config.terrainSlopeZ}°`}
+            infoText={t('infoTerrainSlope', lang)} />
+
           {/* Height profile */}
           <div className="pt-1 border-t border-primary/15">
             <div className="flex items-center gap-1 mb-1">
@@ -212,6 +221,28 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
               </SelectContent>
             </Select>
           </div>
+
+          {/* Generator subtype selector */}
+          {selectedObstacleType === 'wind_generator' && (
+            <div>
+              <Label className="text-xs text-primary/80 uppercase tracking-wide mb-1.5 block">{t('generatorType', lang)}</Label>
+              <Select value={selectedGeneratorSubtype} onValueChange={(v) => onGeneratorSubtypeChange(v as GeneratorSubtype)}>
+                <SelectTrigger className="h-8 text-xs bg-background/40 border-primary/30 focus:border-primary focus:ring-primary/30">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#0d1117] border-primary/30">
+                  {(Object.keys(GENERATOR_SUBTYPES) as GeneratorSubtype[]).map(sub => (
+                    <SelectItem key={sub} value={sub} className="text-xs focus:bg-primary/20 focus:text-primary">
+                      {t(sub, lang)} (Cp={GENERATOR_SUBTYPES[sub].cp})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <div className="mt-1 p-1.5 bg-primary/5 rounded text-[9px] text-muted-foreground">
+                {lang === 'ua' ? GENERATOR_SUBTYPES[selectedGeneratorSubtype].descriptionUa : GENERATOR_SUBTYPES[selectedGeneratorSubtype].description}
+              </div>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 
@@ -222,27 +253,19 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-wide">{t('analysisLayers', lang)}</span>
         </div>
         <div className="grid grid-cols-1 gap-1.5">
-          <label className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
-            <div className="flex items-center gap-2">
-              <Checkbox checked={showHotspots} onCheckedChange={onToggleHotspots}
-                className="h-3.5 w-3.5 border-orange-500/50 data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500" />
-              <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">{t('collisionHotspots', lang)}</span>
-            </div>
-          </label>
-          <label className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
-            <div className="flex items-center gap-2">
-              <Checkbox checked={showWakeZones} onCheckedChange={onToggleWakeZones}
-                className="h-3.5 w-3.5 border-cyan-500/50 data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500" />
-              <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">{t('wakeZones', lang)}</span>
-            </div>
-          </label>
-          <label className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
-            <div className="flex items-center gap-2">
-              <Checkbox checked={showLocalHits} onCheckedChange={onToggleLocalHits}
-                className="h-3.5 w-3.5 border-yellow-500/50 data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500" />
-              <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">{t('localHits', lang)}</span>
-            </div>
-          </label>
+          {[
+            { checked: showHotspots, toggle: onToggleHotspots, label: t('collisionHotspots', lang), borderColor: 'border-orange-500/50', checkedBg: 'data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500' },
+            { checked: showWakeZones, toggle: onToggleWakeZones, label: t('wakeZones', lang), borderColor: 'border-cyan-500/50', checkedBg: 'data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500' },
+            { checked: showLocalHits, toggle: onToggleLocalHits, label: t('localHits', lang), borderColor: 'border-yellow-500/50', checkedBg: 'data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500' },
+          ].map((item, i) => (
+            <label key={i} className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
+              <div className="flex items-center gap-2">
+                <Checkbox checked={item.checked} onCheckedChange={item.toggle}
+                  className={`h-3.5 w-3.5 ${item.borderColor} ${item.checkedBg}`} />
+                <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">{item.label}</span>
+              </div>
+            </label>
+          ))}
         </div>
       </div>
 

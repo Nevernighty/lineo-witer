@@ -9,7 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export const PrintingConsiderations = () => {
+export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
       {/* Overview */}

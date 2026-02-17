@@ -26,7 +26,7 @@ const economicMetrics = [
   { metric: 'Turbine Lifespan', value: '25–30 years', trend: 'Extending' },
 ];
 
-export const TechnicalSpecs = () => {
+export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
       {/* Turbine Specs as expandable cards */}

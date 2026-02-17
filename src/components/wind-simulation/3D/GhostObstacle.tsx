@@ -1,18 +1,17 @@
 import React, { useMemo } from 'react';
 import { Box, Cylinder, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
-import { ObstacleType } from '../types';
+import { ObstacleType, GeneratorSubtype } from '../types';
 
 interface GhostObstacleProps {
   position: [number, number, number];
   obstacleType: ObstacleType;
   visible: boolean;
+  generatorSubtype?: GeneratorSubtype;
 }
 
 export const GhostObstacle: React.FC<GhostObstacleProps> = ({ 
-  position, 
-  obstacleType,
-  visible 
+  position, obstacleType, visible, generatorSubtype = 'hawt3'
 }) => {
   const dimensions = useMemo(() => {
     switch (obstacleType) {
@@ -26,10 +25,6 @@ export const GhostObstacle: React.FC<GhostObstacleProps> = ({
       default: return { width: 10, height: 15, depth: 10 };
     }
   }, [obstacleType]);
-
-  const ghostMat = useMemo(() => new THREE.MeshBasicMaterial({
-    color: '#39ff14', transparent: true, opacity: 0.15, side: THREE.DoubleSide,
-  }), []);
 
   const wireMat = useMemo(() => new THREE.MeshBasicMaterial({
     color: '#39ff14', transparent: true, opacity: 0.5, wireframe: true,
@@ -67,18 +62,24 @@ export const GhostObstacle: React.FC<GhostObstacleProps> = ({
           </group>
         );
 
-      case 'wind_generator':
+      case 'wind_generator': {
+        const isVawt = generatorSubtype === 'darrieus' || generatorSubtype === 'savonius';
         return (
           <group position={p}>
             <Cylinder args={[0.3, 0.5, dimensions.height, 6]} 
               position={[0, dimensions.height / 2, 0]} material={wireMat} />
-            {/* Rotor circle */}
-            <mesh position={[0, dimensions.height, 0]} rotation={[0, 0, 0]}>
-              <ringGeometry args={[dimensions.width * 0.8, dimensions.width * 0.9, 24]} />
-              <meshBasicMaterial color="#39ff14" transparent opacity={0.3} side={THREE.DoubleSide} />
-            </mesh>
+            {isVawt ? (
+              <Cylinder args={[dimensions.width * 0.6, dimensions.width * 0.6, dimensions.height * 0.5, 8]}
+                position={[0, dimensions.height * 0.75, 0]} material={wireMat} />
+            ) : (
+              <mesh position={[0, dimensions.height, 0]}>
+                <ringGeometry args={[dimensions.width * 0.8, dimensions.width * 0.9, 24]} />
+                <meshBasicMaterial color="#39ff14" transparent opacity={0.3} side={THREE.DoubleSide} />
+              </mesh>
+            )}
           </group>
         );
+      }
 
       case 'house':
         return (

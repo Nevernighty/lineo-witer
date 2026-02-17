@@ -29,6 +29,8 @@ const translations: Record<string, Record<Lang, string>> = {
   water: { ua: 'Вода', en: 'Water' },
   open: { ua: 'Поле', en: 'Open' },
   urban: { ua: 'Місто', en: 'Urban' },
+  terrainSlopeX: { ua: 'Нахил X', en: 'Slope X' },
+  terrainSlopeZ: { ua: 'Нахил Z', en: 'Slope Z' },
   
   // Obstacle types
   tree: { ua: 'Дерево', en: 'Tree' },
@@ -39,6 +41,14 @@ const translations: Record<string, Record<Lang, string>> = {
   wall: { ua: 'Стіна', en: 'Wall' },
   fence: { ua: 'Паркан', en: 'Fence' },
   wind_generator: { ua: 'Вітрогенератор', en: 'Wind Generator' },
+  
+  // Generator subtypes
+  hawt3: { ua: '3-лопатевий HAWT', en: '3-Blade HAWT' },
+  hawt2: { ua: '2-лопатевий HAWT', en: '2-Blade HAWT' },
+  darrieus: { ua: 'Дар\'є VAWT', en: 'Darrieus VAWT' },
+  savonius: { ua: 'Савоніус VAWT', en: 'Savonius VAWT' },
+  micro: { ua: 'Мікро-турбіна', en: 'Micro Turbine' },
+  generatorType: { ua: 'Тип генератора', en: 'Generator Type' },
   
   // Categories
   vegetation: { ua: 'Рослинність', en: 'Vegetation' },
@@ -76,29 +86,88 @@ const translations: Record<string, Record<Lang, string>> = {
   // Wind generator info
   generatorPower: { ua: 'Потужність', en: 'Power' },
   
-  // Info tooltips (keep English for scientific terms, UA primary)
+  // Info tooltips
   infoSpeed: { ua: 'Швидкість вітру впливає на енергію частинок (E = 0.5mv²). Більша швидкість = більше передачі енергії.', en: 'Wind velocity affects particle speed and collision energy (E = 0.5mv²).' },
   infoDirection: { ua: 'Горизонтальний кут вітру. 0° = Схід, 90° = Південь, 180° = Захід, 270° = Північ.', en: 'Horizontal wind angle. 0° = East, 90° = South, 180° = West, 270° = North.' },
   infoElevation: { ua: 'Вертикальний кут. Додатній = висхідний потік, від\'ємний = низхідний.', en: 'Vertical angle. Positive = upward, negative = downward.' },
-  infoTurbulenceIntensity: { ua: 'Випадкові коливання швидкості у % від основної. Більше = хаотичніший рух.', en: 'Random velocity variations as % of wind speed.' },
+  infoTurbulenceIntensity: { ua: 'TI = σᵥ/V̄ — випадкові коливання швидкості у % від основної (IEC 61400-1).', en: 'TI = σᵥ/V̄ — random velocity variations as % of mean (IEC 61400-1).' },
   infoTurbulenceScale: { ua: 'Розмір вихорів турбулентності. Більший масштаб = ширші хвилі.', en: 'Size of turbulence eddies.' },
   infoGustFrequency: { ua: 'Кількість поривів на хвилину. Пориви тимчасово збільшують швидкість.', en: 'Gusts per minute. Gusts temporarily increase wind speed.' },
   infoGustPower: { ua: 'Максимальна сила пориву як % збільшення базової швидкості.', en: 'Max gust strength as % increase over base speed.' },
-  infoTemperature: { ua: 'Температура впливає на густину повітря. Холодне повітря щільніше = більше енергії.', en: 'Temperature affects air density. Cold air is denser = more energy.' },
-  infoHumidity: { ua: 'Вологість повітря. Більша вологість трохи зменшує густину.', en: 'Atmospheric moisture. Higher humidity slightly reduces density.' },
-  infoAltitude: { ua: 'Висота над рівнем моря. Вище = менший тиск = менша густ. повітря.', en: 'Height above sea level. Higher = lower pressure = reduced density.' },
-  infoAirDensity: { ua: 'Маса на об\'єм (кг/м³). Рівень моря ≈ 1.225, гори ≈ 1.0.', en: 'Mass per volume (kg/m³). Sea level ≈ 1.225, mountains ≈ 1.0.' },
-  infoSurfaceRoughness: { ua: 'Коефіцієнт тертя поверхні. Вода ≈ 0.001, поле ≈ 0.03, місто ≈ 0.5-2.0.', en: 'Terrain friction. Water ≈ 0.001, grassland ≈ 0.03, urban ≈ 0.5-2.0.' },
-  infoRefHeight: { ua: 'Базова висота для розрахунку зсуву вітру. Швидкість зменшується ближче до землі.', en: 'Reference height for wind shear calculations.' },
-  infoHotspots: { ua: 'Показує концентрацію енергії біля перешкод. Кольори: Зелений → Жовтий → Помаранчевий → Червоний.', en: 'Shows energy concentration at obstacles.' },
-  infoWakeZones: { ua: 'Візуалізує турбулентні зони за перешкодами. Показує дефіцит швидкості.', en: 'Visualizes turbulent wake zones behind obstacles.' },
-  infoLocalHits: { ua: 'Анімовані спливаючі вікна з енергією зіткнення (Дж) у точці удару.', en: 'Animated popups showing collision energy (J) at impact point.' },
+  infoTemperature: { ua: 'Температура впливає на густину повітря (ρ = PM/RT). Холодне повітря щільніше = більше енергії.', en: 'Temperature affects air density (ρ = PM/RT). Cold air is denser = more energy.' },
+  infoHumidity: { ua: 'Вологість повітря. Впливає на видимість частинок та щільність повітря.', en: 'Atmospheric moisture. Affects particle visibility and air density.' },
+  infoAltitude: { ua: 'Висота над рівнем моря. Вище = менший тиск = менша ρ. На 1000м ρ ≈ -3%.', en: 'Height above sea level. Higher = lower pressure = reduced ρ. At 1000m ρ ≈ -3%.' },
+  infoSurfaceRoughness: { ua: 'Коефіцієнт тертя поверхні (z₀). Вода ≈ 0.001, поле ≈ 0.03, місто ≈ 0.5-2.0.', en: 'Terrain friction (z₀). Water ≈ 0.001, grassland ≈ 0.03, urban ≈ 0.5-2.0.' },
+  infoRefHeight: { ua: 'Базова висота для розрахунку зсуву вітру V(h) = Vref × (h/href)^α.', en: 'Reference height for wind shear V(h) = Vref × (h/href)^α.' },
+  infoTerrainSlope: { ua: 'Нахил рельєфу створює прискорення вітру (hill speedup effect). На вершині пагорба швидкість може зрости на 20-80%. ΔV/V = s × (H/L).', en: 'Terrain slope creates wind speedup (hill effect). At hilltop, speed can increase 20-80%. ΔV/V = s × (H/L).' },
   
   // Elevation science
   elevationScience: { ua: 'Швидкість вітру зростає з висотою за степеневим законом: V = V_ref × (h/h_ref)^α. Подвоєння висоти збільшує потужність на ~40-80%.', en: 'Wind speed increases with height by power law: V = V_ref × (h/h_ref)^α. Doubling height increases power by ~40-80%.' },
   
-  // Wind profile heights
   heightProfile: { ua: 'Профіль висоти', en: 'Height Profile' },
+  
+  // Weather
+  weatherTitle: { ua: 'Синтетична погода', en: 'Synthetic Weather' },
+  windSpeedLabel: { ua: 'Швидкість вітру', en: 'Wind Speed' },
+  windDirectionLabel: { ua: 'Напрямок вітру', en: 'Wind Direction' },
+  pressureLabel: { ua: 'Тиск', en: 'Pressure' },
+  tempLabel: { ua: 'Температура', en: 'Temperature' },
+  cloudLabel: { ua: 'Хмарність', en: 'Cloud Cover' },
+  applyToSim: { ua: 'Застосувати до симуляції', en: 'Apply to Simulation' },
+  seasonWinter: { ua: 'Зима', en: 'Winter' },
+  seasonSpring: { ua: 'Весна', en: 'Spring' },
+  seasonSummer: { ua: 'Літо', en: 'Summer' },
+  seasonAutumn: { ua: 'Осінь', en: 'Autumn' },
+  weatherExplainer: { ua: 'Синтетичні дані на основі геолокації, сезону та часу доби для регіону України.', en: 'Synthetic data based on geolocation, season, and time of day for Ukraine region.' },
+  windPotentialNote: { ua: 'Потенціал вітрової енергії', en: 'Wind Energy Potential' },
+  
+  // Turbine panel
+  turbineAnalysis: { ua: 'Аналіз турбіни', en: 'Turbine Analysis' },
+  powerFormula: { ua: 'Формула потужності', en: 'Power Formula' },
+  currentValues: { ua: 'Поточні значення', en: 'Current Values' },
+  betzLimit: { ua: 'Ліміт Бетца', en: 'Betz Limit' },
+  actualEfficiency: { ua: 'Реальна ефективність', en: 'Actual Efficiency' },
+  tipSpeedRatio: { ua: 'TSR (λ)', en: 'TSR (λ)' },
+  aepEstimate: { ua: 'Оцінка AEP', en: 'AEP Estimate' },
+  powerAtSpeeds: { ua: 'Потужність при різних V', en: 'Power at Various V' },
+  cutInSpeed: { ua: 'Вхідна швидкість', en: 'Cut-in Speed' },
+  cutOutSpeed: { ua: 'Вихідна швидкість', en: 'Cut-out Speed' },
+  ratedPower: { ua: 'Номінальна потужність', en: 'Rated Power' },
+  sweptArea: { ua: 'Площа ометання', en: 'Swept Area' },
+  
+  // Generator settings
+  engineeringPanel: { ua: 'Інженерна панель', en: 'Engineering Panel' },
+  aerodynamics: { ua: 'Аеродинаміка', en: 'Aerodynamics' },
+  bladeProfile: { ua: 'Профіль лопаті', en: 'Blade Profile' },
+  angleOfAttack: { ua: 'Кут атаки', en: 'Angle of Attack' },
+  bladeCount: { ua: 'Кількість лопатей', en: 'Blade Count' },
+  construction: { ua: 'Конструкція', en: 'Construction' },
+  electrical: { ua: 'Електрика', en: 'Electrical' },
+  genType: { ua: 'Тип генератора', en: 'Generator Type' },
+  poles: { ua: 'Кількість полюсів', en: 'Pole Count' },
+  voltage: { ua: 'Напруга', en: 'Voltage' },
+  liveCalc: { ua: 'Live-розрахунки', en: 'Live Calculations' },
+  torque: { ua: 'Крутний момент', en: 'Torque' },
+  centrifugalForce: { ua: 'Відцентрова сила', en: 'Centrifugal Force' },
+  materialProps: { ua: 'Властивості матеріалів', en: 'Material Properties' },
+  youngsModulus: { ua: 'Модуль Юнга', en: "Young's Modulus" },
+  tensileStrength: { ua: 'Міцність на розтяг', en: 'Tensile Strength' },
+  materialDensity: { ua: 'Щільність', en: 'Density' },
+  
+  // Info page
+  knowledgeBase: { ua: 'База знань з вітроенергетики', en: 'Wind Energy Knowledge Base' },
+  scientificRef: { ua: 'Наукова довідка', en: 'Scientific Reference' },
+  fundamentals: { ua: 'Основи', en: 'Fundamentals' },
+  windPotential: { ua: 'Потенціал вітру', en: 'Wind Potential' },
+  turbines: { ua: 'Турбіни', en: 'Turbines' },
+  printing3d: { ua: '3D Друк', en: '3D Printing' },
+  components: { ua: 'Компоненти', en: 'Components' },
+  technical: { ua: 'Технічне', en: 'Technical' },
+
+  // Wake zone enhanced
+  wakeLength: { ua: 'Довж. сліду', en: 'Wake Length' },
+  velocityDeficit: { ua: 'Дефіцит V', en: 'V Deficit' },
+  recoveryZone: { ua: 'Зона відновлення', en: 'Recovery Zone' },
 };
 
 export function t(key: string, lang: Lang): string {

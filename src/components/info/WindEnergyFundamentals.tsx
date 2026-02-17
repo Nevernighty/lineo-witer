@@ -13,7 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
-export const WindEnergyFundamentals = () => {
+export const WindEnergyFundamentals = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
       {/* Hero Stats - responsive grid */}

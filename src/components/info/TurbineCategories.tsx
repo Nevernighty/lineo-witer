@@ -92,7 +92,7 @@ const turbineData = [
   },
 ];
 
-export const TurbineCategories = () => {
+export const TurbineCategories = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
       <Card className="p-4 sm:p-5">
