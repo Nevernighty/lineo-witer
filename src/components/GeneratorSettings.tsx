@@ -77,10 +77,10 @@ export const GeneratorSettings = ({
 
         <Tabs defaultValue="aero" className="w-full">
           <TabsList className="grid grid-cols-4 mb-3">
-            <TabsTrigger value="aero" className="text-xs"><Wind className="w-3.5 h-3.5 mr-1" />{label('Аеро', 'Aero')}</TabsTrigger>
-            <TabsTrigger value="struct" className="text-xs"><Wrench className="w-3.5 h-3.5 mr-1" />{label('Конст.', 'Struct')}</TabsTrigger>
-            <TabsTrigger value="elec" className="text-xs"><Zap className="w-3.5 h-3.5 mr-1" />{label('Елект.', 'Elec')}</TabsTrigger>
-            <TabsTrigger value="calc" className="text-xs"><Calculator className="w-3.5 h-3.5 mr-1" />{label('Розр.', 'Calc')}</TabsTrigger>
+            <TabsTrigger value="aero" className="text-xs data-[state=inactive]:text-foreground"><Wind className="w-3.5 h-3.5 mr-1" />{label('Аеро', 'Aero')}</TabsTrigger>
+            <TabsTrigger value="struct" className="text-xs data-[state=inactive]:text-foreground"><Wrench className="w-3.5 h-3.5 mr-1" />{label('Конст.', 'Struct')}</TabsTrigger>
+            <TabsTrigger value="elec" className="text-xs data-[state=inactive]:text-foreground"><Zap className="w-3.5 h-3.5 mr-1" />{label('Елект.', 'Elec')}</TabsTrigger>
+            <TabsTrigger value="calc" className="text-xs data-[state=inactive]:text-foreground"><Calculator className="w-3.5 h-3.5 mr-1" />{label('Розр.', 'Calc')}</TabsTrigger>
           </TabsList>
 
           <TabsContent value="aero" className="space-y-4">

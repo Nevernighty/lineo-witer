@@ -51,7 +51,7 @@ const GlowSlider: React.FC<{
                 <TooltipTrigger asChild>
                   <Info className="w-3 h-3 text-primary/50 hover:text-primary cursor-help transition-colors" />
                 </TooltipTrigger>
-                <TooltipContent side="right" className="max-w-[280px] bg-[#0d1117] border-primary/40 text-xs leading-relaxed">
+                <TooltipContent side="left" className="max-w-[280px] bg-[#0d1117] border-primary/40 text-xs leading-relaxed z-50">
                   <p>{infoText}</p>
                 </TooltipContent>
               </Tooltip>
@@ -101,7 +101,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   }, [config.windSpeed, config.referenceHeight, config.surfaceRoughness]);
 
   return (
-    <div className="bg-[#0d1117]/95 backdrop-blur-md rounded-lg border border-primary/40 shadow-[0_0_20px_rgba(57,255,20,0.15)] overflow-hidden">
+    <div className="bg-[#0d1117]/95 backdrop-blur-md rounded-lg border border-primary/40 shadow-[0_0_20px_rgba(57,255,20,0.15)]" style={{ overflow: 'visible' }}>
       <Tabs defaultValue="turb" className="w-full">
         <TabsList className="w-full grid grid-cols-4 h-9 rounded-none bg-background/40 border-b border-primary/30 p-0">
           {(['wind', 'turb', 'atmo', 'terrain'] as const).map((tab, i) => {
@@ -147,12 +147,31 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <GlowSlider value={config.temperature} onChange={(v) => updateConfig('temperature', v)}
             min={-20} max={45} step={1} label={t('temperature', lang)} displayValue={`${config.temperature}°C`}
             infoText={t('infoTemperature', lang)} />
+          {/* Temperature impact visualization */}
+          <div className="flex justify-between items-center text-[8px] -mt-0.5 px-0.5">
+            {[
+              { temp: -10, rho: 1.342, delta: '+9.5%' },
+              { temp: 15, rho: 1.225, delta: '0%' },
+              { temp: 40, rho: 1.127, delta: '-8.0%' },
+            ].map(item => (
+              <div key={item.temp} className={`text-center ${config.temperature >= item.temp - 10 && config.temperature < item.temp + 10 ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                <div>{item.temp}°C</div>
+                <div className="font-mono">{item.rho}</div>
+                <div className="text-primary/70">{item.delta}</div>
+              </div>
+            ))}
+          </div>
+          <div className="text-[8px] text-muted-foreground px-0.5">{t('tempDensityFormula', lang)}</div>
+          
           <GlowSlider value={config.humidity} onChange={(v) => updateConfig('humidity', v)}
             min={0} max={100} step={5} label={t('humidity', lang)} displayValue={`${config.humidity}%`}
             infoText={t('infoHumidity', lang)} />
           <GlowSlider value={config.altitude} onChange={(v) => updateConfig('altitude', v)}
             min={0} max={3000} step={100} label={t('altitude', lang)} displayValue={`${config.altitude}m`}
             infoText={t('infoAltitude', lang)} />
+          <div className="text-[8px] text-muted-foreground px-0.5">
+            {lang === 'ua' ? 'Висота → тиск → ρ: кожні 1000м ρ падає ~12%' : 'Altitude → pressure → ρ: every 1000m ρ drops ~12%'}
+          </div>
           <div className="flex justify-between items-center px-1">
             <span className="text-[9px] text-muted-foreground">{t('calculatedDensity', lang)}</span>
             <span className="text-[10px] font-mono text-primary">{config.airDensity.toFixed(3)} kg/m³</span>
@@ -188,7 +207,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
                   <TooltipTrigger asChild>
                     <Info className="w-2.5 h-2.5 text-primary/40 hover:text-primary cursor-help" />
                   </TooltipTrigger>
-                  <TooltipContent side="right" className="max-w-[260px] bg-[#0d1117] border-primary/40 text-xs">
+                  <TooltipContent side="left" className="max-w-[260px] bg-[#0d1117] border-primary/40 text-xs z-50">
                     <p>{t('elevationScience', lang)}</p>
                   </TooltipContent>
                 </Tooltip>

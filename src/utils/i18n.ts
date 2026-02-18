@@ -64,7 +64,16 @@ const translations: Record<string, Record<Lang, string>> = {
   
   // Actions
   clearAll: { ua: 'Очистити', en: 'Clear All' },
-  footerHint: { ua: 'Клікніть щоб поставити • Alt+тягніть для обертання', en: 'Click to place • Alt+Drag to rotate' },
+  footerHint: { ua: 'Клік = поставити | Alt+Scroll = обертання | Ctrl+Q/E = розмір', en: 'Click = place | Alt+Scroll = rotate | Ctrl+Q/E = resize' },
+  hintRotateScale: { ua: 'Alt+Scroll: обертання | Ctrl+Q/E: розмір', en: 'Alt+Scroll: rotate | Ctrl+Q/E: resize' },
+  tempImpactTitle: { ua: 'Вплив температури', en: 'Temperature Impact' },
+  tempDensityFormula: { ua: 'ρ = P·M/(R·T), де P=101325 Па, M=0.029 кг/моль, R=8.314', en: 'ρ = P·M/(R·T), P=101325 Pa, M=0.029 kg/mol, R=8.314' },
+  weatherPhysicsTitle: { ua: 'Фізика погоди', en: 'Weather Physics' },
+  baricGradient: { ua: 'Баричний градієнт: вітер дме від високого до низького тиску. Сила: F = -∇P/ρ', en: 'Baric gradient: wind blows from high to low pressure. Force: F = -∇P/ρ' },
+  geostrophicWind: { ua: 'Геострофічний вітер: Vg = (1/fρ)·(∂P/∂n), де f = 2Ω·sin(φ) — параметр Коріоліса', en: 'Geostrophic wind: Vg = (1/fρ)·(∂P/∂n), f = 2Ω·sin(φ) — Coriolis parameter' },
+  pasquillStability: { ua: 'Клас стабільності Пасквілла: A (дуже нестабільно) — F (стабільно). Впливає на вертикальне перемішування.', en: 'Pasquill stability class: A (very unstable) — F (stable). Affects vertical mixing.' },
+  diurnalCycle: { ua: 'Денний цикл: вітер сильніший вдень через конвекцію від нагрівання поверхні. Вночі стабільніший.', en: 'Diurnal cycle: wind stronger during day due to surface heating convection. More stable at night.' },
+  monthlyEnergy: { ua: 'Місячна енергія', en: 'Monthly Energy' },
   
   // Measurement Panel
   windPower: { ua: 'Потужність вітру', en: 'Wind Power' },

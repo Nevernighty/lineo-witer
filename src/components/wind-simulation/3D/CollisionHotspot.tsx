@@ -60,9 +60,15 @@ export const CollisionHotspot: React.FC<CollisionHotspotProps> = ({
         <sphereGeometry args={[size * 0.25, 12, 12]} />
         <meshBasicMaterial color={color} transparent opacity={intensity * 0.25} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
+      {/* Ground collision circle */}
       <mesh position={[0, -cy + 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[size * 0.8, 24]} />
         <meshBasicMaterial color={color} transparent opacity={intensity * 0.2} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Heat trail on ground — size proportional to cumulative energy */}
+      <mesh position={[0, -cy + 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[size * (0.5 + intensity * 1.5), 32]} />
+        <meshBasicMaterial color={new THREE.Color().lerpColors(new THREE.Color('#1a1aff'), new THREE.Color('#ff4400'), intensity)} transparent opacity={intensity * 0.15} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <Html position={[0, 1.5, 0]} center style={{ pointerEvents: 'none' }}>
         <div className="rounded px-1.5 py-0.5 text-center border shadow-lg"

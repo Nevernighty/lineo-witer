@@ -20,7 +20,7 @@ interface InstancedParticlesProps {
 const createParticleGeometry = () => {
   const geometry = new THREE.BufferGeometry();
   const vertices = new Float32Array([
-    0, 0, 0.8,    // front tip (elongated more)
+    0, 0, 0.8,
     -0.18, 0, 0,
     0, 0.18, 0,
     0.18, 0, 0,
@@ -42,11 +42,11 @@ const lerpColor = (c: THREE.Color, intensity: number) => {
   if (intensity < 0.33) {
     c.setRGB(0.22 + intensity * 2, 1, 0.08);
   } else if (intensity < 0.66) {
-    const t = (intensity - 0.33) / 0.33;
-    c.setRGB(0.9 + t * 0.1, 1 - t * 0.4, 0.08);
+    const t2 = (intensity - 0.33) / 0.33;
+    c.setRGB(0.9 + t2 * 0.1, 1 - t2 * 0.4, 0.08);
   } else {
-    const t = (intensity - 0.66) / 0.34;
-    c.setRGB(1, 0.6 - t * 0.35, 0.08 + t * 0.05);
+    const t2 = (intensity - 0.66) / 0.34;
+    c.setRGB(1, 0.6 - t2 * 0.35, 0.08 + t2 * 0.05);
   }
 };
 
@@ -76,18 +76,20 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({ particle
         dummy.lookAt(particle.x + vx, particle.y + vy, particle.z + vz);
       }
       
-      // Velocity-based elongation
+      // Velocity-based elongation — stronger at high speeds (ribbon effect)
       const baseScale = particle.size;
-      const speedScale = Math.min(1 + speed * 0.12, 2.5);
-      // Subtle size pulse
+      const speedScale = Math.min(1 + speed * 0.18, 3.5);
       const pulse = 1 + Math.sin(time * 3 + i * 0.5) * 0.05;
-      dummy.scale.set(baseScale * speedScale * pulse, baseScale * pulse, baseScale * pulse);
+      // At high speed, compress lateral axes for ribbon-like appearance
+      const lateralCompress = Math.max(0.5, 1 - speed * 0.03);
+      dummy.scale.set(baseScale * speedScale * pulse, baseScale * pulse * lateralCompress, baseScale * pulse * lateralCompress);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
-      // Trail - offset behind
-      dummy.position.set(particle.x - vx * 0.2, particle.y - vy * 0.2, particle.z - vz * 0.2);
-      dummy.scale.set(baseScale * 0.6 * speedScale, baseScale * 0.4, baseScale * 0.4);
+      // Trail - longer at high speed
+      const trailLength = Math.min(0.4 + speed * 0.06, 1.2);
+      dummy.position.set(particle.x - vx * trailLength, particle.y - vy * trailLength, particle.z - vz * trailLength);
+      dummy.scale.set(baseScale * 0.6 * speedScale * 0.8, baseScale * 0.3, baseScale * 0.3);
       dummy.updateMatrix();
       trailMeshRef.current!.setMatrixAt(i, dummy.matrix);
 
@@ -97,7 +99,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({ particle
       dummy.updateMatrix();
       glowMeshRef.current!.setMatrixAt(i, dummy.matrix);
 
-      // Smooth color gradient on collision
+      // Color: collision intensity + scatter visual
       if (meshRef.current!.instanceColor) {
         if (particle.hasCollided) {
           const collisionIntensity = Math.min(speed * 0.15, 1);
