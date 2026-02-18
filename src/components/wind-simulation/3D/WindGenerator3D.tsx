@@ -234,8 +234,11 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const powerStr = power >= 1000 ? `${(power / 1000).toFixed(1)} kW` : `${power.toFixed(0)} W`;
   const subtypeName = specs.nameUa;
 
+  const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
+  const scaleVal = obstacle.scale || 1;
+
   return (
-    <group position={position}>
+    <group position={position} rotation-y={rotationY} scale={scaleVal}>
       {subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
       {subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
       {subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}

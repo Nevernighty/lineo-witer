@@ -1,5 +1,6 @@
-import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets } from "lucide-react";
-import { useMemo } from "react";
+import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen } from "lucide-react";
+import { useMemo, useState } from "react";
+import { t, type Lang } from '@/utils/i18n';
 
 interface WeatherDisplayProps {
   location: { lat: number; lon: number } | null;
@@ -7,51 +8,39 @@ interface WeatherDisplayProps {
   onApplyToSimulation?: (data: { windSpeed: number; temperature: number; humidity: number; windAngle: number }) => void;
 }
 
-// Synthetic weather generation based on location, season, time of day
 function generateSyntheticWeather(lat: number, lon: number) {
   const now = new Date();
-  const month = now.getMonth(); // 0-11
+  const month = now.getMonth();
   const hour = now.getHours();
   
-  // Season classification
   const isWinter = month >= 10 || month <= 2;
   const isSummer = month >= 5 && month <= 7;
   const isSpring = month >= 3 && month <= 4;
   
-  // Base wind speed for Ukraine region (southern = higher)
-  const latFactor = Math.max(0, (52 - lat) / 10); // Southern Ukraine has more wind
+  const latFactor = Math.max(0, (52 - lat) / 10);
   const baseWind = isWinter ? 7.5 : isSummer ? 4.5 : isSpring ? 6.0 : 6.8;
-  const diurnalVar = Math.sin((hour - 6) * Math.PI / 12) * 1.5; // Peak afternoon
+  const diurnalVar = Math.sin((hour - 6) * Math.PI / 12) * 1.5;
   const windSpeed = Math.max(1, baseWind + latFactor * 1.5 + diurnalVar + (Math.random() - 0.5) * 2);
   
-  // Wind direction - NW dominant in winter, variable in summer
   const baseAngle = isWinter ? 315 : isSummer ? 225 : 270;
   const windAngle = (baseAngle + (Math.random() - 0.5) * 60) % 360;
   
-  // Temperature
   const baseTempByMonth = [-3, -1, 4, 12, 18, 22, 25, 24, 18, 11, 4, 0];
   const baseTemp = baseTempByMonth[month];
   const diurnalTemp = Math.sin((hour - 6) * Math.PI / 12) * 5;
   const temperature = baseTemp + diurnalTemp + (Math.random() - 0.5) * 3;
   
-  // Pressure
   const pressure = 1013 + (isWinter ? 8 : -3) + (Math.random() - 0.5) * 10;
-  
-  // Humidity
   const humidity = isWinter ? 80 : isSummer ? 55 : 65;
-  
-  // Cloud cover
   const cloudCover = isWinter ? 70 : isSummer ? 30 : 50;
-  
-  // Season name
   const season = isWinter ? 'winter' : isSummer ? 'summer' : isSpring ? 'spring' : 'autumn';
   
-  // Wind power density
-  const rho = 1.225 * (1 - 0.00012 * 0); // sea level approximation
+  const rho = 1.225;
   const wpd = 0.5 * rho * Math.pow(windSpeed, 3);
-  
-  // Energy potential classification
   const potentialClass = wpd > 500 ? 'excellent' : wpd > 300 ? 'good' : wpd > 150 ? 'moderate' : 'low';
+
+  // Monthly energy estimate (kWh/m² assuming Cp=0.4, 720h/month)
+  const monthlyEnergy = wpd * 0.4 * 720 / 1000;
 
   return {
     windSpeed: Math.round(windSpeed * 10) / 10,
@@ -60,11 +49,7 @@ function generateSyntheticWeather(lat: number, lon: number) {
     pressure: Math.round(pressure),
     humidity: Math.round(humidity + (Math.random() - 0.5) * 15),
     cloudCover: Math.round(Math.max(0, Math.min(100, cloudCover + (Math.random() - 0.5) * 20))),
-    season,
-    wpd: Math.round(wpd),
-    potentialClass,
-    hour,
-    month
+    season, wpd: Math.round(wpd), potentialClass, hour, month, monthlyEnergy: Math.round(monthlyEnergy)
   };
 }
 
@@ -94,6 +79,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
     if (!location) return null;
     return generateSyntheticWeather(location.lat, location.lon);
   }, [location]);
+  const [showPhysics, setShowPhysics] = useState(false);
 
   if (!location || !weather) {
     return <div className="text-muted-foreground">{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
@@ -179,12 +165,35 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
           <span>{lang === 'ua' ? 'Густ. потужності' : 'Power Density'}</span>
           <span className="font-mono text-primary">{weather.wpd} W/m²</span>
         </div>
+        <div className="flex justify-between text-xs text-muted-foreground mt-1">
+          <span>{t('monthlyEnergy', lang)}</span>
+          <span className="font-mono text-primary">~{weather.monthlyEnergy} kWh/m²</span>
+        </div>
         <p className="text-[10px] text-muted-foreground mt-2">
           {lang === 'ua'
-            ? 'P = ½ρV³ — густина потужності вітру визначає енергетичний потенціал ділянки. >400 W/m² = відмінні умови для вітрогенерації.'
-            : 'P = ½ρV³ — wind power density determines site energy potential. >400 W/m² = excellent for wind generation.'}
+            ? 'P = ½ρV³ — густина потужності. E = WPD × A × hours × Cp. >400 W/m² = відмінні умови.'
+            : 'P = ½ρV³ — power density. E = WPD × A × hours × Cp. >400 W/m² = excellent conditions.'}
         </p>
       </div>
+
+      {/* Weather Physics toggle */}
+      <button
+        onClick={() => setShowPhysics(!showPhysics)}
+        className="w-full py-1.5 rounded-lg bg-secondary/20 hover:bg-secondary/30 border border-border/30 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1.5"
+      >
+        <BookOpen className="w-3.5 h-3.5" />
+        {t('weatherPhysicsTitle', lang)}
+      </button>
+
+      {showPhysics && (
+        <div className="p-3 bg-secondary/10 rounded-lg border border-border/30 space-y-2 text-[10px] text-muted-foreground">
+          <p className="font-semibold text-foreground text-xs">{t('weatherPhysicsTitle', lang)}</p>
+          <p>• {t('baricGradient', lang)}</p>
+          <p>• {t('geostrophicWind', lang)}</p>
+          <p>• {t('pasquillStability', lang)}</p>
+          <p>• {t('diurnalCycle', lang)}</p>
+        </div>
+      )}
 
       {/* Apply button */}
       {onApplyToSimulation && (

@@ -39,6 +39,8 @@ export interface Obstacle {
   resistance?: number;
   power?: number;
   generatorSubtype?: GeneratorSubtype;
+  rotation?: number;
+  scale?: number;
 }
 
 export interface ObstacleCategoryConfig {

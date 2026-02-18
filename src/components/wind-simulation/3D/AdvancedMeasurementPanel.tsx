@@ -88,6 +88,12 @@ export const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> =
             <span className="text-[9px] text-muted-foreground">{t('roughness', lang)}</span>
             <span className="text-[10px] font-mono text-cyan-400">{config.surfaceRoughness.toFixed(2)}</span>
           </div>
+          <div className="flex justify-between items-center">
+            <span className="text-[9px] text-muted-foreground">{t('tempImpactTitle', lang)}</span>
+            <span className="text-[10px] font-mono text-cyan-400">
+              {((config.airDensity / 1.225 - 1) * 100).toFixed(1)}%
+            </span>
+          </div>
         </div>
       </div>
 

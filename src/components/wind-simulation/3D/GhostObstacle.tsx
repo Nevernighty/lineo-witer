@@ -8,10 +8,12 @@ interface GhostObstacleProps {
   obstacleType: ObstacleType;
   visible: boolean;
   generatorSubtype?: GeneratorSubtype;
+  rotation?: number;
+  scale?: number;
 }
 
 export const GhostObstacle: React.FC<GhostObstacleProps> = ({ 
-  position, obstacleType, visible, generatorSubtype = 'hawt3'
+  position, obstacleType, visible, generatorSubtype = 'hawt3', rotation = 0, scale = 1
 }) => {
   const dimensions = useMemo(() => {
     switch (obstacleType) {
@@ -103,8 +105,10 @@ export const GhostObstacle: React.FC<GhostObstacleProps> = ({
     }
   };
 
+  const rotationY = (rotation * Math.PI) / 180;
+
   return (
-    <group>
+    <group rotation-y={rotationY} scale={scale}>
       {renderGhost()}
       <mesh position={[position[0], 0.1, position[2]]} rotation={[-Math.PI / 2, 0, 0]}>
         <ringGeometry args={[dimensions.width * 0.4, dimensions.width * 0.5, 32]} />

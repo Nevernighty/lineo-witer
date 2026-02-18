@@ -12,7 +12,7 @@ import { CollisionHotspotManager } from './CollisionHotspot';
 import { LocalHitManager } from './LocalHitPopup';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
 import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '../types';
-import { type Lang } from '@/utils/i18n';
+import { t, type Lang } from '@/utils/i18n';
 import * as THREE from 'three';
 
 interface WindSimulation3DProps {
@@ -33,7 +33,6 @@ const MouseTracker: React.FC<{
   const intersectPoint = useRef(new THREE.Vector3());
 
   useFrame(({ mouse }) => {
-    // Update plane normal based on terrain slope
     const nx = Math.sin((slopeX * Math.PI) / 180);
     const nz = Math.sin((slopeZ * Math.PI) / 180);
     const ny = Math.cos((slopeX * Math.PI) / 180) * Math.cos((slopeZ * Math.PI) / 180);
@@ -73,6 +72,14 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [collisionEffects, setCollisionEffects] = useState<Array<{
     id: string; position: [number, number, number]; intensity: number;
   }>>([]);
+  const [showHint, setShowHint] = useState(false);
+  const [currentGhostRotation, setCurrentGhostRotation] = useState(0);
+  const [currentGhostScale, setCurrentGhostScale] = useState(1);
+  const ghostPositionRef = useRef<[number, number, number] | null>(null);
+
+  useEffect(() => {
+    ghostPositionRef.current = ghostPosition;
+  }, [ghostPosition]);
 
   useEffect(() => {
     setPhysicsConfig(prev => ({ ...prev, windSpeed: initialWindSpeed }));
@@ -96,6 +103,64 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         );
       }, 0);
   }, [obstacles, physicsConfig]);
+
+  // Find nearest obstacle to ghost position
+  const findNearestObstacle = useCallback((pos: [number, number, number] | null) => {
+    if (!pos || obstacles.length === 0) return null;
+    let nearest: Obstacle | null = null;
+    let minDist = 20; // max radius
+    for (const obs of obstacles) {
+      const cx = obs.x + obs.width / 2;
+      const cz = obs.z + obs.depth / 2;
+      const dist = Math.sqrt((pos[0] - cx) ** 2 + (pos[2] - cz) ** 2);
+      if (dist < minDist) {
+        minDist = dist;
+        nearest = obs;
+      }
+    }
+    return nearest;
+  }, [obstacles]);
+
+  // Alt + Wheel = rotate nearest obstacle
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!e.altKey) return;
+    e.preventDefault();
+    const nearest = findNearestObstacle(ghostPositionRef.current);
+    if (nearest) {
+      const rotationDelta = e.deltaY > 0 ? 15 : -15;
+      setObstacles(prev => prev.map(obs => 
+        obs.id === nearest.id 
+          ? { ...obs, rotation: ((obs.rotation || 0) + rotationDelta) % 360 }
+          : obs
+      ));
+    } else {
+      // Rotate ghost preview
+      setCurrentGhostRotation(prev => (prev + (e.deltaY > 0 ? 15 : -15)) % 360);
+    }
+  }, [findNearestObstacle]);
+
+  // Ctrl+Q / Ctrl+E = scale
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (!e.ctrlKey) return;
+      if (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        const scaleDelta = (e.key === 'e' || e.key === 'E') ? 0.1 : -0.1;
+        const nearest = findNearestObstacle(ghostPositionRef.current);
+        if (nearest) {
+          setObstacles(prev => prev.map(obs =>
+            obs.id === nearest.id
+              ? { ...obs, scale: Math.max(0.3, Math.min(3.0, (obs.scale || 1) + scaleDelta)) }
+              : obs
+          ));
+        } else {
+          setCurrentGhostScale(prev => Math.max(0.3, Math.min(3.0, prev + scaleDelta)));
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [findNearestObstacle]);
 
   const addObstacle = useCallback((x: number, y: number, z: number) => {
     const category = Object.entries(OBSTACLE_CATEGORIES).find(([_, cat]) => 
@@ -127,11 +192,17 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       density: categoryData.defaultProperties.density,
       material: categoryData.defaultProperties.material,
       resistance: categoryData.defaultProperties.resistance,
+      rotation: currentGhostRotation,
+      scale: currentGhostScale,
       ...(selectedObstacleType === 'wind_generator' ? { generatorSubtype: selectedGeneratorSubtype } : {})
     };
     
     setObstacles(prev => [...prev, newObstacle]);
-  }, [selectedObstacleType, selectedGeneratorSubtype]);
+    
+    // Show hint badge
+    setShowHint(true);
+    setTimeout(() => setShowHint(false), 3000);
+  }, [selectedObstacleType, selectedGeneratorSubtype, currentGhostRotation, currentGhostScale]);
 
   const clearObstacles = () => {
     setObstacles([]);
@@ -156,7 +227,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     setObstacleEnergies(energies);
   }, []);
 
-  // Terrain slope rotation
   const terrainRotation: [number, number, number] = [
     (physicsConfig.terrainSlopeZ * Math.PI) / 180,
     0,
@@ -165,11 +235,11 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   return (
     <div className="relative w-full h-full">
-      {/* Canvas with pointer-events: auto by default, panels overlay on top */}
       <Canvas
         camera={{ position: [70, 45, 70], fov: 50 }}
         className="!absolute inset-0"
         style={{ pointerEvents: 'auto' }}
+        onWheel={handleWheel}
         onPointerDown={(e) => {
           if (e.altKey) return;
           if (ghostPosition) {
@@ -195,7 +265,14 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             />
 
             {ghostPosition && (
-              <GhostObstacle position={ghostPosition} obstacleType={selectedObstacleType as ObstacleType} visible={true} generatorSubtype={selectedGeneratorSubtype} />
+              <GhostObstacle
+                position={ghostPosition}
+                obstacleType={selectedObstacleType as ObstacleType}
+                visible={true}
+                generatorSubtype={selectedGeneratorSubtype}
+                rotation={currentGhostRotation}
+                scale={currentGhostScale}
+              />
             )}
 
             <AdvancedParticleSystem
@@ -235,8 +312,18 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </Suspense>
       </Canvas>
 
-      {/* Controls - pointer-events: auto so they're clickable above canvas */}
-      <div className="absolute top-3 right-3 w-56 z-10" style={{ pointerEvents: 'auto' }}>
+      {/* Hint badge after placing object */}
+      {showHint && (
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-bottom-4 duration-300"
+          style={{ pointerEvents: 'none' }}>
+          <div className="px-3 py-1.5 rounded-full bg-[#0d1117]/90 border border-primary/50 text-primary text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.3)]">
+            {t('hintRotateScale', lang)}
+          </div>
+        </div>
+      )}
+
+      {/* Controls panel - overflow visible for tooltips */}
+      <div className="absolute top-3 right-3 w-56 z-10" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedWindControls
           config={physicsConfig} onConfigChange={handleConfigChange}
           selectedObstacleType={selectedObstacleType} onObstacleTypeChange={setSelectedObstacleType}
@@ -249,8 +336,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         />
       </div>
 
-      {/* Measurements - pointer-events: auto */}
-      <div style={{ pointerEvents: 'auto' }}>
+      {/* Measurements - overflow visible for tooltips */}
+      <div style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedMeasurementPanel
           config={physicsConfig} particleCount={particleCount}
           obstacles={obstacles} collisionEnergy={collisionEnergy}
