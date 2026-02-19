@@ -40,6 +40,8 @@ export interface Obstacle {
   power?: number;
   generatorSubtype?: GeneratorSubtype;
   rotation?: number;
+  rotationX?: number;
+  rotationZ?: number;
   scale?: number;
 }
 

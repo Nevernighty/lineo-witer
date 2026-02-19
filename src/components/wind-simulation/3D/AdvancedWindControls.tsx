@@ -26,6 +26,8 @@ interface AdvancedWindControlsProps {
   showLocalHits?: boolean;
   onToggleLocalHits?: () => void;
   lang: Lang;
+  particleCount?: number;
+  onParticleCountChange?: (count: number) => void;
 }
 
 const GlowSlider: React.FC<{
@@ -78,7 +80,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   selectedGeneratorSubtype, onGeneratorSubtypeChange,
   onClearObstacles, showHotspots = false, onToggleHotspots,
   showWakeZones = false, onToggleWakeZones, showLocalHits = false,
-  onToggleLocalHits, lang
+  onToggleLocalHits, lang, particleCount = 250, onParticleCountChange
 }) => {
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
     const newConfig = { ...config, [key]: value };
@@ -126,6 +128,11 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <GlowSlider value={config.windElevation} onChange={(v) => updateConfig('windElevation', v)}
             min={-45} max={45} step={5} label={t('elevation', lang)} displayValue={`${config.windElevation}°`}
             infoText={t('infoElevation', lang)} />
+          {onParticleCountChange && (
+            <GlowSlider value={particleCount} onChange={(v) => onParticleCountChange(v)}
+              min={50} max={2000} step={50} label={t('particleCount', lang)} displayValue={`${particleCount}`}
+              infoText={t('infoParticleCount', lang)} />
+          )}
         </TabsContent>
 
         <TabsContent value="turb" className="p-3 space-y-3 mt-0">
@@ -241,24 +248,33 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             </Select>
           </div>
 
-          {/* Generator subtype selector */}
+          {/* Generator subtype - compact icon buttons */}
           {selectedObstacleType === 'wind_generator' && (
             <div>
-              <Label className="text-xs text-primary/80 uppercase tracking-wide mb-1.5 block">{t('generatorType', lang)}</Label>
-              <Select value={selectedGeneratorSubtype} onValueChange={(v) => onGeneratorSubtypeChange(v as GeneratorSubtype)}>
-                <SelectTrigger className="h-8 text-xs bg-background/40 border-primary/30 focus:border-primary focus:ring-primary/30">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-[#0d1117] border-primary/30">
-                  {(Object.keys(GENERATOR_SUBTYPES) as GeneratorSubtype[]).map(sub => (
-                    <SelectItem key={sub} value={sub} className="text-xs focus:bg-primary/20 focus:text-primary">
-                      {t(sub, lang)} (Cp={GENERATOR_SUBTYPES[sub].cp})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <div className="mt-1 p-1.5 bg-primary/5 rounded text-[9px] text-muted-foreground">
-                {lang === 'ua' ? GENERATOR_SUBTYPES[selectedGeneratorSubtype].descriptionUa : GENERATOR_SUBTYPES[selectedGeneratorSubtype].description}
+              <Label className="text-[9px] text-primary/80 uppercase tracking-wide mb-1 block">{t('generatorType', lang)}</Label>
+              <div className="flex gap-1">
+                {(Object.keys(GENERATOR_SUBTYPES) as GeneratorSubtype[]).map(sub => (
+                  <TooltipProvider key={sub} delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => onGeneratorSubtypeChange(sub)}
+                          className={`flex-1 px-1 py-1.5 rounded text-[8px] font-mono border transition-all ${
+                            selectedGeneratorSubtype === sub 
+                              ? 'bg-primary/25 border-primary/60 text-primary' 
+                              : 'bg-background/30 border-primary/15 text-muted-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          {sub === 'hawt3' ? 'H3' : sub === 'hawt2' ? 'H2' : sub === 'darrieus' ? 'DR' : sub === 'savonius' ? 'SV' : 'μ'}
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-[#0d1117] border-primary/40 text-[10px] z-50">
+                        <p className="font-semibold">{t(sub, lang)}</p>
+                        <p className="text-muted-foreground">Cp={GENERATOR_SUBTYPES[sub].cp}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
               </div>
             </div>
           )}

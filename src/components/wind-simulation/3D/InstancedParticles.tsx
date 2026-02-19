@@ -57,9 +57,14 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({ particle
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particleGeometry = useMemo(() => createParticleGeometry(), []);
+  const glowGeometry = useMemo(() => new THREE.SphereGeometry(0.15, 6, 6), []);
   
   const normalColor = useMemo(() => new THREE.Color('#39ff14'), []);
   const tempColor = useMemo(() => new THREE.Color(), []);
+  
+  const trailMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.2, blending: THREE.AdditiveBlending, depthWrite: false }), []);
+  const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95 }), []);
+  const glowMaterial = useMemo(() => new THREE.MeshBasicMaterial({ color: '#39ff14', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }), []);
   
   useFrame((state) => {
     if (!meshRef.current || !trailMeshRef.current || !glowMeshRef.current) return;
@@ -130,19 +135,13 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({ particle
 
   return (
     <group>
-      <instancedMesh ref={trailMeshRef} args={[particleGeometry, undefined, count]} frustumCulled={false}>
-        <meshBasicMaterial color="#00ff88" transparent opacity={0.2} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </instancedMesh>
+      <instancedMesh ref={trailMeshRef} args={[particleGeometry, trailMaterial, count]} frustumCulled={false} />
 
-      <instancedMesh ref={meshRef} args={[particleGeometry, undefined, count]} frustumCulled={false}>
-        <meshBasicMaterial vertexColors transparent opacity={0.95} />
+      <instancedMesh ref={meshRef} args={[particleGeometry, particleMaterial, count]} frustumCulled={false}>
         <instancedBufferAttribute attach="instanceColor" args={[instanceColors, 3]} />
       </instancedMesh>
 
-      <instancedMesh ref={glowMeshRef} args={[undefined, undefined, count]} frustumCulled={false}>
-        <sphereGeometry args={[0.15, 6, 6]} />
-        <meshBasicMaterial color="#39ff14" transparent opacity={0.12} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </instancedMesh>
+      <instancedMesh ref={glowMeshRef} args={[glowGeometry, glowMaterial, count]} frustumCulled={false} />
     </group>
   );
 };

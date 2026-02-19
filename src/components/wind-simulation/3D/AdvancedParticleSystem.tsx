@@ -64,7 +64,9 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
   const collisionEnergyRef = useRef(0);
   const obstacleEnergyRef = useRef<Map<string, number>>(new Map());
   const cumulativeEnergyRef = useRef<Map<string, { energy: number; timestamp: number }[]>>(new Map());
+  const renderCountRef = useRef(0);
   const [, forceUpdate] = useState(0);
+  const lastEnergyCallbackTime = useRef(0);
 
   const windDirection = useMemo(() => {
     const angleRad = (config.windAngle * Math.PI) / 180;
@@ -83,7 +85,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         x: Math.random() * width - width / 2,
         y: particleHeight,
         z: Math.random() * depth - depth / 2,
-        size: Math.random() * 0.4 + 0.3,
+        size: Math.random() * 0.4 + 0.3 + (config.humidity / 100) * 0.15,
         speedX: Math.cos(angleRad) * Math.cos(elevationRad) * adjustedSpeed * (0.7 + Math.random() * 0.6),
         speedY: Math.sin(elevationRad) * adjustedSpeed * (0.5 + Math.random() * 0.5),
         speedZ: Math.sin(angleRad) * Math.cos(elevationRad) * adjustedSpeed * (0.7 + Math.random() * 0.6),
@@ -230,7 +232,8 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             cumEntries.push({ energy, timestamp: time });
             cumulativeEnergyRef.current.set(obstacleId, cumEntries);
             
-            if (onObstacleEnergyUpdate) {
+            // Throttle obstacle energy callbacks (every 5 frames)
+            if (onObstacleEnergyUpdate && renderCountRef.current % 5 === 0) {
               onObstacleEnergyUpdate(new Map(obstacleEnergyRef.current));
             }
 
@@ -295,7 +298,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
     });
 
     collisionEnergyRef.current *= 0.995;
-    onCollisionEnergyUpdate(collisionEnergyRef.current);
+    renderCountRef.current++;
+    // Throttle collision energy callback
+    if (renderCountRef.current % 3 === 0) {
+      onCollisionEnergyUpdate(collisionEnergyRef.current);
+    }
     forceUpdate(n => n + 1);
   });
 

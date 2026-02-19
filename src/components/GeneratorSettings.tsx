@@ -67,7 +67,7 @@ export const GeneratorSettings = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-primary/30">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-primary/30">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wrench className="w-5 h-5 text-primary" />
@@ -77,10 +77,18 @@ export const GeneratorSettings = ({
 
         <Tabs defaultValue="aero" className="w-full">
           <TabsList className="grid grid-cols-4 mb-3">
-            <TabsTrigger value="aero" className="text-xs data-[state=inactive]:text-foreground"><Wind className="w-3.5 h-3.5 mr-1" />{label('Аеро', 'Aero')}</TabsTrigger>
-            <TabsTrigger value="struct" className="text-xs data-[state=inactive]:text-foreground"><Wrench className="w-3.5 h-3.5 mr-1" />{label('Конст.', 'Struct')}</TabsTrigger>
-            <TabsTrigger value="elec" className="text-xs data-[state=inactive]:text-foreground"><Zap className="w-3.5 h-3.5 mr-1" />{label('Елект.', 'Elec')}</TabsTrigger>
-            <TabsTrigger value="calc" className="text-xs data-[state=inactive]:text-foreground"><Calculator className="w-3.5 h-3.5 mr-1" />{label('Розр.', 'Calc')}</TabsTrigger>
+            <TabsTrigger value="aero" className="text-xs data-[state=inactive]:text-foreground data-[state=active]:bg-blue-500/20 data-[state=active]:text-blue-400">
+              <Wind className="w-3.5 h-3.5 mr-1" />{label('Аеро', 'Aero')}
+            </TabsTrigger>
+            <TabsTrigger value="struct" className="text-xs data-[state=inactive]:text-foreground data-[state=active]:bg-orange-500/20 data-[state=active]:text-orange-400">
+              <Wrench className="w-3.5 h-3.5 mr-1" />{label('Конст.', 'Struct')}
+            </TabsTrigger>
+            <TabsTrigger value="elec" className="text-xs data-[state=inactive]:text-foreground data-[state=active]:bg-yellow-500/20 data-[state=active]:text-yellow-400">
+              <Zap className="w-3.5 h-3.5 mr-1" />{label('Елект.', 'Elec')}
+            </TabsTrigger>
+            <TabsTrigger value="calc" className="text-xs data-[state=inactive]:text-foreground data-[state=active]:bg-green-500/20 data-[state=active]:text-green-400">
+              <Calculator className="w-3.5 h-3.5 mr-1" />{label('Розр.', 'Calc')}
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="aero" className="space-y-4">
@@ -125,6 +133,17 @@ export const GeneratorSettings = ({
               </div>
               <Slider value={[currentSettings.efficiency]} onValueChange={v => onSettingsChange({...currentSettings, efficiency: v[0]})} min={0.1} max={0.55} step={0.01} className="mt-1" />
               <p className="text-[9px] text-muted-foreground mt-0.5">{label('Ліміт Бетца: 0.593. Реальні турбіни: 0.35-0.50', 'Betz limit: 0.593. Real turbines: 0.35-0.50')}</p>
+              {/* Betz limit efficiency bar */}
+              <div className="mt-2 space-y-1">
+                <div className="flex justify-between text-[9px]">
+                  <span className="text-muted-foreground">{label('Ефективність vs Бетц', 'Efficiency vs Betz')}</span>
+                  <span className="text-blue-400 font-mono">{((currentSettings.efficiency / 0.593) * 100).toFixed(0)}%</span>
+                </div>
+                <div className="h-2 bg-background/60 rounded-full border border-border/30 overflow-hidden">
+                  <div className="h-full bg-gradient-to-r from-blue-500 to-primary rounded-full transition-all"
+                    style={{ width: `${Math.min((currentSettings.efficiency / 0.593) * 100, 100)}%` }} />
+                </div>
+              </div>
             </div>
           </TabsContent>
 

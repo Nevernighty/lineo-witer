@@ -13,6 +13,7 @@ import { LocalHitManager } from './LocalHitPopup';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
 import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '../types';
 import { t, type Lang } from '@/utils/i18n';
+import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
 import * as THREE from 'three';
 
 interface WindSimulation3DProps {
@@ -26,17 +27,15 @@ const MouseTracker: React.FC<{
   simulationSize: { width: number; height: number; depth: number };
   slopeX: number;
   slopeZ: number;
-}> = ({ onPositionChange, simulationSize, slopeX, slopeZ }) => {
+}> = ({ onPositionChange, simulationSize }) => {
   const { camera } = useThree();
   const raycaster = useRef(new THREE.Raycaster());
   const plane = useRef(new THREE.Plane(new THREE.Vector3(0, 1, 0), 0));
   const intersectPoint = useRef(new THREE.Vector3());
 
   useFrame(({ mouse }) => {
-    const nx = Math.sin((slopeX * Math.PI) / 180);
-    const nz = Math.sin((slopeZ * Math.PI) / 180);
-    const ny = Math.cos((slopeX * Math.PI) / 180) * Math.cos((slopeZ * Math.PI) / 180);
-    plane.current.normal.set(nx, ny, nz).normalize();
+    // Always use flat ground plane for object placement
+    plane.current.normal.set(0, 1, 0);
     plane.current.constant = 0;
 
     raycaster.current.setFromCamera(mouse, camera);
@@ -59,7 +58,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     ...DEFAULT_WIND_PHYSICS,
     windSpeed: initialWindSpeed
   });
-  const [particleCount] = useState(250);
+  const [particleCount, setParticleCount] = useState(250);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [selectedObstacleType, setSelectedObstacleType] = useState<string>('building');
   const [selectedGeneratorSubtype, setSelectedGeneratorSubtype] = useState<GeneratorSubtype>('hawt3');
@@ -74,12 +73,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   }>>([]);
   const [showHint, setShowHint] = useState(false);
   const [currentGhostRotation, setCurrentGhostRotation] = useState(0);
+  const [currentGhostRotationX, setCurrentGhostRotationX] = useState(0);
+  const [currentGhostRotationZ, setCurrentGhostRotationZ] = useState(0);
   const [currentGhostScale, setCurrentGhostScale] = useState(1);
-  const ghostPositionRef = useRef<[number, number, number] | null>(null);
-
-  useEffect(() => {
-    ghostPositionRef.current = ghostPosition;
-  }, [ghostPosition]);
+  const lastPlacedIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     setPhysicsConfig(prev => ({ ...prev, windSpeed: initialWindSpeed }));
@@ -104,63 +101,102 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       }, 0);
   }, [obstacles, physicsConfig]);
 
-  // Find nearest obstacle to ghost position
-  const findNearestObstacle = useCallback((pos: [number, number, number] | null) => {
-    if (!pos || obstacles.length === 0) return null;
-    let nearest: Obstacle | null = null;
-    let minDist = 20; // max radius
-    for (const obs of obstacles) {
-      const cx = obs.x + obs.width / 2;
-      const cz = obs.z + obs.depth / 2;
-      const dist = Math.sqrt((pos[0] - cx) ** 2 + (pos[2] - cz) ** 2);
-      if (dist < minDist) {
-        minDist = dist;
-        nearest = obs;
-      }
-    }
-    return nearest;
-  }, [obstacles]);
-
-  // Alt + Wheel = rotate nearest obstacle
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.altKey) return;
-    e.preventDefault();
-    const nearest = findNearestObstacle(ghostPositionRef.current);
-    if (nearest) {
-      const rotationDelta = e.deltaY > 0 ? 15 : -15;
-      setObstacles(prev => prev.map(obs => 
-        obs.id === nearest.id 
-          ? { ...obs, rotation: ((obs.rotation || 0) + rotationDelta) % 360 }
-          : obs
-      ));
-    } else {
-      // Rotate ghost preview
-      setCurrentGhostRotation(prev => (prev + (e.deltaY > 0 ? 15 : -15)) % 360);
-    }
-  }, [findNearestObstacle]);
-
-  // Ctrl+Q / Ctrl+E = scale
+  // Keyboard controls: arrows=Y rotation, Q/E=scale, A/D=X tilt, Z/C=Z tilt
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!e.ctrlKey) return;
-      if (e.key === 'q' || e.key === 'Q' || e.key === 'e' || e.key === 'E') {
-        e.preventDefault();
-        const scaleDelta = (e.key === 'e' || e.key === 'E') ? 0.1 : -0.1;
-        const nearest = findNearestObstacle(ghostPositionRef.current);
-        if (nearest) {
-          setObstacles(prev => prev.map(obs =>
-            obs.id === nearest.id
-              ? { ...obs, scale: Math.max(0.3, Math.min(3.0, (obs.scale || 1) + scaleDelta)) }
-              : obs
-          ));
-        } else {
-          setCurrentGhostScale(prev => Math.max(0.3, Math.min(3.0, prev + scaleDelta)));
+      // Don't intercept if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      
+      const key = e.key.toLowerCase();
+      const lastId = lastPlacedIdRef.current;
+      
+      const modifyObstacle = (fn: (obs: Obstacle) => Obstacle) => {
+        if (lastId) {
+          setObstacles(prev => prev.map(obs => obs.id === lastId ? fn(obs) : obs));
         }
+      };
+
+      const modifyGhostOrObstacle = (
+        obsFn: (obs: Obstacle) => Obstacle,
+        ghostFn: () => void
+      ) => {
+        if (lastId && obstacles.some(o => o.id === lastId)) {
+          modifyObstacle(obsFn);
+        } else {
+          ghostFn();
+        }
+      };
+
+      switch (key) {
+        case 'arrowleft':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, rotation: ((obs.rotation || 0) - 15) % 360 }),
+            () => setCurrentGhostRotation(prev => (prev - 15) % 360)
+          );
+          playRotateSound();
+          break;
+        case 'arrowright':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, rotation: ((obs.rotation || 0) + 15) % 360 }),
+            () => setCurrentGhostRotation(prev => (prev + 15) % 360)
+          );
+          playRotateSound();
+          break;
+        case 'q':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, scale: Math.max(0.3, (obs.scale || 1) - 0.1) }),
+            () => setCurrentGhostScale(prev => Math.max(0.3, prev - 0.1))
+          );
+          playScaleSound();
+          break;
+        case 'e':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, scale: Math.min(3.0, (obs.scale || 1) + 0.1) }),
+            () => setCurrentGhostScale(prev => Math.min(3.0, prev + 0.1))
+          );
+          playScaleSound();
+          break;
+        case 'a':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, rotationX: ((obs.rotationX || 0) - 10 * Math.PI / 180) }),
+            () => setCurrentGhostRotationX(prev => prev - 10 * Math.PI / 180)
+          );
+          playRotateSound();
+          break;
+        case 'd':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, rotationX: ((obs.rotationX || 0) + 10 * Math.PI / 180) }),
+            () => setCurrentGhostRotationX(prev => prev + 10 * Math.PI / 180)
+          );
+          playRotateSound();
+          break;
+        case 'z':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, rotationZ: ((obs.rotationZ || 0) - 10 * Math.PI / 180) }),
+            () => setCurrentGhostRotationZ(prev => prev - 10 * Math.PI / 180)
+          );
+          playRotateSound();
+          break;
+        case 'c':
+          e.preventDefault();
+          modifyGhostOrObstacle(
+            obs => ({ ...obs, rotationZ: ((obs.rotationZ || 0) + 10 * Math.PI / 180) }),
+            () => setCurrentGhostRotationZ(prev => prev + 10 * Math.PI / 180)
+          );
+          playRotateSound();
+          break;
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [findNearestObstacle]);
+  }, [obstacles]);
 
   const addObstacle = useCallback((x: number, y: number, z: number) => {
     const category = Object.entries(OBSTACLE_CATEGORIES).find(([_, cat]) => 
@@ -193,21 +229,26 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       material: categoryData.defaultProperties.material,
       resistance: categoryData.defaultProperties.resistance,
       rotation: currentGhostRotation,
+      rotationX: currentGhostRotationX,
+      rotationZ: currentGhostRotationZ,
       scale: currentGhostScale,
       ...(selectedObstacleType === 'wind_generator' ? { generatorSubtype: selectedGeneratorSubtype } : {})
     };
     
     setObstacles(prev => [...prev, newObstacle]);
+    lastPlacedIdRef.current = obstacleId;
+    playPlaceSound();
     
-    // Show hint badge
     setShowHint(true);
     setTimeout(() => setShowHint(false), 3000);
-  }, [selectedObstacleType, selectedGeneratorSubtype, currentGhostRotation, currentGhostScale]);
+  }, [selectedObstacleType, selectedGeneratorSubtype, currentGhostRotation, currentGhostRotationX, currentGhostRotationZ, currentGhostScale]);
 
   const clearObstacles = () => {
     setObstacles([]);
     setCollisionEnergy(0);
     setObstacleEnergies(new Map());
+    lastPlacedIdRef.current = null;
+    playClearSound();
   };
 
   const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number }) => {
@@ -239,7 +280,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         camera={{ position: [70, 45, 70], fov: 50 }}
         className="!absolute inset-0"
         style={{ pointerEvents: 'auto' }}
-        onWheel={handleWheel}
         onPointerDown={(e) => {
           if (e.altKey) return;
           if (ghostPosition) {
@@ -256,6 +296,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
           <MouseTracker onPositionChange={setGhostPosition} simulationSize={simulationSize} slopeX={physicsConfig.terrainSlopeX} slopeZ={physicsConfig.terrainSlopeZ} />
 
+          {/* Grid tilts with terrain — separate from objects */}
           <group rotation={terrainRotation}>
             <Grid 
               args={[simulationSize.width, simulationSize.depth]}
@@ -263,7 +304,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
               sectionSize={20} sectionThickness={1} sectionColor="#39ff14"
               fadeDistance={150} fadeStrength={1} followCamera={false} infiniteGrid={false}
             />
+          </group>
 
+          {/* Objects stay upright — no terrain rotation */}
+          <group>
             {ghostPosition && (
               <GhostObstacle
                 position={ghostPosition}
@@ -271,6 +315,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
                 visible={true}
                 generatorSubtype={selectedGeneratorSubtype}
                 rotation={currentGhostRotation}
+                rotationX={currentGhostRotationX}
+                rotationZ={currentGhostRotationZ}
                 scale={currentGhostScale}
               />
             )}
@@ -322,7 +368,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </div>
       )}
 
-      {/* Controls panel - overflow visible for tooltips */}
+      {/* Controls panel */}
       <div className="absolute top-3 right-3 w-56 z-10" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedWindControls
           config={physicsConfig} onConfigChange={handleConfigChange}
@@ -333,10 +379,12 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           showWakeZones={showWakeZones} onToggleWakeZones={() => setShowWakeZones(!showWakeZones)}
           showLocalHits={showLocalHits} onToggleLocalHits={() => setShowLocalHits(!showLocalHits)}
           lang={lang}
+          particleCount={particleCount}
+          onParticleCountChange={setParticleCount}
         />
       </div>
 
-      {/* Measurements - overflow visible for tooltips */}
+      {/* Measurements */}
       <div style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedMeasurementPanel
           config={physicsConfig} particleCount={particleCount}
