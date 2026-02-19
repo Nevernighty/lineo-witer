@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { Wind, Zap, Recycle, Info, Settings, Cloud, MapPin, Eye, EyeOff } from "lucide-react";
 import { Link } from "react-router-dom";
-import { WindTurbine } from "@/components/WindTurbine";
 import { GeneratorSettings } from "@/components/GeneratorSettings";
 import { GENERATOR_PRESETS, type WindGeneratorSpecs } from "@/utils/windCalculations";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -17,7 +16,6 @@ const Index = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [showWeather, setShowWeather] = useState(false);
   const [showCoords, setShowCoords] = useState(false);
-  const [showTurbinePanel, setShowTurbinePanel] = useState(false);
   const [lang, setLang] = useState<Lang>('ua');
 
   useEffect(() => {
@@ -109,10 +107,10 @@ const Index = () => {
               </button>
             </div>
 
-            <button onClick={() => setShowTurbinePanel(!showTurbinePanel)}
-              className={`p-1.5 rounded border transition-colors ${showTurbinePanel ? 'bg-primary/20 border-primary/50 text-primary' : 'bg-background/50 border-border/30 text-muted-foreground hover:text-primary'}`}>
+            <Link to="/turbine"
+              className="p-1.5 rounded border transition-colors bg-background/50 border-border/30 text-muted-foreground hover:text-primary hover:border-primary/50">
               <Zap size={14} />
-            </button>
+            </Link>
 
             <button className="p-1.5 rounded bg-background/50 border border-border/30 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors" 
               onClick={() => setSettingsOpen(true)}>
@@ -132,20 +130,6 @@ const Index = () => {
         ) : (
           <div className="h-full w-full">
             <WindAnimation windSpeed={windSpeed} onWindSpeedChange={setWindSpeed} lang={lang} />
-          </div>
-        )}
-
-        {showTurbinePanel && (
-          <div className="absolute top-0 right-0 h-full w-80 bg-card/95 backdrop-blur-sm border-l border-border/50 z-10 overflow-auto">
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-foreground">
-                  {lang === 'ua' ? 'Аналіз турбіни' : 'Turbine Analysis'}
-                </h3>
-                <button onClick={() => setShowTurbinePanel(false)} className="text-muted-foreground hover:text-foreground">×</button>
-              </div>
-              <WindTurbine windSpeed={windSpeed} generatorSpecs={generatorSpecs} lang={lang} />
-            </div>
           </div>
         )}
       </main>

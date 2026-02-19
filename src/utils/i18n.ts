@@ -64,8 +64,15 @@ const translations: Record<string, Record<Lang, string>> = {
   
   // Actions
   clearAll: { ua: 'Очистити', en: 'Clear All' },
-  footerHint: { ua: 'Клік = поставити | Alt+Scroll = обертання | Ctrl+Q/E = розмір', en: 'Click = place | Alt+Scroll = rotate | Ctrl+Q/E = resize' },
-  hintRotateScale: { ua: 'Alt+Scroll: обертання | Ctrl+Q/E: розмір', en: 'Alt+Scroll: rotate | Ctrl+Q/E: resize' },
+  footerHint: { ua: 'Клік = поставити | ←→ обертання | Q/E розмір | A/D Z/C нахил', en: 'Click = place | ←→ rotate | Q/E scale | A/D Z/C tilt' },
+  hintRotateScale: { ua: '←→: обертання | Q/E: розмір | A/D Z/C: нахил', en: '←→: rotate | Q/E: scale | A/D Z/C: tilt' },
+  particleCount: { ua: 'Частинки', en: 'Particles' },
+  infoParticleCount: { ua: 'Кількість частинок вітру в симуляції. Більше = точніше, але повільніше.', en: 'Wind particle count. More = accurate but slower.' },
+  beaufortScale: { ua: 'Шкала Бофорта', en: 'Beaufort Scale' },
+  windChill: { ua: 'Відчувається як', en: 'Feels like' },
+  windVariability: { ua: 'Варіабельність (σ)', en: 'Variability (σ)' },
+  forecast24h: { ua: 'Прогноз 24г', en: '24h Forecast' },
+  recommendedGen: { ua: 'Рекомендований генератор', en: 'Recommended Generator' },
   tempImpactTitle: { ua: 'Вплив температури', en: 'Temperature Impact' },
   tempDensityFormula: { ua: 'ρ = P·M/(R·T), де P=101325 Па, M=0.029 кг/моль, R=8.314', en: 'ρ = P·M/(R·T), P=101325 Pa, M=0.029 kg/mol, R=8.314' },
   weatherPhysicsTitle: { ua: 'Фізика погоди', en: 'Weather Physics' },

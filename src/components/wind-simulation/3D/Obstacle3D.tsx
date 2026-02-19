@@ -34,6 +34,8 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
   }, [obstacle.material, isSelected, isHovered]);
 
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
+  const rotX = obstacle.rotationX || 0;
+  const rotZ = obstacle.rotationZ || 0;
   const scaleVal = obstacle.scale || 1;
 
   const renderShape = () => {
@@ -216,7 +218,7 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
   if (obstacle.type === 'wind_generator') return null;
 
   return (
-    <group rotation-y={rotationY} scale={scaleVal}>
+    <group rotation={[rotX, rotationY, rotZ]} scale={scaleVal}>
       {renderShape()}
       {isSelected && (
         <Box args={[obstacle.width + 2, obstacle.height + 2, obstacle.depth + 2]}
