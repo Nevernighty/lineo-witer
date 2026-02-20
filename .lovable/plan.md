@@ -1,130 +1,110 @@
 
 
-# Комплексне оновлення UX, фізики та візуалізації
+# Комплексне оновлення: селекція, фізика потоків, генератори-"всмоктувачі"
 
-## Проблеми та рішення
+## Що змінюється
 
-### 1. Компактне меню вітрогенератора
-Зараз при виборі `wind_generator` з'являється додатковий Select + блок опису, що розтягує панель за межі екрану.
+### 1. Режим селекції об'єктів (Place / Select toggle)
 
-**Рішення (AdvancedWindControls.tsx):**
-- Замінити окремий Select генератора на іконкові кнопки (5 маленьких кнопок в рядок) з tooltip
-- Прибрати великий блок опису, показувати лише 1 рядок тексту
-- Зменшити відступи в секції obstacle type
-
-### 2. Прибрати Alt+Scroll та Ctrl+Q/E, замінити на стрілки/клавіші
-Поточна система не працює. Замінити на:
-
-**Нова система управління (WindSimulation3D.tsx):**
-- **Стрілки Left/Right**: обертання по Y (yaw) на 15 градусів
-- **Q/E**: масштаб +/- 0.1 (без Ctrl)
-- **A/D**: нахил по X (pitch) на 10 градусів
-- **Z/C**: нахил по Z (roll) на 10 градусів
-- Всі клавіші працюють на останній поставлений об'єкт або на ghost preview
-- Прибрати `handleWheel` з `onWheel`, прибрати `Ctrl` з keydown
-- Оновити хінт і footerHint
-
-**Зміни в types.ts:**
-- Додати `rotationX?: number` та `rotationZ?: number` до Obstacle
-
-**Зміни в Obstacle3D.tsx та WindGenerator3D.tsx:**
-- Застосувати всі 3 осі обертання через `rotation={[rotX, rotY, rotZ]}`
-
-**Зміни в GhostObstacle.tsx:**
-- Додати підтримку `rotationX`, `rotationZ` + scale в привиді
-
-### 3. Нахил сітки без нахилу будівель
-Зараз `terrainRotation` обертає всю `<group>` включно з будівлями.
-
-**Рішення (WindSimulation3D.tsx):**
-- Винести Grid в окрему group з `terrainRotation`
-- Перешкоди, частинки, хотспоти залишити в group без terrain rotation
-- Тільки Grid візуально нахиляється
-
-### 4. Аналіз турбіни - окрема сторінка замість sidebar
-Прибрати бічну панель з прокруткою, зробити повноцінну сторінку.
-
-**Зміни:**
-- `App.tsx`: додати Route `/turbine`
-- Створити `src/pages/TurbineAnalysis.tsx` - повноцінна сторінка з WindTurbine + GeneratorSettings
-- `Index.tsx`: замінити кнопку toggle на `Link to="/turbine"`
-- Прибрати `showTurbinePanel` state та sidebar div
-
-### 5. Інженерна панель генератора - красивіша
-**GeneratorSettings.tsx:**
-- Збільшити dialog до `max-w-3xl`
-- Додати кольорову тему для кожного таба (аеро=синій, конст=помаранчевий, елект=жовтий, розр=зелений)
-- Додати графічний індикатор ефективності (прогрес-бар Cp vs Betz)
-- Додати діаграму залежності P від V (текстова таблиця з кольоровими стовпчиками)
-- Текст контрастний: `text-foreground` для всіх Label
-
-### 6. Кращі wake zones
-**CollisionHotspot.tsx:**
-- Додати анімацію стрімлайну (пунктирна лінія з рухомим dash offset)
-- Додати бічні межі wake zone (тонкі лінії)
-- Показувати інфо при hover (кількість частинок у сліді)
-- Кольоровий градієнт: темно-синій -> голубий -> прозорий
-- Додати ground shadow під wake zone
-
-### 7. Більш деталізовані 3D об'єкти
-**Obstacle3D.tsx:**
-- Будівля: додати двері (прямокутник), кондиціонери (маленькі бокси на стінах)
-- Будинок: додати ґанок (box + стовпчики), водостічна труба
-- Хмарочос: додати світяться вікна (emissive material), кран на даху
-- Вежа: додати сходи (маленькі бокси по спіралі), антена параболічна
-- Дерево: різні розміри крон, додати гілки
-
-### 8. Кількість частинок у налаштуваннях
 **WindSimulation3D.tsx:**
-- Замінити `const [particleCount] = useState(250)` на змінний state
-- Передати в AdvancedWindControls
+- Додати `interactionMode: 'place' | 'select'` state
+- Додати кнопку-перемикач в UI (іконки: Crosshair для place, MousePointer для select)
+- В режимі `select`: клік на Canvas робить raycasting на об'єкти, знаходить найближчий, виділяє його (`selectedObstacleIndex`)
+- Виділений об'єкт: `isSelected=true` передається в Obstacle3D/WindGenerator3D, показує wireframe обводку
+- В режимі select: стрілки/Q/E/A/D/Z/C працюють на виділений об'єкт
+- Drag (mousedown+move) в select режимі переміщує виділений об'єкт по ground plane
+- В режимі `place`: поточна поведінка (ghost + клік = поставити)
 
-**AdvancedWindControls.tsx:**
-- Додати слайдер "Частинки / Particles" в вкладку wind (50-2000)
+### 2. Об'єкти слідують за нахилом рельєфу (лише по висоті Z)
 
-### 9. Звуки інтерфейсу
-- Створити `src/utils/sounds.ts` з функціями для UI-звуків через Web Audio API
-- Звуки: place object (короткий "клік"), rotate (тихий "тік"), clear all (swoosh)
-- Без зовнішніх файлів - синтезовані через oscillator
+**WindSimulation3D.tsx:**
+- Об'єкти НЕ обертаються разом з terrainSlope
+- Але їх Y-позиція зміщується залежно від їх X/Z координати та нахилу:
+  ```
+  offsetY = tan(slopeX) * posX + tan(slopeZ) * posZ
+  ```
+- Цей offsetY додається до position.y при рендерингу в Obstacle3D та WindGenerator3D
+- Ghost preview теж отримує offsetY
+- Об'єкти "стоять" на нахиленій поверхні, але самі не нахиляються
 
-### 10. Більш продвинута погода
-**WeatherDisplay.tsx:**
-- Додати прогноз на 24 години (mini chart з 24 точками)
-- Додати індекс комфорту вітру (шкала Бофорта)
-- Додати розрахунок wind chill
-- Додати варіабельність вітру (σ)
-- Додати рекомендацію типу генератора для поточних умов
+### 3. Генератори "всмоктують" повітря
 
-### 11. Оптимізація
 **AdvancedParticleSystem.tsx:**
-- Використати `useRef` для forceUpdate замість `useState`
-- Зменшити частоту оновлення obstacle energy callbacks (throttle)
+- Для кожного генератора (type === 'wind_generator'): частинки в радіусі `rotorDiameter * 3` від ротора притягуються до центру ротора
+- Сила притягання: `F_attract = k / distance^2` (обернено-квадратична)
+- Після проходження через ротор: частинки сповільнюються на `(1 - Cp)` (закон Бетца)
+- Візуальний ефект: частинки перед генератором конвергують до нього, за ним — розходяться та сповільнюються
+- Це дозволяє бачити "зону живлення" генератора та його вплив на потік
+
+### 4. Колізії враховують поворот/масштаб об'єкта
+
+**AdvancedParticleSystem.tsx:**
+- `checkCollision` тепер трансформує координати частинки в локальний простір об'єкта з урахуванням rotation та scale
+- Inverse rotation matrix: повернути координату частинки назад на -rotationY, -rotationX, -rotationZ
+- Масштабовані розміри: `width * scale`, `height * scale`, `depth * scale`
+- Surface normal теж обертається відповідно
+
+### 5. Налаштування вигляду частинок (під слайдером кількості)
+
+**AdvancedWindControls.tsx (вкладка wind):**
+- Додати під "Частинки" новий слайдер: "Імпакт / Impact" (0.1 - 3.0) — множник розміру та яскравості колізій
+- Додати слайдер: "Слід / Trail" (0 - 2.0) — довжина сліду частинки
+- Ці значення передаються в InstancedParticles через новий `particleSettings` prop
+
+**WindSimulation3D.tsx:**
+- Додати state `particleImpact` та `particleTrailLength`
+- Передати в AdvancedParticleSystem та InstancedParticles
 
 **InstancedParticles.tsx:**
-- Мемоізувати geometry та materials
+- `impactMultiplier` масштабує розмір при колізії та яскравість кольору
+- `trailLength` контролює довжину trail mesh
 
-### 12. Всі налаштування працюють
+### 6. Покращена візуалізація потоків та напрямку вітру
+
+**InstancedParticles.tsx:**
+- Додати стрілку напрямку вітру як окрему mesh (один великий arrow helper в куті сцени)
+- Колір частинок відображає швидкість: повільні=синій, середні=зелений, швидкі=помаранчевий/червоний (не тільки при колізії, а завжди)
+- При колізії: додатковий "розлітання" ефект — 2-3 маленькі scatter-частинки
+
 **AdvancedParticleSystem.tsx:**
-- Переконатись що humidity впливає на розмір частинок
-- altitude автоматично перераховує airDensity (вже є)
-- surfaceRoughness впливає на wind shear (вже є)
-- gustFrequency/gustIntensity створюють видимі пориви (вже є)
+- Частинки зберігають `velocityHistory` (останні 3 кадри) для плавнішого trail rendering
+- За генератором: частинки отримують турбулентність + зменшення швидкості (вже є wake zone, але тепер ще й притягування до ротора)
+
+### 7. Покращені 3D моделі
+
+**Obstacle3D.tsx:**
+- **building**: додати двері (темний box на фасаді), AC units (маленькі boxes на бічних стінах), парапет на даху
+- **house**: ґанок (навіс + 2 стовпчики), водостічна труба (тонкий cylinder збоку)
+- **skyscraper**: emissive вікна на верхніх поверхах (meshBasicMaterial з emissive), кран на даху (тонкий cylinder + arm)
+- **tower**: параболічна антена зверху (disc), сходи (спіральні маленькі boxes)
+- **tree**: додати 2-3 гілки (тонкі cylinders від стовбура)
+
+### 8. Покращені wake zones та collision visualization
+
+**CollisionHotspot.tsx:**
+- Додати animated streamlines в wake zone: 3-4 пунктирні лінії що "течуть" від об'єкта (animated dash offset через useFrame)
+- Додати boundary lines — тонкі лінії по краях wake zone
+- Ground shadow: темна пляма під wake zone (opacity 0.1)
+- Генератори: окрема візуалізація зони впливу — кольоровий disc перед ротором показує "зону збору вітру"
+
+### 9. Колізія враховує rotation при відображенні
+
+**WindGenerator3D.tsx:**
+- Додати візуалізацію зони збору: напівпрозорий конус перед ротором (в напрямку вітру)
+- Показувати стрілки потоку біля ротора: 3-4 маленькі arrow що конвергують до центру
 
 ---
 
 ## Технічна послідовність
 
-1. `types.ts` - додати rotationX, rotationZ
-2. `src/utils/sounds.ts` - створити модуль звуків
-3. `src/utils/i18n.ts` - оновити хінти
-4. `WindSimulation3D.tsx` - нова система клавіш, розділити terrain/objects groups, particleCount state
-5. `Obstacle3D.tsx` - 3-осьове обертання, деталізовані моделі
-6. `WindGenerator3D.tsx` - 3-осьове обертання
-7. `GhostObstacle.tsx` - 3-осьове обертання + scale preview
-8. `AdvancedWindControls.tsx` - компактний генератор меню, слайдер частинок
-9. `CollisionHotspot.tsx` - покращені wake zones
-10. `GeneratorSettings.tsx` - красивіший дизайн
-11. `WeatherDisplay.tsx` - розширена погода
-12. `src/pages/TurbineAnalysis.tsx` - нова сторінка
-13. `App.tsx` - додати route
-14. `Index.tsx` - замінити sidebar на link, прибрати scrollbar panel
+1. `types.ts` — додати `particleImpact`, `particleTrailLength` в конфіг (або передавати окремо)
+2. `i18n.ts` — нові переклади для impact/trail/select mode
+3. `WindSimulation3D.tsx` — select mode, terrain Y offset, particle settings state, передача в компоненти
+4. `AdvancedWindControls.tsx` — слайдери impact та trail
+5. `AdvancedParticleSystem.tsx` — генератор-всмоктувач, collision з rotation/scale, передача settings
+6. `InstancedParticles.tsx` — impact/trail rendering, швидкісний колір
+7. `Obstacle3D.tsx` — деталізовані моделі
+8. `WindGenerator3D.tsx` — візуалізація зони збору вітру
+9. `GhostObstacle.tsx` — terrain Y offset
+10. `CollisionHotspot.tsx` — animated streamlines, boundary, ground shadow
+
