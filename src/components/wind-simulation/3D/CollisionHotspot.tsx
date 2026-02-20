@@ -60,12 +60,10 @@ export const CollisionHotspot: React.FC<CollisionHotspotProps> = ({
         <sphereGeometry args={[size * 0.25, 12, 12]} />
         <meshBasicMaterial color={color} transparent opacity={intensity * 0.25} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-      {/* Ground collision circle */}
       <mesh position={[0, -cy + 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[size * 0.8, 24]} />
         <meshBasicMaterial color={color} transparent opacity={intensity * 0.2} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      {/* Heat trail on ground — size proportional to cumulative energy */}
       <mesh position={[0, -cy + 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[size * (0.5 + intensity * 1.5), 32]} />
         <meshBasicMaterial color={new THREE.Color().lerpColors(new THREE.Color('#1a1aff'), new THREE.Color('#ff4400'), intensity)} transparent opacity={intensity * 0.15} depthWrite={false} side={THREE.DoubleSide} />
@@ -81,7 +79,7 @@ export const CollisionHotspot: React.FC<CollisionHotspotProps> = ({
   );
 };
 
-// Enhanced wake zone with more parameter dependencies
+// Enhanced wake zone with animated streamlines
 interface WakeZoneVisualizerProps {
   obstacle: Obstacle;
   windAngle: number;
@@ -92,6 +90,25 @@ interface WakeZoneVisualizerProps {
   surfaceRoughness?: number;
 }
 
+// Animated streamline component
+const AnimatedStreamline: React.FC<{ length: number; offset: number; yOffset: number }> = ({ length, offset, yOffset }) => {
+  const lineRef = useRef<THREE.Mesh>(null);
+  
+  useFrame((state) => {
+    if (!lineRef.current) return;
+    const mat = lineRef.current.material as THREE.MeshBasicMaterial;
+    // Animate dash effect via opacity pulsing along length
+    mat.opacity = 0.15 + Math.sin(state.clock.elapsedTime * 3 + offset * 5) * 0.1;
+  });
+
+  return (
+    <mesh ref={lineRef} position={[length / 2, 0.08, yOffset]}>
+      <boxGeometry args={[length, 0.04, 0.04]} />
+      <meshBasicMaterial color="#0ea5e9" transparent opacity={0.2} depthWrite={false} />
+    </mesh>
+  );
+};
+
 export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
   obstacle, windAngle, windSpeed, visible, obstacleCount,
   turbulenceIntensity = 0.3, surfaceRoughness = 0.3
@@ -101,20 +118,16 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
   const physics = OBSTACLE_DRAG_COEFFICIENTS[obstacle.type] || OBSTACLE_DRAG_COEFFICIENTS.building;
   const baseSize = Math.max(obstacle.width, obstacle.depth);
   
-  // Wake length depends on: Cd, wind speed, obstacle height, surface roughness
-  const cdFactor = physics.dragCoefficient / 1.4; // normalized to building Cd
+  const cdFactor = physics.dragCoefficient / 1.4;
   const speedFactor = 0.8 + windSpeed * 0.04;
-  const heightFactor = Math.min(obstacle.height / 15, 2.5); // taller = longer wake
-  const roughnessFactor = 1 + surfaceRoughness * 0.3; // rougher = faster recovery = shorter wake
+  const heightFactor = Math.min(obstacle.height / 15, 2.5);
+  const roughnessFactor = 1 + surfaceRoughness * 0.3;
   const wakeLength = physics.wakeLength * speedFactor * cdFactor * heightFactor / roughnessFactor * Math.min(baseSize * 0.3, 15);
   
-  // Wake width depends on turbulence
-  const turbWidthFactor = 1 + turbulenceIntensity * 0.8; // higher TI = wider wake
+  const turbWidthFactor = 1 + turbulenceIntensity * 0.8;
   const wakeWidth = baseSize * 0.5 * turbWidthFactor;
   
   const angleRad = (windAngle * Math.PI) / 180;
-
-  // Recovery distance (where wind returns to 90% of free-stream)
   const recoveryDist = wakeLength * 0.85;
 
   const shape = useMemo(() => {
@@ -140,7 +153,6 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
   const cz = obstacle.z + obstacle.depth / 2;
   const showMarkers = obstacleCount <= 6;
 
-  // Velocity deficit at various distances
   const deficitMarkers = [2, 5, 10].map(multiplier => {
     const dist = baseSize * multiplier * 0.3;
     if (dist > wakeLength) return null;
@@ -154,6 +166,27 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
       <mesh ref={trailRef} rotation={[-Math.PI / 2, 0, 0]}>
         <shapeGeometry args={[shape]} />
         <meshBasicMaterial color="#0ea5e9" transparent opacity={0.18} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Ground shadow under wake */}
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[wakeLength * 0.3, -0.1, 0]}>
+        <circleGeometry args={[wakeWidth * 0.8, 16]} />
+        <meshBasicMaterial color="#000000" transparent opacity={0.1} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Animated streamlines */}
+      {[-0.3, 0, 0.3].map((offset, i) => (
+        <AnimatedStreamline key={i} length={wakeLength * 0.8} offset={offset} yOffset={wakeWidth * offset} />
+      ))}
+
+      {/* Boundary lines */}
+      <mesh position={[wakeLength / 2, 0.06, wakeWidth / 2]}>
+        <boxGeometry args={[wakeLength, 0.03, 0.03]} />
+        <meshBasicMaterial color="#0ea5e9" transparent opacity={0.3} depthWrite={false} />
+      </mesh>
+      <mesh position={[wakeLength / 2, 0.06, -wakeWidth / 2]}>
+        <boxGeometry args={[wakeLength, 0.03, 0.03]} />
+        <meshBasicMaterial color="#0ea5e9" transparent opacity={0.3} depthWrite={false} />
       </mesh>
 
       {/* Center streamline */}
@@ -194,7 +227,6 @@ export const WakeZoneVisualizer: React.FC<WakeZoneVisualizerProps> = ({
         </group>
       ))}
 
-      {/* Wake info label at start */}
       {showMarkers && (
         <Html position={[1, 1, 0]} center style={{ pointerEvents: 'none' }}>
           <div className="text-[7px] font-mono px-1 rounded" style={{

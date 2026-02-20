@@ -28,6 +28,10 @@ interface AdvancedWindControlsProps {
   lang: Lang;
   particleCount?: number;
   onParticleCountChange?: (count: number) => void;
+  particleImpact?: number;
+  onParticleImpactChange?: (v: number) => void;
+  particleTrailLength?: number;
+  onParticleTrailLengthChange?: (v: number) => void;
 }
 
 const GlowSlider: React.FC<{
@@ -80,7 +84,9 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   selectedGeneratorSubtype, onGeneratorSubtypeChange,
   onClearObstacles, showHotspots = false, onToggleHotspots,
   showWakeZones = false, onToggleWakeZones, showLocalHits = false,
-  onToggleLocalHits, lang, particleCount = 250, onParticleCountChange
+  onToggleLocalHits, lang, particleCount = 250, onParticleCountChange,
+  particleImpact = 1.0, onParticleImpactChange,
+  particleTrailLength = 1.0, onParticleTrailLengthChange
 }) => {
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
     const newConfig = { ...config, [key]: value };
@@ -133,6 +139,17 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
               min={50} max={2000} step={50} label={t('particleCount', lang)} displayValue={`${particleCount}`}
               infoText={t('infoParticleCount', lang)} />
           )}
+          {/* Particle appearance settings */}
+          {onParticleImpactChange && (
+            <GlowSlider value={particleImpact} onChange={(v) => onParticleImpactChange(v)}
+              min={0.1} max={3.0} step={0.1} label={t('particleImpact', lang)} displayValue={`${particleImpact.toFixed(1)}x`}
+              infoText={t('infoParticleImpact', lang)} />
+          )}
+          {onParticleTrailLengthChange && (
+            <GlowSlider value={particleTrailLength} onChange={(v) => onParticleTrailLengthChange(v)}
+              min={0} max={2.0} step={0.1} label={t('particleTrail', lang)} displayValue={`${particleTrailLength.toFixed(1)}x`}
+              infoText={t('infoParticleTrail', lang)} />
+          )}
         </TabsContent>
 
         <TabsContent value="turb" className="p-3 space-y-3 mt-0">
@@ -154,7 +171,6 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <GlowSlider value={config.temperature} onChange={(v) => updateConfig('temperature', v)}
             min={-20} max={45} step={1} label={t('temperature', lang)} displayValue={`${config.temperature}°C`}
             infoText={t('infoTemperature', lang)} />
-          {/* Temperature impact visualization */}
           <div className="flex justify-between items-center text-[8px] -mt-0.5 px-0.5">
             {[
               { temp: -10, rho: 1.342, delta: '+9.5%' },
@@ -197,7 +213,6 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             min={1} max={100} step={1} label={t('refHeight', lang)} displayValue={`${config.referenceHeight}m`}
             infoText={t('infoRefHeight', lang)} />
 
-          {/* Terrain slope controls */}
           <GlowSlider value={config.terrainSlopeX} onChange={(v) => updateConfig('terrainSlopeX', v)}
             min={-30} max={30} step={1} label={t('terrainSlopeX', lang)} displayValue={`${config.terrainSlopeX}°`}
             infoText={t('infoTerrainSlope', lang)} />
@@ -205,20 +220,9 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             min={-30} max={30} step={1} label={t('terrainSlopeZ', lang)} displayValue={`${config.terrainSlopeZ}°`}
             infoText={t('infoTerrainSlope', lang)} />
 
-          {/* Height profile */}
           <div className="pt-1 border-t border-primary/15">
             <div className="flex items-center gap-1 mb-1">
               <span className="text-[9px] font-semibold text-primary/70 uppercase tracking-wide">{t('heightProfile', lang)}</span>
-              <TooltipProvider delayDuration={200}>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Info className="w-2.5 h-2.5 text-primary/40 hover:text-primary cursor-help" />
-                  </TooltipTrigger>
-                  <TooltipContent side="left" className="max-w-[260px] bg-[#0d1117] border-primary/40 text-xs z-50">
-                    <p>{t('elevationScience', lang)}</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
             </div>
             <div className="grid grid-cols-5 gap-0.5">
               {heightProfile.map(hp => (
@@ -248,7 +252,6 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             </Select>
           </div>
 
-          {/* Generator subtype - compact icon buttons */}
           {selectedObstacleType === 'wind_generator' && (
             <div>
               <Label className="text-[9px] text-primary/80 uppercase tracking-wide mb-1 block">{t('generatorType', lang)}</Label>
