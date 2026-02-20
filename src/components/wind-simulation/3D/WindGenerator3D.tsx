@@ -11,7 +11,6 @@ interface WindGenerator3DProps {
   isSelected?: boolean;
 }
 
-// P = 0.5 * ρ * A * v³ * Cp
 export function calculateGeneratorPower(
   airDensity: number,
   rotorDiameter: number,
@@ -23,9 +22,7 @@ export function calculateGeneratorPower(
 ): number {
   const specs = GENERATOR_SUBTYPES[subtype];
   const adjustedSpeed = calculateWindShear(windSpeed, refHeight, Math.max(1, height), surfaceRoughness);
-  
   if (adjustedSpeed < specs.cutIn || adjustedSpeed > specs.cutOut) return 0;
-  
   const area = Math.PI * Math.pow(rotorDiameter / 2, 2);
   return 0.5 * airDensity * area * Math.pow(adjustedSpeed, 3) * specs.cp;
 }
@@ -35,7 +32,6 @@ const HAWT3Model: React.FC<{ towerHeight: number; rotorDiameter: number; nacelle
   ({ towerHeight, rotorDiameter, nacelleSize, adjustedSpeed, towerColor, nacelleColor }) => {
   const bladesRef = useRef<THREE.Group>(null);
   useFrame((_, delta) => { if (bladesRef.current) bladesRef.current.rotation.z += adjustedSpeed * 0.15 * delta; });
-  
   return (
     <>
       <Cylinder args={[0.3, 0.5, towerHeight, 8]} position={[0, towerHeight / 2, 0]}>
@@ -66,12 +62,10 @@ const HAWT3Model: React.FC<{ towerHeight: number; rotorDiameter: number; nacelle
   );
 };
 
-// HAWT 2-blade model
 const HAWT2Model: React.FC<{ towerHeight: number; rotorDiameter: number; nacelleSize: number; adjustedSpeed: number; towerColor: string; nacelleColor: string }> = 
   ({ towerHeight, rotorDiameter, nacelleSize, adjustedSpeed, towerColor, nacelleColor }) => {
   const bladesRef = useRef<THREE.Group>(null);
   useFrame((_, delta) => { if (bladesRef.current) bladesRef.current.rotation.z += adjustedSpeed * 0.2 * delta; });
-  
   return (
     <>
       <Cylinder args={[0.3, 0.5, towerHeight, 8]} position={[0, towerHeight / 2, 0]}>
@@ -94,37 +88,30 @@ const HAWT2Model: React.FC<{ towerHeight: number; rotorDiameter: number; nacelle
   );
 };
 
-// Darrieus VAWT model
 const DarrieusModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjustedSpeed: number; towerColor: string }> = 
   ({ towerHeight, rotorDiameter, adjustedSpeed, towerColor }) => {
   const rotorRef = useRef<THREE.Group>(null);
   useFrame((_, delta) => { if (rotorRef.current) rotorRef.current.rotation.y += adjustedSpeed * 0.12 * delta; });
-  
   const rotorH = towerHeight * 0.6;
-  const mast = towerHeight;
-  
   return (
     <>
-      <Cylinder args={[0.2, 0.3, mast, 6]} position={[0, mast / 2, 0]}>
+      <Cylinder args={[0.2, 0.3, towerHeight, 6]} position={[0, towerHeight / 2, 0]}>
         <meshPhongMaterial color={towerColor} />
       </Cylinder>
-      <group ref={rotorRef} position={[0, mast * 0.5, 0]}>
+      <group ref={rotorRef} position={[0, towerHeight * 0.5, 0]}>
         {[0, 1, 2].map((i) => {
           const angle = (i * Math.PI * 2) / 3;
           const r = rotorDiameter * 0.4;
           return (
             <group key={i} rotation={[0, angle, 0]}>
-              {/* C-shaped blade approximation with curved boxes */}
               <mesh position={[r * 0.5, 0, 0]}>
                 <boxGeometry args={[0.15, rotorH, r * 0.3]} />
                 <meshPhongMaterial color="#c0c8d0" />
               </mesh>
-              {/* Top strut */}
               <mesh position={[r * 0.25, rotorH * 0.45, 0]}>
                 <boxGeometry args={[r * 0.5, 0.12, 0.12]} />
                 <meshPhongMaterial color="#aaaaaa" />
               </mesh>
-              {/* Bottom strut */}
               <mesh position={[r * 0.25, -rotorH * 0.45, 0]}>
                 <boxGeometry args={[r * 0.5, 0.12, 0.12]} />
                 <meshPhongMaterial color="#aaaaaa" />
@@ -137,21 +124,17 @@ const DarrieusModel: React.FC<{ towerHeight: number; rotorDiameter: number; adju
   );
 };
 
-// Savonius VAWT model
 const SavoniusModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjustedSpeed: number; towerColor: string }> = 
   ({ towerHeight, rotorDiameter, adjustedSpeed, towerColor }) => {
   const rotorRef = useRef<THREE.Group>(null);
   useFrame((_, delta) => { if (rotorRef.current) rotorRef.current.rotation.y += adjustedSpeed * 0.08 * delta; });
-  
   const rotorH = towerHeight * 0.5;
   const r = rotorDiameter * 0.35;
-  
   return (
     <>
       <Cylinder args={[0.2, 0.35, towerHeight, 6]} position={[0, towerHeight / 2, 0]}>
         <meshPhongMaterial color={towerColor} />
       </Cylinder>
-      {/* Top/bottom discs */}
       <Cylinder args={[r * 1.2, r * 1.2, 0.15, 16]} position={[0, towerHeight * 0.75 + rotorH / 2, 0]}>
         <meshPhongMaterial color="#888888" />
       </Cylinder>
@@ -159,11 +142,10 @@ const SavoniusModel: React.FC<{ towerHeight: number; rotorDiameter: number; adju
         <meshPhongMaterial color="#888888" />
       </Cylinder>
       <group ref={rotorRef} position={[0, towerHeight * 0.75, 0]}>
-        {/* S-shaped buckets */}
         {[0, 1].map((i) => (
           <group key={i} rotation={[0, i * Math.PI, 0]}>
             <Cylinder args={[r * 0.5, r * 0.5, rotorH * 0.9, 8, 1, true, 0, Math.PI]} 
-              position={[r * 0.25, 0, 0]} rotation={[0, 0, 0]}>
+              position={[r * 0.25, 0, 0]}>
               <meshPhongMaterial color="#b0b8c0" side={THREE.DoubleSide} />
             </Cylinder>
           </group>
@@ -173,22 +155,18 @@ const SavoniusModel: React.FC<{ towerHeight: number; rotorDiameter: number; adju
   );
 };
 
-// Micro turbine model
 const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjustedSpeed: number; towerColor: string }> = 
   ({ towerHeight, rotorDiameter, adjustedSpeed, towerColor }) => {
   const bladesRef = useRef<THREE.Group>(null);
   useFrame((_, delta) => { if (bladesRef.current) bladesRef.current.rotation.z += adjustedSpeed * 0.25 * delta; });
-  
   return (
     <>
       <Cylinder args={[0.15, 0.25, towerHeight, 6]} position={[0, towerHeight / 2, 0]}>
         <meshPhongMaterial color={towerColor} />
       </Cylinder>
-      {/* Compact nacelle */}
       <Sphere args={[0.6, 8, 8]} position={[0, towerHeight, 0.3]}>
         <meshPhongMaterial color="#dddddd" />
       </Sphere>
-      {/* Tail vane */}
       <mesh position={[0, towerHeight, -1.5]}>
         <boxGeometry args={[0.05, 1.2, 2]} />
         <meshPhongMaterial color="#aaaaaa" />
@@ -204,6 +182,33 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
         ))}
       </group>
     </>
+  );
+};
+
+// Intake visualization: semi-transparent cone in front of rotor
+const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number }> = ({ towerHeight, rotorDiameter, windAngleRad }) => {
+  const coneRef = useRef<THREE.Mesh>(null);
+  useFrame((state) => {
+    if (!coneRef.current) return;
+    const mat = coneRef.current.material as THREE.MeshBasicMaterial;
+    mat.opacity = 0.06 + Math.sin(state.clock.elapsedTime * 2) * 0.03;
+  });
+
+  const coneLength = rotorDiameter * 2.5;
+  return (
+    <group position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
+      <mesh ref={coneRef} position={[0, 0, coneLength / 2]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[rotorDiameter * 0.6, coneLength, 12]} />
+        <meshBasicMaterial color="#00ffaa" transparent opacity={0.08} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Flow arrows converging to center */}
+      {[-1, 0, 1].map(i => (
+        <mesh key={i} position={[i * rotorDiameter * 0.3, i * 0.5, rotorDiameter * 0.8]} rotation={[-Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.2, 0.8, 4]} />
+          <meshBasicMaterial color="#00ffaa" transparent opacity={0.25} />
+        </mesh>
+      ))}
+    </group>
   );
 };
 
@@ -238,6 +243,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const rotX = obstacle.rotationX || 0;
   const rotZ = obstacle.rotationZ || 0;
   const scaleVal = obstacle.scale || 1;
+  const windAngleRad = (config.windAngle * Math.PI) / 180;
 
   return (
     <group position={position} rotation={[rotX, rotationY, rotZ]} scale={scaleVal}>
@@ -246,6 +252,9 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
       {subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       {subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+
+      {/* Intake visualization cone */}
+      <IntakeCone towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} />
 
       {/* Power label */}
       <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'none' }}>

@@ -184,6 +184,17 @@ const translations: Record<string, Record<Lang, string>> = {
   wakeLength: { ua: 'Довж. сліду', en: 'Wake Length' },
   velocityDeficit: { ua: 'Дефіцит V', en: 'V Deficit' },
   recoveryZone: { ua: 'Зона відновлення', en: 'Recovery Zone' },
+
+  // Particle settings
+  particleImpact: { ua: 'Імпакт', en: 'Impact' },
+  particleTrail: { ua: 'Слід', en: 'Trail' },
+  infoParticleImpact: { ua: 'Множник розміру та яскравості при колізії. Більше = помітніше зіткнення.', en: 'Collision size & brightness multiplier. Higher = more visible impacts.' },
+  infoParticleTrail: { ua: 'Довжина сліду частинки. 0 = без сліду.', en: 'Particle trail length. 0 = no trail.' },
+
+  // Select mode
+  placeMode: { ua: 'Встановити', en: 'Place' },
+  selectMode: { ua: 'Вибрати', en: 'Select' },
+  footerHintSelect: { ua: 'Клік = вибрати | Drag = перемістити | ←→ Q/E A/D Z/C = трансформ', en: 'Click = select | Drag = move | ←→ Q/E A/D Z/C = transform' },
 };
 
 export function t(key: string, lang: Lang): string {

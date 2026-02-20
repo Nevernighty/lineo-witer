@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Obstacle } from '../types';
+import { Obstacle, GENERATOR_SUBTYPES } from '../types';
 import { InstancedParticles } from './InstancedParticles';
 import {
   WindPhysicsConfig,
@@ -45,9 +45,10 @@ interface AdvancedParticleSystemProps {
   onCollisionEnergyUpdate: (energy: number) => void;
   onCollisionEvent?: (event: CollisionEvent) => void;
   onObstacleEnergyUpdate?: (energies: Map<string, number>) => void;
+  particleImpact?: number;
+  particleTrailLength?: number;
 }
 
-// Restitution coefficients by material
 const MATERIAL_RESTITUTION: Record<string, number> = {
   wood: 0.3,
   concrete: 0.15,
@@ -58,7 +59,8 @@ const MATERIAL_RESTITUTION: Record<string, number> = {
 
 export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
   config, particleCount, obstacles, width, height, depth,
-  onCollisionEnergyUpdate, onCollisionEvent, onObstacleEnergyUpdate
+  onCollisionEnergyUpdate, onCollisionEvent, onObstacleEnergyUpdate,
+  particleImpact = 1.0, particleTrailLength = 1.0
 }) => {
   const particlesRef = useRef<WindParticle[]>([]);
   const collisionEnergyRef = useRef(0);
@@ -102,34 +104,83 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
     forceUpdate(n => n + 1);
   }, [particleCount, width, height, depth]);
 
+  // Transform-aware collision: transforms particle into obstacle local space
   const checkCollision = useCallback((particle: WindParticle, obstacle: Obstacle): boolean => {
     const margin = 1.5;
-    const halfW = obstacle.width / 2;
-    const halfH = obstacle.height / 2;
-    const halfD = obstacle.depth / 2;
-    const cx = obstacle.x + halfW;
-    const cy = obstacle.y + halfH;
-    const cz = obstacle.z + halfD;
-    
-    return (
-      particle.x >= cx - halfW - margin && particle.x <= cx + halfW + margin &&
-      particle.y >= cy - halfH - margin && particle.y <= cy + halfH + margin &&
-      particle.z >= cz - halfD - margin && particle.z <= cz + halfD + margin
-    );
-  }, []);
-
-  // Calculate surface normal for collision angle
-  const getSurfaceNormal = useCallback((particle: WindParticle, obstacle: Obstacle): [number, number, number] => {
+    const scale = obstacle.scale || 1;
+    const halfW = (obstacle.width * scale) / 2;
+    const halfH = (obstacle.height * scale) / 2;
+    const halfD = (obstacle.depth * scale) / 2;
     const cx = obstacle.x + obstacle.width / 2;
     const cy = obstacle.y + obstacle.height / 2;
     const cz = obstacle.z + obstacle.depth / 2;
-    const dx = (particle.x - cx) / obstacle.width;
-    const dy = (particle.y - cy) / obstacle.height;
-    const dz = (particle.z - cz) / obstacle.depth;
+
+    // Transform particle position to obstacle local space (inverse rotation)
+    let dx = particle.x - cx;
+    let dy = particle.y - cy;
+    let dz = particle.z - cz;
+
+    const rotY = -((obstacle.rotation || 0) * Math.PI) / 180;
+    const rotX = -(obstacle.rotationX || 0);
+    const rotZ = -(obstacle.rotationZ || 0);
+
+    // Apply inverse Y rotation
+    if (rotY !== 0) {
+      const cosY = Math.cos(rotY);
+      const sinY = Math.sin(rotY);
+      const nx = dx * cosY - dz * sinY;
+      const nz = dx * sinY + dz * cosY;
+      dx = nx; dz = nz;
+    }
+    // Apply inverse X rotation
+    if (rotX !== 0) {
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+      const ny = dy * cosX - dz * sinX;
+      const nz2 = dy * sinX + dz * cosX;
+      dy = ny; dz = nz2;
+    }
+    // Apply inverse Z rotation
+    if (rotZ !== 0) {
+      const cosZ = Math.cos(rotZ);
+      const sinZ = Math.sin(rotZ);
+      const nx2 = dx * cosZ - dy * sinZ;
+      const ny2 = dx * sinZ + dy * cosZ;
+      dx = nx2; dy = ny2;
+    }
+
+    return (
+      dx >= -halfW - margin && dx <= halfW + margin &&
+      dy >= -halfH - margin && dy <= halfH + margin &&
+      dz >= -halfD - margin && dz <= halfD + margin
+    );
+  }, []);
+
+  const getSurfaceNormal = useCallback((particle: WindParticle, obstacle: Obstacle): [number, number, number] => {
+    const scale = obstacle.scale || 1;
+    const cx = obstacle.x + obstacle.width / 2;
+    const cy = obstacle.y + obstacle.height / 2;
+    const cz = obstacle.z + obstacle.depth / 2;
+    const dx = (particle.x - cx) / (obstacle.width * scale);
+    const dy = (particle.y - cy) / (obstacle.height * scale);
+    const dz = (particle.z - cz) / (obstacle.depth * scale);
     const adx = Math.abs(dx), ady = Math.abs(dy), adz = Math.abs(dz);
-    if (adx > ady && adx > adz) return [Math.sign(dx), 0, 0];
-    if (ady > adz) return [0, Math.sign(dy), 0];
-    return [0, 0, Math.sign(dz)];
+
+    let nx = 0, ny = 0, nz = 0;
+    if (adx > ady && adx > adz) nx = Math.sign(dx);
+    else if (ady > adz) ny = Math.sign(dy);
+    else nz = Math.sign(dz);
+
+    // Rotate normal back to world space
+    const rotYAngle = ((obstacle.rotation || 0) * Math.PI) / 180;
+    if (rotYAngle !== 0) {
+      const cosY = Math.cos(rotYAngle);
+      const sinY = Math.sin(rotYAngle);
+      const wnx = nx * cosY + nz * sinY;
+      const wnz = -nx * sinY + nz * cosY;
+      return [wnx, ny, wnz];
+    }
+    return [nx, ny, nz];
   }, []);
 
   useFrame((state, delta) => {
@@ -152,6 +203,21 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       else cumulativeEnergyRef.current.set(id, filtered);
     });
 
+    // Precompute generator positions for attraction
+    const generators = obstacles.filter(o => o.type === 'wind_generator').map(o => {
+      const specs = GENERATOR_SUBTYPES[o.generatorSubtype || 'hawt3'];
+      const rotorDiameter = o.width * 1.8 * (o.scale || 1);
+      return {
+        cx: o.x + o.width / 2,
+        cy: o.y + o.height * (o.scale || 1),
+        cz: o.z + o.depth / 2,
+        rotorRadius: rotorDiameter / 2,
+        attractRadius: rotorDiameter * 3,
+        cp: specs.cp,
+        axis: specs.axis
+      };
+    });
+
     particlesRef.current.forEach((particle) => {
       particle.age += delta;
 
@@ -167,6 +233,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       let targetSpeedY = Math.sin(elevationRad) * effectiveSpeed * 0.5 + turbY * turbulenceMagnitude * 0.3;
       let targetSpeedZ = Math.sin(angleRad) * Math.cos(elevationRad) * effectiveSpeed + turbZ * turbulenceMagnitude;
 
+      // Wake zones from all obstacles
       for (const obstacle of obstacles) {
         const obstacleCenter = {
           x: obstacle.x + obstacle.width / 2,
@@ -184,6 +251,38 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
           targetSpeedX += (Math.random() - 0.5) * wakeTurbulence;
           targetSpeedY += (Math.random() - 0.5) * wakeTurbulence;
           targetSpeedZ += (Math.random() - 0.5) * wakeTurbulence;
+        }
+      }
+
+      // Generator attraction ("suction") effect
+      for (const gen of generators) {
+        const dx = gen.cx - particle.x;
+        const dy = gen.cy - particle.y;
+        const dz = gen.cz - particle.z;
+        const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        
+        if (dist < gen.attractRadius && dist > 0.5) {
+          // Determine if particle is upstream or downstream of generator
+          const dotWind = dx * windDirection.x + dz * windDirection.z;
+          
+          if (dotWind > 0) {
+            // Upstream: attract toward rotor center (inverse-square)
+            const attractK = 2.0;
+            const force = attractK / (dist * dist + 1);
+            targetSpeedX += (dx / dist) * force;
+            targetSpeedY += (dy / dist) * force * 0.5;
+            targetSpeedZ += (dz / dist) * force;
+          } else {
+            // Downstream: slow down by (1 - Cp) and add turbulence
+            const speedReduction = 1 - gen.cp * 0.6;
+            targetSpeedX *= speedReduction;
+            targetSpeedZ *= speedReduction;
+            // Add downstream turbulence
+            const downTurb = gen.cp * 2;
+            targetSpeedX += (Math.random() - 0.5) * downTurb;
+            targetSpeedY += (Math.random() - 0.5) * downTurb * 0.5;
+            targetSpeedZ += (Math.random() - 0.5) * downTurb;
+          }
         }
       }
 
@@ -206,19 +305,18 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
 
       if (!particle.hasCollided) {
         for (const obstacle of obstacles) {
+          if (obstacle.type === 'wind_generator') continue; // generators use attraction, not collision
           if (checkCollision(particle, obstacle)) {
             const physics = OBSTACLE_DRAG_COEFFICIENTS[obstacle.type] || OBSTACLE_DRAG_COEFFICIENTS.building;
             const obstacleId = obstacle.id || `${obstacle.x}-${obstacle.z}`;
             
             const speed = Math.sqrt(particle.speedX ** 2 + particle.speedY ** 2 + particle.speedZ ** 2);
             
-            // Collision angle via dot product with surface normal
             const [nx, ny, nz] = getSurfaceNormal(particle, obstacle);
             const dotProduct = Math.abs(
               (particle.speedX * nx + particle.speedY * ny + particle.speedZ * nz) / (speed || 1)
             );
             
-            // Energy with angle factor: glancing hits transfer less energy
             const energy = 0.5 * particle.mass * speed * speed * physics.dragCoefficient * config.airDensity * dotProduct;
             
             collisionEnergyRef.current += energy;
@@ -227,12 +325,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             const currentObstacleEnergy = obstacleEnergyRef.current.get(obstacleId) || 0;
             obstacleEnergyRef.current.set(obstacleId, currentObstacleEnergy + energy);
 
-            // Track cumulative energy (last 10s)
             const cumEntries = cumulativeEnergyRef.current.get(obstacleId) || [];
             cumEntries.push({ energy, timestamp: time });
             cumulativeEnergyRef.current.set(obstacleId, cumEntries);
             
-            // Throttle obstacle energy callbacks (every 5 frames)
             if (onObstacleEnergyUpdate && renderCountRef.current % 5 === 0) {
               onObstacleEnergyUpdate(new Map(obstacleEnergyRef.current));
             }
@@ -246,7 +342,6 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               });
             }
 
-            // Reflection with material-based restitution
             const materialRestitution = MATERIAL_RESTITUTION[obstacle.material || 'concrete'] || 0.2;
             const restitution = materialRestitution * (1 - physics.porosityFactor);
             const separationAngleRad = (physics.separationAngle * Math.PI) / 180;
@@ -254,30 +349,29 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             const centerX = obstacle.x + obstacle.width / 2;
             const centerY = obstacle.y + obstacle.height / 2;
             const centerZ = obstacle.z + obstacle.depth / 2;
-            const dx = particle.x - centerX;
-            const dy = particle.y - centerY;
-            const dz = particle.z - centerZ;
-            const normDx = dx / obstacle.width;
-            const normDy = dy / obstacle.height;
-            const normDz = dz / obstacle.depth;
+            const ddx = particle.x - centerX;
+            const ddy = particle.y - centerY;
+            const ddz = particle.z - centerZ;
+            const normDx = ddx / obstacle.width;
+            const normDy = ddy / obstacle.height;
+            const normDz = ddz / obstacle.depth;
             const absNormDx = Math.abs(normDx);
             const absNormDy = Math.abs(normDy);
             const absNormDz = Math.abs(normDz);
 
             if (absNormDx > absNormDy && absNormDx > absNormDz) {
               particle.speedX *= -restitution;
-              particle.x = dx > 0 ? obstacle.x + obstacle.width + 2 : obstacle.x - 2;
-              particle.speedZ += Math.sign(dz) * Math.sin(separationAngleRad) * speed * 0.3;
+              particle.x = ddx > 0 ? obstacle.x + obstacle.width + 2 : obstacle.x - 2;
+              particle.speedZ += Math.sign(ddz) * Math.sin(separationAngleRad) * speed * 0.3;
             } else if (absNormDy > absNormDz) {
               particle.speedY *= -restitution;
-              particle.y = dy > 0 ? obstacle.y + obstacle.height + 2 : obstacle.y - 2;
+              particle.y = ddy > 0 ? obstacle.y + obstacle.height + 2 : obstacle.y - 2;
             } else {
               particle.speedZ *= -restitution;
-              particle.z = dz > 0 ? obstacle.z + obstacle.depth + 2 : obstacle.z - 2;
-              particle.speedX += Math.sign(dx) * Math.sin(separationAngleRad) * speed * 0.3;
+              particle.z = ddz > 0 ? obstacle.z + obstacle.depth + 2 : obstacle.z - 2;
+              particle.speedX += Math.sign(ddx) * Math.sin(separationAngleRad) * speed * 0.3;
             }
 
-            // Add scatter effect on collision (directional spread)
             const scatterAmount = physics.turbulenceGeneration * 1.5;
             particle.speedX += (Math.random() - 0.5) * scatterAmount;
             particle.speedY += Math.random() * scatterAmount * 0.5;
@@ -299,12 +393,18 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
 
     collisionEnergyRef.current *= 0.995;
     renderCountRef.current++;
-    // Throttle collision energy callback
     if (renderCountRef.current % 3 === 0) {
       onCollisionEnergyUpdate(collisionEnergyRef.current);
     }
     forceUpdate(n => n + 1);
   });
 
-  return <InstancedParticles particles={particlesRef.current} />;
+  return (
+    <InstancedParticles
+      particles={particlesRef.current}
+      impactMultiplier={particleImpact}
+      trailLengthMultiplier={particleTrailLength}
+      windAngle={config.windAngle}
+    />
+  );
 };
