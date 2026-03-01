@@ -12,12 +12,8 @@ interface WindGenerator3DProps {
 }
 
 export function calculateGeneratorPower(
-  airDensity: number,
-  rotorDiameter: number,
-  windSpeed: number,
-  height: number,
-  refHeight: number,
-  surfaceRoughness: number,
+  airDensity: number, rotorDiameter: number, windSpeed: number,
+  height: number, refHeight: number, surfaceRoughness: number,
   subtype: GeneratorSubtype = 'hawt3'
 ): number {
   const specs = GENERATOR_SUBTYPES[subtype];
@@ -185,13 +181,13 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
   );
 };
 
-// Intake visualization: semi-transparent cone in front of rotor
+// Intake cone with pulsating opacity and converging flow arrows
 const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number }> = ({ towerHeight, rotorDiameter, windAngleRad }) => {
   const coneRef = useRef<THREE.Mesh>(null);
   useFrame((state) => {
     if (!coneRef.current) return;
     const mat = coneRef.current.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.06 + Math.sin(state.clock.elapsedTime * 2) * 0.03;
+    mat.opacity = 0.1 + Math.sin(state.clock.elapsedTime * 2) * 0.06;
   });
 
   const coneLength = rotorDiameter * 2.5;
@@ -199,13 +195,20 @@ const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAng
     <group position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
       <mesh ref={coneRef} position={[0, 0, coneLength / 2]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[rotorDiameter * 0.6, coneLength, 12]} />
-        <meshBasicMaterial color="#00ffaa" transparent opacity={0.08} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#00ffaa" transparent opacity={0.1} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-      {/* Flow arrows converging to center */}
+      {/* Converging flow arrows */}
       {[-1, 0, 1].map(i => (
         <mesh key={i} position={[i * rotorDiameter * 0.3, i * 0.5, rotorDiameter * 0.8]} rotation={[-Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.2, 0.8, 4]} />
-          <meshBasicMaterial color="#00ffaa" transparent opacity={0.25} />
+          <coneGeometry args={[0.25, 0.9, 4]} />
+          <meshBasicMaterial color="#00ffaa" transparent opacity={0.35} />
+        </mesh>
+      ))}
+      {/* Additional suction indicator rings */}
+      {[1, 2, 3].map(i => (
+        <mesh key={`ring-${i}`} position={[0, 0, rotorDiameter * 0.3 * i]} rotation={[Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[rotorDiameter * 0.15 * i, rotorDiameter * 0.15 * i + 0.1, 16]} />
+          <meshBasicMaterial color="#00ffaa" transparent opacity={0.1} side={THREE.DoubleSide} />
         </mesh>
       ))}
     </group>
@@ -239,24 +242,21 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const powerStr = power >= 1000 ? `${(power / 1000).toFixed(1)} kW` : `${power.toFixed(0)} W`;
   const subtypeName = specs.nameUa;
 
+  // Y rotation only
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
-  const rotX = obstacle.rotationX || 0;
-  const rotZ = obstacle.rotationZ || 0;
   const scaleVal = obstacle.scale || 1;
   const windAngleRad = (config.windAngle * Math.PI) / 180;
 
   return (
-    <group position={position} rotation={[rotX, rotationY, rotZ]} scale={scaleVal}>
+    <group position={position} rotation={[0, rotationY, 0]} scale={scaleVal}>
       {subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
       {subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
       {subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       {subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
 
-      {/* Intake visualization cone */}
       <IntakeCone towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} />
 
-      {/* Power label */}
       <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'none' }}>
         <div className="rounded px-1.5 py-0.5 text-center border shadow-lg" style={{
           backgroundColor: 'rgba(0,0,0,0.85)', borderColor: '#39ff1450', minWidth: '55px'

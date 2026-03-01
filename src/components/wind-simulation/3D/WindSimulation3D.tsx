@@ -23,9 +23,10 @@ interface WindSimulation3DProps {
   lang: Lang;
 }
 
-// Compute terrain Y offset for an object at (x, z) given slope angles
+// Compute terrain Y offset — clamped to avoid extreme values
 function getTerrainYOffset(x: number, z: number, slopeXDeg: number, slopeZDeg: number): number {
-  return Math.tan((slopeXDeg * Math.PI) / 180) * x + Math.tan((slopeZDeg * Math.PI) / 180) * z;
+  const raw = Math.tan((slopeXDeg * Math.PI) / 180) * x + Math.tan((slopeZDeg * Math.PI) / 180) * z;
+  return Math.max(-10, Math.min(10, raw));
 }
 
 const MouseTracker: React.FC<{
@@ -75,12 +76,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [ghostPosition, setGhostPosition] = useState<[number, number, number] | null>(null);
   const [obstacleEnergies, setObstacleEnergies] = useState<Map<string, number>>(new Map());
   const [collisionEffects, setCollisionEffects] = useState<Array<{
-    id: string; position: [number, number, number]; intensity: number;
+    id: string; position: [number, number, number]; intensity: number; deflection?: [number, number, number];
   }>>([]);
   const [showHint, setShowHint] = useState(false);
   const [currentGhostRotation, setCurrentGhostRotation] = useState(0);
-  const [currentGhostRotationX, setCurrentGhostRotationX] = useState(0);
-  const [currentGhostRotationZ, setCurrentGhostRotationZ] = useState(0);
   const [currentGhostScale, setCurrentGhostScale] = useState(1);
   const lastPlacedIdRef = useRef<string | null>(null);
 
@@ -113,14 +112,13 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       }, 0);
   }, [obstacles, physicsConfig]);
 
-  // Keyboard controls
+  // Keyboard controls — Y rotation and scale only
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
       
       const key = e.key.toLowerCase();
       
-      // In select mode, modify selected obstacle
       const targetId = interactionMode === 'select' && selectedObstacleIndex !== null
         ? obstacles[selectedObstacleIndex]?.id
         : lastPlacedIdRef.current;
@@ -175,38 +173,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           );
           playScaleSound();
           break;
-        case 'a':
-          e.preventDefault();
-          modifyGhostOrObstacle(
-            obs => ({ ...obs, rotationX: ((obs.rotationX || 0) - 10 * Math.PI / 180) }),
-            () => setCurrentGhostRotationX(prev => prev - 10 * Math.PI / 180)
-          );
-          playRotateSound();
-          break;
-        case 'd':
-          e.preventDefault();
-          modifyGhostOrObstacle(
-            obs => ({ ...obs, rotationX: ((obs.rotationX || 0) + 10 * Math.PI / 180) }),
-            () => setCurrentGhostRotationX(prev => prev + 10 * Math.PI / 180)
-          );
-          playRotateSound();
-          break;
-        case 'z':
-          e.preventDefault();
-          modifyGhostOrObstacle(
-            obs => ({ ...obs, rotationZ: ((obs.rotationZ || 0) - 10 * Math.PI / 180) }),
-            () => setCurrentGhostRotationZ(prev => prev - 10 * Math.PI / 180)
-          );
-          playRotateSound();
-          break;
-        case 'c':
-          e.preventDefault();
-          modifyGhostOrObstacle(
-            obs => ({ ...obs, rotationZ: ((obs.rotationZ || 0) + 10 * Math.PI / 180) }),
-            () => setCurrentGhostRotationZ(prev => prev + 10 * Math.PI / 180)
-          );
-          playRotateSound();
-          break;
         case 'delete':
         case 'backspace':
           if (interactionMode === 'select' && selectedObstacleIndex !== null) {
@@ -252,8 +218,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       material: categoryData.defaultProperties.material,
       resistance: categoryData.defaultProperties.resistance,
       rotation: currentGhostRotation,
-      rotationX: currentGhostRotationX,
-      rotationZ: currentGhostRotationZ,
       scale: currentGhostScale,
       ...(selectedObstacleType === 'wind_generator' ? { generatorSubtype: selectedGeneratorSubtype } : {})
     };
@@ -264,9 +228,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     
     setShowHint(true);
     setTimeout(() => setShowHint(false), 3000);
-  }, [selectedObstacleType, selectedGeneratorSubtype, currentGhostRotation, currentGhostRotationX, currentGhostRotationZ, currentGhostScale]);
+  }, [selectedObstacleType, selectedGeneratorSubtype, currentGhostRotation, currentGhostScale]);
 
-  // Select mode: find nearest obstacle to click position
   const selectObstacleAt = useCallback((clickPos: [number, number, number]) => {
     let bestIdx = -1;
     let bestDist = Infinity;
@@ -292,8 +255,12 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     playClearSound();
   };
 
-  const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number }) => {
-    setCollisionEffects(prev => [...prev, event]);
+  const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number; deflection?: [number, number, number] }) => {
+    setCollisionEffects(prev => {
+      // Limit to 20 active effects for performance
+      const next = [...prev, event];
+      return next.length > 20 ? next.slice(-20) : next;
+    });
     if ((window as any).__localHitAdd) {
       const speed = event.intensity;
       const energy = 0.5 * 0.015 * speed * speed * physicsConfig.airDensity;
@@ -347,8 +314,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   return (
     <div className="relative w-full h-full">
-      {/* Mode toggle button */}
-      <div className="absolute top-3 left-3 z-20 flex gap-1" style={{ pointerEvents: 'auto' }}>
+      {/* Mode toggle — positioned to the right of measurement panel */}
+      <div className="absolute top-3 left-[195px] z-20 flex gap-1" style={{ pointerEvents: 'auto' }}>
         <button
           onClick={() => { setInteractionMode('place'); setSelectedObstacleIndex(null); }}
           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-mono border transition-all ${
@@ -390,7 +357,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
           <MouseTracker onPositionChange={setGhostPosition} simulationSize={simulationSize} slopeX={physicsConfig.terrainSlopeX} slopeZ={physicsConfig.terrainSlopeZ} />
 
-          {/* Grid tilts with terrain — separate from objects */}
+          {/* Grid tilts with terrain */}
           <group rotation={terrainRotation}>
             <Grid 
               args={[simulationSize.width, simulationSize.depth]}
@@ -413,8 +380,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
                 visible={true}
                 generatorSubtype={selectedGeneratorSubtype}
                 rotation={currentGhostRotation}
-                rotationX={currentGhostRotationX}
-                rotationZ={currentGhostRotationZ}
                 scale={currentGhostScale}
               />
             )}
