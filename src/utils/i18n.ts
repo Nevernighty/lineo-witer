@@ -64,8 +64,8 @@ const translations: Record<string, Record<Lang, string>> = {
   
   // Actions
   clearAll: { ua: 'Очистити', en: 'Clear All' },
-  footerHint: { ua: 'Клік = поставити | ←→ обертання | Q/E розмір | A/D Z/C нахил', en: 'Click = place | ←→ rotate | Q/E scale | A/D Z/C tilt' },
-  hintRotateScale: { ua: '←→: обертання | Q/E: розмір | A/D Z/C: нахил', en: '←→: rotate | Q/E: scale | A/D Z/C: tilt' },
+  footerHint: { ua: 'Клік = поставити | ←→ обертання | Q/E розмір', en: 'Click = place | ←→ rotate | Q/E scale' },
+  hintRotateScale: { ua: '←→: обертання | Q/E: розмір', en: '←→: rotate | Q/E: scale' },
   particleCount: { ua: 'Частинки', en: 'Particles' },
   infoParticleCount: { ua: 'Кількість частинок вітру в симуляції. Більше = точніше, але повільніше.', en: 'Wind particle count. More = accurate but slower.' },
   beaufortScale: { ua: 'Шкала Бофорта', en: 'Beaufort Scale' },
@@ -115,7 +115,7 @@ const translations: Record<string, Record<Lang, string>> = {
   infoAltitude: { ua: 'Висота над рівнем моря. Вище = менший тиск = менша ρ. На 1000м ρ ≈ -3%.', en: 'Height above sea level. Higher = lower pressure = reduced ρ. At 1000m ρ ≈ -3%.' },
   infoSurfaceRoughness: { ua: 'Коефіцієнт тертя поверхні (z₀). Вода ≈ 0.001, поле ≈ 0.03, місто ≈ 0.5-2.0.', en: 'Terrain friction (z₀). Water ≈ 0.001, grassland ≈ 0.03, urban ≈ 0.5-2.0.' },
   infoRefHeight: { ua: 'Базова висота для розрахунку зсуву вітру V(h) = Vref × (h/href)^α.', en: 'Reference height for wind shear V(h) = Vref × (h/href)^α.' },
-  infoTerrainSlope: { ua: 'Нахил рельєфу створює прискорення вітру (hill speedup effect). На вершині пагорба швидкість може зрости на 20-80%. ΔV/V = s × (H/L).', en: 'Terrain slope creates wind speedup (hill effect). At hilltop, speed can increase 20-80%. ΔV/V = s × (H/L).' },
+  infoTerrainSlope: { ua: 'Нахил рельєфу створює прискорення вітру (hill speedup). Об\'єкти зміщуються по висоті вздовж схилу.', en: 'Terrain slope creates wind speedup. Objects shift vertically along the slope.' },
   
   // Elevation science
   elevationScience: { ua: 'Швидкість вітру зростає з висотою за степеневим законом: V = V_ref × (h/h_ref)^α. Подвоєння висоти збільшує потужність на ~40-80%.', en: 'Wind speed increases with height by power law: V = V_ref × (h/h_ref)^α. Doubling height increases power by ~40-80%.' },
@@ -189,12 +189,15 @@ const translations: Record<string, Record<Lang, string>> = {
   particleImpact: { ua: 'Імпакт', en: 'Impact' },
   particleTrail: { ua: 'Слід', en: 'Trail' },
   infoParticleImpact: { ua: 'Множник розміру та яскравості при колізії. Більше = помітніше зіткнення.', en: 'Collision size & brightness multiplier. Higher = more visible impacts.' },
-  infoParticleTrail: { ua: 'Довжина сліду частинки. 0 = без сліду.', en: 'Particle trail length. 0 = no trail.' },
+  infoParticleTrail: { ua: 'Довжина сліду частинки. 0 = без сліду, 2 = довгий яскравий слід.', en: 'Particle trail length. 0 = no trail, 2 = long bright trail.' },
 
   // Select mode
   placeMode: { ua: 'Встановити', en: 'Place' },
   selectMode: { ua: 'Вибрати', en: 'Select' },
-  footerHintSelect: { ua: 'Клік = вибрати | Drag = перемістити | ←→ Q/E A/D Z/C = трансформ', en: 'Click = select | Drag = move | ←→ Q/E A/D Z/C = transform' },
+  footerHintSelect: { ua: 'Клік = вибрати | Drag = перемістити | ←→ Q/E = обертання/розмір | A/D Z/C = зсув', en: 'Click = select | Drag = move | ←→ Q/E = rotate/scale | A/D Z/C = shift' },
+
+  // Scenarios
+  scenarios: { ua: 'Сценарії', en: 'Scenarios' },
 };
 
 export function t(key: string, lang: Lang): string {
