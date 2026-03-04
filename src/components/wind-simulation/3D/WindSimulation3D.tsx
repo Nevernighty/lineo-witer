@@ -1,6 +1,6 @@
 import React, { useState, Suspense, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Grid } from '@react-three/drei';
+import { OrbitControls, Grid, Html } from '@react-three/drei';
 import { AdvancedParticleSystem } from './AdvancedParticleSystem';
 import { Obstacle3D } from './Obstacle3D';
 import { WindGenerator3D, calculateGeneratorPower } from './WindGenerator3D';
@@ -10,11 +10,11 @@ import { GhostObstacle } from './GhostObstacle';
 import { CollisionEffectsManager } from './CollisionEffect';
 import { CollisionHotspotManager } from './CollisionHotspot';
 import { LocalHitManager } from './LocalHitPopup';
-import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
+import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateWindShear } from './WindPhysicsEngine';
 import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '../types';
 import { t, type Lang } from '@/utils/i18n';
 import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
-import { Crosshair, MousePointer, Map as MapIcon } from 'lucide-react';
+import { Crosshair, MousePointer, Map as MapIcon, Ruler, Eye } from 'lucide-react';
 import * as THREE from 'three';
 
 interface WindSimulation3DProps {
@@ -23,13 +23,76 @@ interface WindSimulation3DProps {
   lang: Lang;
 }
 
-// Terrain Y offset — use sin-based smooth offset, NOT tan (avoids infinity)
+// Terrain Y offset — matches the grid rotation so objects sit correctly on slopes
 function getTerrainYOffset(x: number, z: number, slopeXDeg: number, slopeZDeg: number): number {
   const slopeXRad = (slopeXDeg * Math.PI) / 180;
   const slopeZRad = (slopeZDeg * Math.PI) / 180;
-  const raw = Math.sin(slopeXRad) * x + Math.sin(slopeZRad) * z;
+  // Grid rotation: [slopeZ_rad, 0, -slopeX_rad]
+  // Around Z-axis by -slopeX: point at +X goes DOWN → offset = -sin(slopeX) * x
+  // Around X-axis by +slopeZ: point at +Z goes UP → offset = sin(slopeZ) * z
+  const raw = -Math.sin(slopeXRad) * x + Math.sin(slopeZRad) * z;
   return Math.max(-8, Math.min(8, raw));
 }
+
+// 3D Height Ruler component
+const HeightRuler: React.FC<{ maxHeight: number; config: WindPhysicsConfig }> = ({ maxHeight, config }) => {
+  const heights = [0, 10, 30, 50, 80, 100];
+  return (
+    <group position={[52, 0, -48]}>
+      {/* Vertical pole */}
+      <mesh position={[0, maxHeight / 2, 0]}>
+        <cylinderGeometry args={[0.12, 0.12, maxHeight, 6]} />
+        <meshBasicMaterial color="#39ff14" transparent opacity={0.5} />
+      </mesh>
+      {/* Tick marks + labels */}
+      {heights.filter(h => h <= maxHeight).map(h => {
+        const windAtH = calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, h), config.surfaceRoughness);
+        return (
+          <group key={h} position={[0, h, 0]}>
+            <mesh position={[0.8, 0, 0]}>
+              <boxGeometry args={[1.5, 0.06, 0.06]} />
+              <meshBasicMaterial color="#39ff14" transparent opacity={0.4} />
+            </mesh>
+            <mesh position={[0, 0, 0]}>
+              <sphereGeometry args={[0.15, 6, 6]} />
+              <meshBasicMaterial color="#39ff14" transparent opacity={0.6} />
+            </mesh>
+          </group>
+        );
+      })}
+      {/* Base plate */}
+      <mesh position={[0, 0, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+        <circleGeometry args={[1.2, 12]} />
+        <meshBasicMaterial color="#39ff14" transparent opacity={0.1} side={THREE.DoubleSide} />
+      </mesh>
+    </group>
+  );
+};
+
+// Height Ruler with Html labels
+const HeightRulerLabels: React.FC<{ maxHeight: number; config: WindPhysicsConfig }> = ({ maxHeight, config }) => {
+  const heights = [0, 10, 30, 50, 80, 100].filter(h => h <= maxHeight);
+  return (
+    <group position={[52, 0, -48]}>
+      {heights.map(h => {
+        const windAtH = calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, h), config.surfaceRoughness);
+        const power = 0.5 * config.airDensity * Math.pow(windAtH, 3);
+        return (
+          <Html key={h} position={[2.5, h, 0]} center style={{ pointerEvents: 'none' }}>
+            <div className="text-[8px] font-mono whitespace-nowrap px-1 py-0.5 rounded" style={{ 
+              backgroundColor: 'rgba(0,0,0,0.8)', border: '1px solid rgba(57,255,20,0.3)',
+              color: '#39ff14'
+            }}>
+              <span className="text-[7px] text-green-300/60">{h}m</span>{' '}
+              <span>{windAtH.toFixed(1)}</span> m/s{' '}
+              <span className="text-cyan-400">{power.toFixed(0)} W/m²</span>
+            </div>
+          </Html>
+        );
+      })}
+    </group>
+  );
+};
 
 // Scenario presets
 export interface ScenarioPreset {
@@ -146,6 +209,94 @@ const SCENARIO_PRESETS: ScenarioPreset[] = [
     ],
     particleCount: 500,
   },
+  // New scenarios
+  {
+    id: 'wind_farm',
+    name: { ua: 'Вітроферма', en: 'Wind Farm' },
+    description: { ua: 'Масив вітрогенераторів з оптимальним розташуванням. Дослідження wake-ефектів.', en: 'Wind turbine array with optimal spacing. Wake effect research.' },
+    config: {
+      windSpeed: 11, windAngle: 0, windElevation: 0,
+      turbulenceIntensity: 0.12, turbulenceScale: 0.8,
+      gustFrequency: 3, gustIntensity: 0.12,
+      temperature: 15, humidity: 50, altitude: 200,
+      surfaceRoughness: 0.05, referenceHeight: 10,
+      terrainSlopeX: 0, terrainSlopeZ: 0,
+    },
+    obstacles: [
+      { id: 'wf-1', type: 'wind_generator', category: 'energy', shape: 'regular', x: -35, y: 0, z: -15, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.3 },
+      { id: 'wf-2', type: 'wind_generator', category: 'energy', shape: 'regular', x: -35, y: 0, z: 15, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.3 },
+      { id: 'wf-3', type: 'wind_generator', category: 'energy', shape: 'regular', x: 0, y: 0, z: -15, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.3 },
+      { id: 'wf-4', type: 'wind_generator', category: 'energy', shape: 'regular', x: 0, y: 0, z: 15, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.3 },
+      { id: 'wf-5', type: 'wind_generator', category: 'energy', shape: 'regular', x: 30, y: 0, z: 0, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt2', scale: 1.4 },
+    ],
+    particleCount: 400,
+  },
+  {
+    id: 'forest_edge',
+    name: { ua: 'Узлісся', en: 'Forest Edge' },
+    description: { ua: 'Перехід від лісу до відкритого поля. Складна аеродинаміка на межі.', en: 'Transition from forest to open field. Complex aerodynamics at the boundary.' },
+    config: {
+      windSpeed: 7, windAngle: 135, windElevation: 0,
+      turbulenceIntensity: 0.4, turbulenceScale: 1.5,
+      gustFrequency: 5, gustIntensity: 0.25,
+      temperature: 16, humidity: 65, altitude: 200,
+      surfaceRoughness: 0.5, referenceHeight: 10,
+      terrainSlopeX: 2, terrainSlopeZ: 1,
+    },
+    obstacles: [
+      { id: 'fe-t1', type: 'tree', category: 'vegetation', shape: 'regular', x: -40, y: 0, z: -20, width: 10, height: 22, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t2', type: 'tree', category: 'vegetation', shape: 'regular', x: -38, y: 0, z: -5, width: 10, height: 18, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t3', type: 'tree', category: 'vegetation', shape: 'regular', x: -42, y: 0, z: 10, width: 10, height: 25, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t4', type: 'tree', category: 'vegetation', shape: 'regular', x: -35, y: 0, z: 20, width: 10, height: 20, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t5', type: 'tree', category: 'vegetation', shape: 'regular', x: -30, y: 0, z: -15, width: 10, height: 16, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-g1', type: 'wind_generator', category: 'energy', shape: 'regular', x: 10, y: 0, z: 0, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.2 },
+      { id: 'fe-f1', type: 'fence', category: 'barrier', shape: 'regular', x: -20, y: 0, z: -25, width: 15, height: 3, depth: 1, material: 'wood', resistance: 1.0, density: 0.7 },
+    ],
+    particleCount: 350,
+  },
+  {
+    id: 'mountain_pass',
+    name: { ua: 'Гірський перевал', en: 'Mountain Pass' },
+    description: { ua: 'Вузький перевал між горами. Ефект Вентурі прискорює вітер.', en: 'Narrow pass between mountains. Venturi effect accelerates wind.' },
+    config: {
+      windSpeed: 14, windAngle: 0, windElevation: -3,
+      turbulenceIntensity: 0.35, turbulenceScale: 2.5,
+      gustFrequency: 7, gustIntensity: 0.4,
+      temperature: 5, humidity: 40, altitude: 1200,
+      surfaceRoughness: 0.3, referenceHeight: 10,
+      terrainSlopeX: 12, terrainSlopeZ: -5,
+    },
+    obstacles: [
+      { id: 'mp-w1', type: 'wall', category: 'barrier', shape: 'regular', x: -10, y: 0, z: -30, width: 20, height: 25, depth: 5, material: 'concrete', resistance: 1.2, density: 0.9 },
+      { id: 'mp-w2', type: 'wall', category: 'barrier', shape: 'regular', x: -10, y: 0, z: 25, width: 20, height: 25, depth: 5, material: 'concrete', resistance: 1.2, density: 0.9 },
+      { id: 'mp-g1', type: 'wind_generator', category: 'energy', shape: 'regular', x: 20, y: 0, z: 0, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'darrieus', scale: 1.2 },
+    ],
+    particleCount: 300,
+  },
+  {
+    id: 'suburban',
+    name: { ua: 'Приміська зона', en: 'Suburban Area' },
+    description: { ua: 'Приватна забудова з будинками та садами. Мікрогенерація.', en: 'Residential area with houses and gardens. Micro-generation.' },
+    config: {
+      windSpeed: 5, windAngle: 200, windElevation: 0,
+      turbulenceIntensity: 0.35, turbulenceScale: 1.2,
+      gustFrequency: 6, gustIntensity: 0.2,
+      temperature: 20, humidity: 50, altitude: 100,
+      surfaceRoughness: 0.5, referenceHeight: 10,
+      terrainSlopeX: 0, terrainSlopeZ: 0,
+    },
+    obstacles: [
+      { id: 'sb-h1', type: 'house', category: 'structure', shape: 'regular', x: -25, y: 0, z: -15, width: 10, height: 12, depth: 10, material: 'brick', resistance: 1.2, density: 0.9 },
+      { id: 'sb-h2', type: 'house', category: 'structure', shape: 'regular', x: 5, y: 0, z: -15, width: 10, height: 10, depth: 10, material: 'brick', resistance: 1.2, density: 0.9 },
+      { id: 'sb-h3', type: 'house', category: 'structure', shape: 'regular', x: -15, y: 0, z: 12, width: 10, height: 11, depth: 10, material: 'brick', resistance: 1.2, density: 0.9 },
+      { id: 'sb-t1', type: 'tree', category: 'vegetation', shape: 'regular', x: -35, y: 0, z: 5, width: 10, height: 18, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'sb-t2', type: 'tree', category: 'vegetation', shape: 'regular', x: 20, y: 0, z: 10, width: 10, height: 15, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'sb-f1', type: 'fence', category: 'barrier', shape: 'regular', x: -5, y: 0, z: -8, width: 12, height: 3, depth: 1, material: 'wood', resistance: 1.0, density: 0.7 },
+      { id: 'sb-g1', type: 'wind_generator', category: 'energy', shape: 'regular', x: 30, y: 0, z: -5, width: 6, height: 15, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'micro', scale: 0.8 },
+      { id: 'sb-g2', type: 'wind_generator', category: 'energy', shape: 'regular', x: -30, y: 0, z: 20, width: 6, height: 20, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'savonius', scale: 0.9 },
+    ],
+    particleCount: 300,
+  },
 ];
 
 const MouseTracker: React.FC<{
@@ -192,6 +343,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [showHotspots, setShowHotspots] = useState(false);
   const [showWakeZones, setShowWakeZones] = useState(false);
   const [showLocalHits, setShowLocalHits] = useState(true);
+  const [showHeightRuler, setShowHeightRuler] = useState(false);
+  const [showWindProfile, setShowWindProfile] = useState(false);
+  const [showPressureMap, setShowPressureMap] = useState(false);
   const [ghostPosition, setGhostPosition] = useState<[number, number, number] | null>(null);
   const [obstacleEnergies, setObstacleEnergies] = useState<Map<string, number>>(new Map());
   const [collisionEffects, setCollisionEffects] = useState<Array<{
@@ -235,7 +389,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       }, 0);
   }, [obstacles, physicsConfig]);
 
-  // Keyboard controls — Y rotation, scale, and pitch/roll for select mode
+  // Keyboard controls — Y rotation, scale, shift
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -296,29 +450,37 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           );
           playScaleSound();
           break;
-        // A/D: move selected object along X
+        // A/D: move along X (works in both modes)
         case 'a':
+          e.preventDefault();
           if (interactionMode === 'select' && selectedObstacleIndex !== null) {
-            e.preventDefault();
+            modifyObstacle(obs => ({ ...obs, x: obs.x - 2 }));
+          } else if (interactionMode === 'place' && lastPlacedIdRef.current) {
             modifyObstacle(obs => ({ ...obs, x: obs.x - 2 }));
           }
           break;
         case 'd':
+          e.preventDefault();
           if (interactionMode === 'select' && selectedObstacleIndex !== null) {
-            e.preventDefault();
+            modifyObstacle(obs => ({ ...obs, x: obs.x + 2 }));
+          } else if (interactionMode === 'place' && lastPlacedIdRef.current) {
             modifyObstacle(obs => ({ ...obs, x: obs.x + 2 }));
           }
           break;
-        // Z/C: move selected object along Z
+        // Z/C: move along Z (works in both modes)
         case 'z':
+          e.preventDefault();
           if (interactionMode === 'select' && selectedObstacleIndex !== null) {
-            e.preventDefault();
+            modifyObstacle(obs => ({ ...obs, z: obs.z - 2 }));
+          } else if (interactionMode === 'place' && lastPlacedIdRef.current) {
             modifyObstacle(obs => ({ ...obs, z: obs.z - 2 }));
           }
           break;
         case 'c':
+          e.preventDefault();
           if (interactionMode === 'select' && selectedObstacleIndex !== null) {
-            e.preventDefault();
+            modifyObstacle(obs => ({ ...obs, z: obs.z + 2 }));
+          } else if (interactionMode === 'place' && lastPlacedIdRef.current) {
             modifyObstacle(obs => ({ ...obs, z: obs.z + 2 }));
           }
           break;
@@ -472,7 +634,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     isDraggingRef.current = false;
   }, []);
 
-
   return (
     <div className="relative w-full h-full">
       {/* Mode toggle + Scenario button — positioned right of measurement panel */}
@@ -482,7 +643,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-mono border transition-all ${
             interactionMode === 'place'
               ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_10px_hsl(var(--primary)/0.3)]'
-              : 'bg-[#0d1117]/90 border-primary/20 text-muted-foreground hover:border-primary/40'
+              : 'bg-background/90 border-primary/20 text-muted-foreground hover:border-primary/40'
           }`}
         >
           <Crosshair className="w-3.5 h-3.5" />
@@ -493,7 +654,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-mono border transition-all ${
             interactionMode === 'select'
               ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_10px_hsl(var(--primary)/0.3)]'
-              : 'bg-[#0d1117]/90 border-primary/20 text-muted-foreground hover:border-primary/40'
+              : 'bg-background/90 border-primary/20 text-muted-foreground hover:border-primary/40'
           }`}
         >
           <MousePointer className="w-3.5 h-3.5" />
@@ -504,7 +665,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-mono border transition-all ${
             showScenarios
               ? 'bg-cyan-500/25 border-cyan-500/60 text-cyan-400 shadow-[0_0_10px_rgba(0,200,255,0.3)]'
-              : 'bg-[#0d1117]/90 border-primary/20 text-muted-foreground hover:border-primary/40'
+              : 'bg-background/90 border-primary/20 text-muted-foreground hover:border-primary/40'
           }`}
         >
           <MapIcon className="w-3.5 h-3.5" />
@@ -512,14 +673,35 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </button>
       </div>
 
-      {/* Scenario picker dropdown */}
+      {/* Analysis checkboxes — right of scenarios button */}
+      <div className="absolute top-12 left-[195px] z-20 flex gap-2" style={{ pointerEvents: 'auto' }}>
+        <label className="flex items-center gap-1 cursor-pointer group">
+          <input type="checkbox" checked={showHeightRuler} onChange={(e) => setShowHeightRuler(e.target.checked)} 
+            className="w-3 h-3 accent-primary rounded" />
+          <Ruler className="w-3 h-3 text-primary/60 group-hover:text-primary" />
+          <span className="text-[9px] font-mono text-muted-foreground group-hover:text-foreground">{t('heightRuler', lang)}</span>
+        </label>
+        <label className="flex items-center gap-1 cursor-pointer group">
+          <input type="checkbox" checked={showWindProfile} onChange={(e) => setShowWindProfile(e.target.checked)} 
+            className="w-3 h-3 accent-cyan-400 rounded" />
+          <Eye className="w-3 h-3 text-cyan-400/60 group-hover:text-cyan-400" />
+          <span className="text-[9px] font-mono text-muted-foreground group-hover:text-foreground">{t('windProfile', lang)}</span>
+        </label>
+        <label className="flex items-center gap-1 cursor-pointer group">
+          <input type="checkbox" checked={showPressureMap} onChange={(e) => setShowPressureMap(e.target.checked)} 
+            className="w-3 h-3 accent-orange-400 rounded" />
+          <span className="text-[9px] font-mono text-muted-foreground group-hover:text-foreground">{t('pressureZones', lang)}</span>
+        </label>
+      </div>
+
+      {/* Scenario picker dropdown with custom scrollbar */}
       {showScenarios && (
-        <div className="absolute top-12 left-[195px] z-30 w-72 bg-[#0d1117]/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
+        <div className="absolute top-12 left-[195px] z-30 w-72 bg-background/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
           <div className="px-3 py-2 border-b border-cyan-500/20 flex items-center gap-2">
             <MapIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">{t('scenarios', lang)}</span>
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-80 overflow-y-auto scenario-scrollbar">
             {SCENARIO_PRESETS.map(preset => (
               <button
                 key={preset.id}
@@ -556,7 +738,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           <pointLight position={[30, 15, 30]} intensity={0.4} color="#00ffff" />
           <hemisphereLight args={['#87CEEB', '#363636', 0.3]} />
 
-
           <MouseTracker onPositionChange={setGhostPosition} simulationSize={simulationSize} slopeX={physicsConfig.terrainSlopeX} slopeZ={physicsConfig.terrainSlopeZ} />
 
           {/* Grid tilts with terrain */}
@@ -568,6 +749,64 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
               fadeDistance={150} fadeStrength={1} followCamera={false} infiniteGrid={false}
             />
           </group>
+
+          {/* Height ruler */}
+          {showHeightRuler && (
+            <>
+              <HeightRuler maxHeight={simulationSize.height} config={physicsConfig} />
+              <HeightRulerLabels maxHeight={simulationSize.height} config={physicsConfig} />
+            </>
+          )}
+
+          {/* Wind profile visualization */}
+          {showWindProfile && (
+            <group position={[-48, 0, -48]}>
+              {[5, 10, 20, 30, 40, 50].map(h => {
+                const speed = calculateWindShear(physicsConfig.windSpeed, physicsConfig.referenceHeight, h, physicsConfig.surfaceRoughness);
+                const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
+                const arrowLen = speed * 0.5;
+                return (
+                  <group key={h} position={[0, h, 0]}>
+                    <mesh position={[Math.cos(angleRad) * arrowLen / 2, 0, Math.sin(angleRad) * arrowLen / 2]} 
+                      rotation={[0, -angleRad + Math.PI / 2, Math.PI / 2]}>
+                      <cylinderGeometry args={[0.08, 0.08, arrowLen, 4]} />
+                      <meshBasicMaterial color="#00aaff" transparent opacity={0.5} />
+                    </mesh>
+                    <mesh position={[Math.cos(angleRad) * arrowLen, 0, Math.sin(angleRad) * arrowLen]} 
+                      rotation={[0, -angleRad + Math.PI / 2, 0]}>
+                      <coneGeometry args={[0.25, 0.6, 4]} />
+                      <meshBasicMaterial color="#00aaff" transparent opacity={0.6} />
+                    </mesh>
+                  </group>
+                );
+              })}
+            </group>
+          )}
+
+          {/* Pressure zones visualization */}
+          {showPressureMap && obstacles.map((obs, i) => {
+            const cx = obs.x + obs.width / 2;
+            const cz = obs.z + obs.depth / 2;
+            const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
+            const highPressureX = cx - Math.cos(angleRad) * obs.width;
+            const highPressureZ = cz - Math.sin(angleRad) * obs.depth;
+            const lowPressureX = cx + Math.cos(angleRad) * obs.width * 1.5;
+            const lowPressureZ = cz + Math.sin(angleRad) * obs.depth * 1.5;
+            return (
+              <group key={`pressure-${i}`}>
+                {/* High pressure (windward) — red */}
+                <mesh position={[highPressureX, obs.height * 0.5, highPressureZ]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <circleGeometry args={[obs.width * 0.4, 16]} />
+                  <meshBasicMaterial color="#ff4444" transparent opacity={0.15} side={THREE.DoubleSide} />
+                </mesh>
+                {/* Low pressure (leeward) — blue */}
+                <mesh position={[lowPressureX, obs.height * 0.5, lowPressureZ]} rotation={[-Math.PI / 2, 0, 0]}>
+                  <circleGeometry args={[obs.width * 0.5, 16]} />
+                  <meshBasicMaterial color="#4444ff" transparent opacity={0.12} side={THREE.DoubleSide} />
+                </mesh>
+              </group>
+            );
+          })}
 
           {/* Objects stay upright — terrain Y offset only */}
           <group>
@@ -627,6 +866,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
                 <group key={obstacle.id || index} position={[0, offsetY, 0]}>
                   <Obstacle3D
                     obstacle={obstacle}
+                    windSpeed={physicsConfig.windSpeed}
+                    windAngle={physicsConfig.windAngle}
                     isSelected={interactionMode === 'select' && selectedObstacleIndex === index}
                   />
                 </group>
@@ -647,7 +888,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       {showHint && (
         <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-bottom-4 duration-300"
           style={{ pointerEvents: 'none' }}>
-          <div className="px-3 py-1.5 rounded-full bg-[#0d1117]/90 border border-primary/50 text-primary text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.3)]">
+          <div className="px-3 py-1.5 rounded-full bg-background/90 border border-primary/50 text-primary text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.3)]">
             {t('hintRotateScale', lang)}
           </div>
         </div>
@@ -685,7 +926,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
       {/* Footer hint */}
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10" style={{ pointerEvents: 'none' }}>
-        <p className="text-[9px] text-muted-foreground/70 text-center font-mono bg-[#0d1117]/60 px-3 py-1 rounded-full">
+        <p className="text-[9px] text-muted-foreground/70 text-center font-mono bg-background/60 px-3 py-1 rounded-full">
           {interactionMode === 'select' ? t('footerHintSelect', lang) : t('footerHint', lang)}
         </p>
       </div>

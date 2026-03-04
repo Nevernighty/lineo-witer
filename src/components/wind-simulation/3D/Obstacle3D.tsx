@@ -1,16 +1,21 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef } from 'react';
 import { Box, Cylinder, Sphere } from '@react-three/drei';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { Obstacle } from '../types';
 
 interface Obstacle3DProps {
   obstacle: Obstacle;
+  windSpeed?: number;
+  windAngle?: number;
   isSelected?: boolean;
   isHovered?: boolean;
 }
 
 export const Obstacle3D: React.FC<Obstacle3DProps> = ({ 
   obstacle, 
+  windSpeed = 0,
+  windAngle = 0,
   isSelected = false, 
   isHovered = false 
 }) => {
@@ -37,6 +42,36 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
   const scaleVal = obstacle.scale || 1;
 
+  // Wobble refs for trees
+  const treeGroupRef = useRef<THREE.Group>(null);
+  const wobblePhase = useRef(Math.random() * Math.PI * 2);
+
+  useFrame((state) => {
+    if (obstacle.type === 'tree' && treeGroupRef.current) {
+      const time = state.clock.elapsedTime;
+      // Trees wobble strongly — like jelly
+      const wobbleIntensity = Math.min(windSpeed / 8, 1.5) * 0.15;
+      const freq1 = 1.5 + Math.sin(time * 0.3 + wobblePhase.current) * 0.3;
+      const freq2 = 2.1 + Math.cos(time * 0.5 + wobblePhase.current) * 0.2;
+      const angleRad = (windAngle * Math.PI) / 180;
+      
+      // Multi-frequency wobble for jelly-like effect
+      const wobbleX = Math.sin(time * freq1 + wobblePhase.current) * wobbleIntensity 
+                     + Math.sin(time * freq2 * 1.7) * wobbleIntensity * 0.4
+                     + Math.cos(angleRad) * wobbleIntensity * 0.3;
+      const wobbleZ = Math.cos(time * freq2 + wobblePhase.current * 1.3) * wobbleIntensity * 0.7
+                     + Math.sin(angleRad) * wobbleIntensity * 0.3;
+      
+      // Wind lean: trees lean in wind direction
+      const leanAmount = Math.min(windSpeed / 15, 0.4) * 0.12;
+      const leanX = Math.cos(angleRad) * leanAmount;
+      const leanZ = Math.sin(angleRad) * leanAmount;
+      
+      treeGroupRef.current.rotation.x = wobbleX + leanX;
+      treeGroupRef.current.rotation.z = wobbleZ + leanZ;
+    }
+  });
+
   const renderShape = () => {
     const cx = obstacle.x + obstacle.width / 2;
     const cz = obstacle.z + obstacle.depth / 2;
@@ -47,24 +82,26 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
         const crownR = obstacle.width * 0.45;
         return (
           <group position={[cx, 0, cz]}>
-            <Cylinder args={[obstacle.width * 0.1, obstacle.width * 0.18, trunkH, 8]} position={[0, trunkH / 2, 0]}>
-              <meshPhongMaterial color="#6B3410" />
-            </Cylinder>
-            <Sphere args={[crownR, 10, 10]} position={[0, trunkH + crownR * 0.5, 0]}>
-              <meshPhongMaterial color="#1a7a1a" />
-            </Sphere>
-            <Sphere args={[crownR * 0.75, 8, 8]} position={[crownR * 0.5, trunkH + crownR * 0.3, crownR * 0.3]}>
-              <meshPhongMaterial color="#228B22" />
-            </Sphere>
-            <Sphere args={[crownR * 0.7, 8, 8]} position={[-crownR * 0.4, trunkH + crownR * 0.6, -crownR * 0.3]}>
-              <meshPhongMaterial color="#2d8f2d" />
-            </Sphere>
-            <Cylinder args={[0.12, 0.08, trunkH * 0.4, 4]} position={[crownR * 0.3, trunkH * 0.7, 0]} rotation={[0, 0, -0.5]}>
-              <meshPhongMaterial color="#5a2d0c" />
-            </Cylinder>
-            <Cylinder args={[0.1, 0.06, trunkH * 0.35, 4]} position={[-crownR * 0.25, trunkH * 0.6, crownR * 0.2]} rotation={[0.3, 0, 0.4]}>
-              <meshPhongMaterial color="#5a2d0c" />
-            </Cylinder>
+            <group ref={treeGroupRef}>
+              <Cylinder args={[obstacle.width * 0.1, obstacle.width * 0.18, trunkH, 8]} position={[0, trunkH / 2, 0]}>
+                <meshPhongMaterial color="#6B3410" />
+              </Cylinder>
+              <Sphere args={[crownR, 10, 10]} position={[0, trunkH + crownR * 0.5, 0]}>
+                <meshPhongMaterial color="#1a7a1a" />
+              </Sphere>
+              <Sphere args={[crownR * 0.75, 8, 8]} position={[crownR * 0.5, trunkH + crownR * 0.3, crownR * 0.3]}>
+                <meshPhongMaterial color="#228B22" />
+              </Sphere>
+              <Sphere args={[crownR * 0.7, 8, 8]} position={[-crownR * 0.4, trunkH + crownR * 0.6, -crownR * 0.3]}>
+                <meshPhongMaterial color="#2d8f2d" />
+              </Sphere>
+              <Cylinder args={[0.12, 0.08, trunkH * 0.4, 4]} position={[crownR * 0.3, trunkH * 0.7, 0]} rotation={[0, 0, -0.5]}>
+                <meshPhongMaterial color="#5a2d0c" />
+              </Cylinder>
+              <Cylinder args={[0.1, 0.06, trunkH * 0.35, 4]} position={[-crownR * 0.25, trunkH * 0.6, crownR * 0.2]} rotation={[0.3, 0, 0.4]}>
+                <meshPhongMaterial color="#5a2d0c" />
+              </Cylinder>
+            </group>
           </group>
         );
       }

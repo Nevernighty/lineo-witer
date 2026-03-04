@@ -221,6 +221,8 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const towerHeight = obstacle.height;
   const rotorDiameter = obstacle.width * 1.8;
   const nacelleSize = obstacle.width * 0.35;
+  const wobbleRef = useRef<THREE.Group>(null);
+  const wobblePhase = useRef(Math.random() * Math.PI * 2);
 
   const power = useMemo(() => {
     return calculateGeneratorPower(
@@ -232,6 +234,21 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const adjustedSpeed = useMemo(() => {
     return calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, towerHeight + obstacle.y), config.surfaceRoughness);
   }, [config.windSpeed, config.referenceHeight, config.surfaceRoughness, towerHeight, obstacle.y]);
+
+  // Wind turbine wobble in strong winds
+  useFrame((state) => {
+    if (!wobbleRef.current) return;
+    const time = state.clock.elapsedTime;
+    const windStrength = Math.min(config.windSpeed / 20, 1);
+    // Subtle wobble — less than trees, more mechanical
+    const wobbleIntensity = windStrength * 0.025;
+    const angleRad = (config.windAngle * Math.PI) / 180;
+    
+    wobbleRef.current.rotation.x = Math.sin(time * 1.2 + wobblePhase.current) * wobbleIntensity
+      + Math.cos(angleRad) * wobbleIntensity * 0.5;
+    wobbleRef.current.rotation.z = Math.cos(time * 0.8 + wobblePhase.current) * wobbleIntensity * 0.6
+      + Math.sin(angleRad) * wobbleIntensity * 0.5;
+  });
 
   const position: [number, number, number] = [
     obstacle.x + obstacle.width / 2, obstacle.y, obstacle.z + obstacle.depth / 2
@@ -249,11 +266,13 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} scale={scaleVal}>
-      {subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
-      {subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
-      {subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
-      {subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
-      {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+      <group ref={wobbleRef}>
+        {subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
+        {subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
+        {subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+        {subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+        {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+      </group>
 
       <IntakeCone towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} />
 
@@ -263,7 +282,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         }}>
           <div className="text-[7px] text-green-400/80 font-mono">{subtypeName}</div>
           <div className="text-[8px] text-green-400 font-semibold">⚡</div>
-          <div className="text-white text-xs font-mono font-semibold">{powerStr}</div>
+          <div className="text-foreground text-xs font-mono font-semibold">{powerStr}</div>
           <div className="text-[7px] text-green-400/60">Cp={specs.cp}</div>
         </div>
       </Html>

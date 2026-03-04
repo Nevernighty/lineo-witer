@@ -198,6 +198,11 @@ const translations: Record<string, Record<Lang, string>> = {
 
   // Scenarios
   scenarios: { ua: 'Сценарії', en: 'Scenarios' },
+  
+  // Analysis toggles
+  heightRuler: { ua: 'Лінійка', en: 'Ruler' },
+  windProfile: { ua: 'Профіль V', en: 'V Profile' },
+  pressureZones: { ua: 'Тиск', en: 'Pressure' },
 };
 
 export function t(key: string, lang: Lang): string {
