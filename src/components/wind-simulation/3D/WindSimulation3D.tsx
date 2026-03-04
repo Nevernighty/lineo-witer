@@ -1,6 +1,6 @@
 import React, { useState, Suspense, useCallback, useRef, useEffect, useMemo } from 'react';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
-import { OrbitControls, Grid, Cloud } from '@react-three/drei';
+import { OrbitControls, Grid } from '@react-three/drei';
 import { AdvancedParticleSystem } from './AdvancedParticleSystem';
 import { Obstacle3D } from './Obstacle3D';
 import { WindGenerator3D, calculateGeneratorPower } from './WindGenerator3D';
@@ -472,8 +472,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     isDraggingRef.current = false;
   }, []);
 
-  // Show clouds for high humidity scenarios
-  const showClouds = physicsConfig.humidity > 60;
 
   return (
     <div className="relative w-full h-full">
@@ -558,16 +556,6 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           <pointLight position={[30, 15, 30]} intensity={0.4} color="#00ffff" />
           <hemisphereLight args={['#87CEEB', '#363636', 0.3]} />
 
-          {/* Clouds for humid scenarios */}
-          {showClouds && (
-            <group>
-              <Cloud position={[-20, 35, -15]} speed={0.2} opacity={0.3} width={25} depth={8} segments={12} color="#aacccc" />
-              <Cloud position={[20, 40, 20]} speed={0.15} opacity={0.25} width={20} depth={6} segments={10} color="#bbdddd" />
-              {physicsConfig.humidity > 75 && (
-                <Cloud position={[0, 38, -25]} speed={0.25} opacity={0.35} width={30} depth={10} segments={14} color="#99bbbb" />
-              )}
-            </group>
-          )}
 
           <MouseTracker onPositionChange={setGhostPosition} simulationSize={simulationSize} slopeX={physicsConfig.terrainSlopeX} slopeZ={physicsConfig.terrainSlopeZ} />
 
