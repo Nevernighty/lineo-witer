@@ -14,7 +14,7 @@ import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS } from './WindPhysicsEngine';
 import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '../types';
 import { t, type Lang } from '@/utils/i18n';
 import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
-import { Crosshair, MousePointer, Map } from 'lucide-react';
+import { Crosshair, MousePointer, Map as MapIcon } from 'lucide-react';
 import * as THREE from 'three';
 
 interface WindSimulation3DProps {
@@ -507,7 +507,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
               : 'bg-[#0d1117]/90 border-primary/20 text-muted-foreground hover:border-primary/40'
           }`}
         >
-          <Map className="w-3.5 h-3.5" />
+          <MapIcon className="w-3.5 h-3.5" />
           {t('scenarios', lang)}
         </button>
       </div>
@@ -516,7 +516,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       {showScenarios && (
         <div className="absolute top-12 left-[195px] z-30 w-72 bg-[#0d1117]/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
           <div className="px-3 py-2 border-b border-cyan-500/20 flex items-center gap-2">
-            <Map className="w-3.5 h-3.5 text-cyan-400" />
+            <MapIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">{t('scenarios', lang)}</span>
           </div>
           <div className="max-h-80 overflow-y-auto">
