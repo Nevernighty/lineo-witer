@@ -88,3 +88,24 @@
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-stalker-accent/10 text-stalker-accent;
   }
 }
+
+/* Custom scrollbar for scenario panel */
+.scenario-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.scenario-scrollbar::-webkit-scrollbar-track {
+  background: hsl(222 28% 13% / 0.5);
+  border-radius: 3px;
+}
+.scenario-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(120 100% 54% / 0.3);
+  border-radius: 3px;
+  border: 1px solid hsl(120 100% 54% / 0.15);
+}
+.scenario-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(120 100% 54% / 0.5);
+}
+.scenario-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(120 100% 54% / 0.3) hsl(222 28% 13% / 0.5);
+}
