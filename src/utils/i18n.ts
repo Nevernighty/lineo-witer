@@ -203,6 +203,9 @@ const translations: Record<string, Record<Lang, string>> = {
   heightRuler: { ua: 'Лінійка', en: 'Ruler' },
   windProfile: { ua: 'Профіль V', en: 'V Profile' },
   pressureZones: { ua: 'Тиск', en: 'Pressure' },
+  energyDensity: { ua: 'Енерг. W/m²', en: 'Energy W/m²' },
+  turbulenceField: { ua: 'Турбулент.', en: 'Turbulence' },
+  windShearLayer: { ua: 'Зсув α', en: 'Shear α' },
 };
 
 export function t(key: string, lang: Lang): string {

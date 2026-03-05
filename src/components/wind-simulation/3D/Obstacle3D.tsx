@@ -46,29 +46,60 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
   const treeGroupRef = useRef<THREE.Group>(null);
   const wobblePhase = useRef(Math.random() * Math.PI * 2);
 
+  // Wobble ref for buildings too
+  const buildingWobbleRef = useRef<THREE.Group>(null);
+  const buildingPhase = useRef(Math.random() * Math.PI * 2);
+
   useFrame((state) => {
+    const time = state.clock.elapsedTime;
+
+    // Trees: dramatic jelly wobble
     if (obstacle.type === 'tree' && treeGroupRef.current) {
-      const time = state.clock.elapsedTime;
-      // Trees wobble strongly — like jelly
-      const wobbleIntensity = Math.min(windSpeed / 8, 1.5) * 0.15;
-      const freq1 = 1.5 + Math.sin(time * 0.3 + wobblePhase.current) * 0.3;
-      const freq2 = 2.1 + Math.cos(time * 0.5 + wobblePhase.current) * 0.2;
+      const windNorm = Math.min(windSpeed / 6, 2.0);
+      const wobbleIntensity = windNorm * 0.2;
+      const freq1 = 1.2 + Math.sin(time * 0.2 + wobblePhase.current) * 0.4;
+      const freq2 = 2.3 + Math.cos(time * 0.4 + wobblePhase.current) * 0.3;
+      const freq3 = 3.7 + Math.sin(time * 0.7 + wobblePhase.current * 1.5) * 0.2;
       const angleRad = (windAngle * Math.PI) / 180;
       
-      // Multi-frequency wobble for jelly-like effect
-      const wobbleX = Math.sin(time * freq1 + wobblePhase.current) * wobbleIntensity 
-                     + Math.sin(time * freq2 * 1.7) * wobbleIntensity * 0.4
-                     + Math.cos(angleRad) * wobbleIntensity * 0.3;
-      const wobbleZ = Math.cos(time * freq2 + wobblePhase.current * 1.3) * wobbleIntensity * 0.7
-                     + Math.sin(angleRad) * wobbleIntensity * 0.3;
+      // Multi-frequency jelly effect with higher harmonics
+      const wobbleX = Math.sin(time * freq1 + wobblePhase.current) * wobbleIntensity
+                     + Math.sin(time * freq2 * 1.7) * wobbleIntensity * 0.5
+                     + Math.sin(time * freq3 * 2.3) * wobbleIntensity * 0.2
+                     + Math.cos(angleRad) * wobbleIntensity * 0.4;
+      const wobbleZ = Math.cos(time * freq2 + wobblePhase.current * 1.3) * wobbleIntensity * 0.8
+                     + Math.cos(time * freq3 * 1.4 + 0.5) * wobbleIntensity * 0.3
+                     + Math.sin(angleRad) * wobbleIntensity * 0.4;
       
-      // Wind lean: trees lean in wind direction
-      const leanAmount = Math.min(windSpeed / 15, 0.4) * 0.12;
+      // Wind lean: trees bend more in wind direction
+      const leanAmount = Math.min(windSpeed / 10, 0.6) * 0.15;
       const leanX = Math.cos(angleRad) * leanAmount;
       const leanZ = Math.sin(angleRad) * leanAmount;
       
+      // Scale-based wobble at crown (rubber-band effect)
+      const stretchY = 1 + Math.sin(time * freq1 * 1.5) * wobbleIntensity * 0.08;
+      
       treeGroupRef.current.rotation.x = wobbleX + leanX;
       treeGroupRef.current.rotation.z = wobbleZ + leanZ;
+      treeGroupRef.current.scale.y = stretchY;
+    }
+
+    // Buildings/structures: subtle vibration in strong winds
+    if ((obstacle.type === 'building' || obstacle.type === 'skyscraper' || obstacle.type === 'tower') && buildingWobbleRef.current) {
+      const windNorm = Math.min(windSpeed / 15, 1);
+      const vibration = windNorm * 0.008;
+      const angleRad = (windAngle * Math.PI) / 180;
+      buildingWobbleRef.current.rotation.x = Math.sin(time * 2.5 + buildingPhase.current) * vibration + Math.cos(angleRad) * vibration * 0.3;
+      buildingWobbleRef.current.rotation.z = Math.cos(time * 1.8 + buildingPhase.current) * vibration * 0.6 + Math.sin(angleRad) * vibration * 0.3;
+    }
+
+    // Fences: moderate wobble
+    if (obstacle.type === 'fence' && treeGroupRef.current) {
+      const windNorm = Math.min(windSpeed / 10, 1.2);
+      const wobbleIntensity = windNorm * 0.06;
+      const angleRad = (windAngle * Math.PI) / 180;
+      treeGroupRef.current.rotation.x = Math.sin(time * 1.8 + wobblePhase.current) * wobbleIntensity + Math.cos(angleRad) * wobbleIntensity * 0.5;
+      treeGroupRef.current.rotation.z = Math.cos(time * 1.2 + wobblePhase.current) * wobbleIntensity * 0.5;
     }
   });
 
@@ -80,20 +111,29 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
       case 'tree': {
         const trunkH = obstacle.height * 0.5;
         const crownR = obstacle.width * 0.45;
+        // Use obstacle width variation for diverse trees
+        const treeVariant = ((obstacle.width * 7 + obstacle.height * 3) % 4);
+        const crownColor1 = treeVariant < 1 ? '#1a7a1a' : treeVariant < 2 ? '#2d8f2d' : treeVariant < 3 ? '#1a6a2a' : '#3a9a1a';
+        const crownColor2 = treeVariant < 1 ? '#228B22' : treeVariant < 2 ? '#1a7a1a' : treeVariant < 3 ? '#2d7a3d' : '#2d9a2d';
+        const crownColor3 = treeVariant < 1 ? '#2d8f2d' : treeVariant < 2 ? '#3a8a2a' : treeVariant < 3 ? '#1a8a1a' : '#4aaa2a';
         return (
           <group position={[cx, 0, cz]}>
             <group ref={treeGroupRef}>
-              <Cylinder args={[obstacle.width * 0.1, obstacle.width * 0.18, trunkH, 8]} position={[0, trunkH / 2, 0]}>
+              <Cylinder args={[obstacle.width * 0.08, obstacle.width * 0.15, trunkH, 8]} position={[0, trunkH / 2, 0]}>
                 <meshPhongMaterial color="#6B3410" />
               </Cylinder>
               <Sphere args={[crownR, 10, 10]} position={[0, trunkH + crownR * 0.5, 0]}>
-                <meshPhongMaterial color="#1a7a1a" />
+                <meshPhongMaterial color={crownColor1} />
               </Sphere>
               <Sphere args={[crownR * 0.75, 8, 8]} position={[crownR * 0.5, trunkH + crownR * 0.3, crownR * 0.3]}>
-                <meshPhongMaterial color="#228B22" />
+                <meshPhongMaterial color={crownColor2} />
               </Sphere>
-              <Sphere args={[crownR * 0.7, 8, 8]} position={[-crownR * 0.4, trunkH + crownR * 0.6, -crownR * 0.3]}>
-                <meshPhongMaterial color="#2d8f2d" />
+              <Sphere args={[crownR * 0.65, 8, 8]} position={[-crownR * 0.4, trunkH + crownR * 0.6, -crownR * 0.3]}>
+                <meshPhongMaterial color={crownColor3} />
+              </Sphere>
+              {/* Extra crown cluster for variety */}
+              <Sphere args={[crownR * 0.55, 6, 6]} position={[crownR * 0.2, trunkH + crownR * 0.9, crownR * 0.1]}>
+                <meshPhongMaterial color={crownColor1} />
               </Sphere>
               <Cylinder args={[0.12, 0.08, trunkH * 0.4, 4]} position={[crownR * 0.3, trunkH * 0.7, 0]} rotation={[0, 0, -0.5]}>
                 <meshPhongMaterial color="#5a2d0c" />
@@ -101,6 +141,16 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
               <Cylinder args={[0.1, 0.06, trunkH * 0.35, 4]} position={[-crownR * 0.25, trunkH * 0.6, crownR * 0.2]} rotation={[0.3, 0, 0.4]}>
                 <meshPhongMaterial color="#5a2d0c" />
               </Cylinder>
+              {/* Root bumps */}
+              {[0, 1, 2, 3].map(ri => {
+                const a = (ri / 4) * Math.PI * 2;
+                return (
+                  <Sphere key={`root-${ri}`} args={[obstacle.width * 0.08, 4, 4]}
+                    position={[Math.cos(a) * obstacle.width * 0.12, 0.1, Math.sin(a) * obstacle.width * 0.12]}>
+                    <meshPhongMaterial color="#5a3010" />
+                  </Sphere>
+                );
+              })}
             </group>
           </group>
         );
@@ -145,7 +195,7 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
       case 'building': {
         const floors = Math.max(2, Math.round(obstacle.height / 4));
         return (
-          <group position={[cx, 0, cz]}>
+          <group position={[cx, 0, cz]} ref={buildingWobbleRef}>
             <Box args={[obstacle.width, obstacle.height, obstacle.depth]} position={[0, obstacle.height / 2, 0]} material={material} />
             <Box args={[obstacle.width + 0.5, 0.5, obstacle.depth + 0.5]} position={[0, obstacle.height, 0]}>
               <meshPhongMaterial color="#606060" />
@@ -176,7 +226,7 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
         const topH = obstacle.height * 0.25;
         const antennaH = obstacle.height * 0.12;
         return (
-          <group position={[cx, 0, cz]}>
+          <group position={[cx, 0, cz]} ref={buildingWobbleRef}>
             <Box args={[obstacle.width, stepH, obstacle.depth]} position={[0, stepH / 2, 0]}>
               <meshPhongMaterial color="#7a8a9a" transparent opacity={0.85} />
             </Box>
@@ -217,7 +267,7 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
         const legSpread = obstacle.width * 0.4;
         const legR = 0.25;
         return (
-          <group position={[cx, 0, cz]}>
+          <group position={[cx, 0, cz]} ref={buildingWobbleRef}>
             {[[-1,-1],[1,-1],[1,1],[-1,1]].map(([sx, sz], i) => (
               <Cylinder key={i} args={[legR, legR * 1.5, obstacle.height, 6]}
                 position={[sx * legSpread * (1 - 0.3), obstacle.height / 2, sz * legSpread * (1 - 0.3)]}
@@ -266,7 +316,7 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
         const postSpacing = obstacle.width / (postCount - 1);
         const postH = obstacle.height;
         return (
-          <group position={[cx, 0, cz]}>
+          <group position={[cx, 0, cz]} ref={treeGroupRef}>
             {Array.from({ length: postCount }).map((_, i) => (
               <Cylinder key={i} args={[0.15, 0.18, postH, 6]}
                 position={[-obstacle.width / 2 + i * postSpacing, postH / 2, 0]}>
