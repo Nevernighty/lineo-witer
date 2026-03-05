@@ -56,11 +56,11 @@ const GENERATOR_SUCTION_PHYSICS: Record<string, {
   wakeTurbulence: number; // Downstream turbulence intensity
   rotorEfficiency: number; // How efficiently it captures air
 }> = {
-  hawt3: { attractK: 5.0, suctionRadius: 3.5, speedReduction: 0.41, wakeTurbulence: 2.5, rotorEfficiency: 0.45 },
-  hawt2: { attractK: 4.5, suctionRadius: 3.0, speedReduction: 0.37, wakeTurbulence: 3.0, rotorEfficiency: 0.42 },
-  darrieus: { attractK: 3.0, suctionRadius: 2.0, speedReduction: 0.30, wakeTurbulence: 1.8, rotorEfficiency: 0.35 },
-  savonius: { attractK: 2.5, suctionRadius: 1.5, speedReduction: 0.50, wakeTurbulence: 1.2, rotorEfficiency: 0.18 },
-  micro: { attractK: 3.5, suctionRadius: 2.5, speedReduction: 0.35, wakeTurbulence: 2.0, rotorEfficiency: 0.30 },
+  hawt3: { attractK: 7.0, suctionRadius: 4.0, speedReduction: 0.41, wakeTurbulence: 3.0, rotorEfficiency: 0.45 },
+  hawt2: { attractK: 6.0, suctionRadius: 3.5, speedReduction: 0.37, wakeTurbulence: 3.5, rotorEfficiency: 0.42 },
+  darrieus: { attractK: 4.5, suctionRadius: 2.5, speedReduction: 0.30, wakeTurbulence: 2.0, rotorEfficiency: 0.35 },
+  savonius: { attractK: 3.5, suctionRadius: 2.0, speedReduction: 0.50, wakeTurbulence: 1.5, rotorEfficiency: 0.18 },
+  micro: { attractK: 5.0, suctionRadius: 3.0, speedReduction: 0.35, wakeTurbulence: 2.5, rotorEfficiency: 0.30 },
 };
 
 export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
@@ -92,7 +92,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         x: Math.random() * width - width / 2,
         y: particleHeight,
         z: Math.random() * depth - depth / 2,
-        size: Math.random() * 0.4 + 0.3 + (config.humidity / 100) * 0.15,
+        size: Math.random() * 0.6 + 0.5 + (config.humidity / 100) * 0.2,
         speedX: Math.cos(angleRad) * Math.cos(elevationRad) * adjustedSpeed * (0.7 + Math.random() * 0.6),
         speedY: Math.sin(elevationRad) * adjustedSpeed * (0.5 + Math.random() * 0.5),
         speedZ: Math.sin(angleRad) * Math.cos(elevationRad) * adjustedSpeed * (0.7 + Math.random() * 0.6),

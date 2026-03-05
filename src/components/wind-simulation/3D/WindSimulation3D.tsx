@@ -30,7 +30,7 @@ function getTerrainYOffset(x: number, z: number, slopeXDeg: number, slopeZDeg: n
   // Grid rotation: [slopeZ_rad, 0, -slopeX_rad]
   // Around Z-axis by -slopeX: point at +X goes DOWN → offset = -sin(slopeX) * x
   // Around X-axis by +slopeZ: point at +Z goes UP → offset = sin(slopeZ) * z
-  const raw = -Math.sin(slopeXRad) * x + Math.sin(slopeZRad) * z;
+  const raw = -Math.sin(slopeXRad) * x - Math.sin(slopeZRad) * z;
   return Math.max(-8, Math.min(8, raw));
 }
 
@@ -244,11 +244,13 @@ const SCENARIO_PRESETS: ScenarioPreset[] = [
       terrainSlopeX: 2, terrainSlopeZ: 1,
     },
     obstacles: [
-      { id: 'fe-t1', type: 'tree', category: 'vegetation', shape: 'regular', x: -40, y: 0, z: -20, width: 10, height: 22, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
-      { id: 'fe-t2', type: 'tree', category: 'vegetation', shape: 'regular', x: -38, y: 0, z: -5, width: 10, height: 18, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
-      { id: 'fe-t3', type: 'tree', category: 'vegetation', shape: 'regular', x: -42, y: 0, z: 10, width: 10, height: 25, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
-      { id: 'fe-t4', type: 'tree', category: 'vegetation', shape: 'regular', x: -35, y: 0, z: 20, width: 10, height: 20, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
-      { id: 'fe-t5', type: 'tree', category: 'vegetation', shape: 'regular', x: -30, y: 0, z: -15, width: 10, height: 16, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t1', type: 'tree', category: 'vegetation', shape: 'regular', x: -40, y: 0, z: -20, width: 12, height: 26, depth: 12, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t2', type: 'tree', category: 'vegetation', shape: 'regular', x: -38, y: 0, z: -5, width: 8, height: 14, depth: 8, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t3', type: 'tree', category: 'vegetation', shape: 'regular', x: -42, y: 0, z: 10, width: 14, height: 28, depth: 14, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t4', type: 'tree', category: 'vegetation', shape: 'regular', x: -35, y: 0, z: 20, width: 7, height: 12, depth: 7, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t5', type: 'tree', category: 'vegetation', shape: 'regular', x: -30, y: 0, z: -15, width: 10, height: 20, depth: 10, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t6', type: 'tree', category: 'vegetation', shape: 'regular', x: -36, y: 0, z: 28, width: 6, height: 10, depth: 6, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'fe-t7', type: 'tree', category: 'vegetation', shape: 'regular', x: -44, y: 0, z: -30, width: 11, height: 22, depth: 11, material: 'wood', resistance: 0.8, density: 0.6 },
       { id: 'fe-g1', type: 'wind_generator', category: 'energy', shape: 'regular', x: 10, y: 0, z: 0, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.2 },
       { id: 'fe-f1', type: 'fence', category: 'barrier', shape: 'regular', x: -20, y: 0, z: -25, width: 15, height: 3, depth: 1, material: 'wood', resistance: 1.0, density: 0.7 },
     ],
@@ -297,6 +299,71 @@ const SCENARIO_PRESETS: ScenarioPreset[] = [
     ],
     particleCount: 300,
   },
+  {
+    id: 'canyon',
+    name: { ua: 'Каньйон', en: 'Canyon' },
+    description: { ua: 'Вузький прохід між стінами. Ефект тунелю прискорює потік.', en: 'Narrow passage between walls. Tunnel effect accelerates flow.' },
+    config: {
+      windSpeed: 13, windAngle: 0, windElevation: -2,
+      turbulenceIntensity: 0.3, turbulenceScale: 2.0,
+      gustFrequency: 8, gustIntensity: 0.35,
+      temperature: 12, humidity: 35, altitude: 600,
+      surfaceRoughness: 0.4, referenceHeight: 10,
+      terrainSlopeX: 0, terrainSlopeZ: 0,
+    },
+    obstacles: [
+      { id: 'cn-w1', type: 'wall', category: 'barrier', shape: 'regular', x: -15, y: 0, z: -35, width: 25, height: 20, depth: 5, material: 'concrete', resistance: 1.2, density: 0.9 },
+      { id: 'cn-w2', type: 'wall', category: 'barrier', shape: 'regular', x: -15, y: 0, z: 30, width: 25, height: 22, depth: 5, material: 'concrete', resistance: 1.2, density: 0.9 },
+      { id: 'cn-g1', type: 'wind_generator', category: 'energy', shape: 'regular', x: 20, y: 0, z: 0, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'darrieus', scale: 1.1 },
+    ],
+    particleCount: 400,
+  },
+  {
+    id: 'park',
+    name: { ua: 'Парк', en: 'Park' },
+    description: { ua: 'Міський парк з різноманітними деревами різних розмірів.', en: 'City park with diverse trees of various sizes.' },
+    config: {
+      windSpeed: 5, windAngle: 60, windElevation: 0,
+      turbulenceIntensity: 0.35, turbulenceScale: 1.3,
+      gustFrequency: 4, gustIntensity: 0.15,
+      temperature: 22, humidity: 55, altitude: 80,
+      surfaceRoughness: 0.3, referenceHeight: 10,
+      terrainSlopeX: 1, terrainSlopeZ: -1,
+    },
+    obstacles: [
+      { id: 'pk-t1', type: 'tree', category: 'vegetation', shape: 'regular', x: -30, y: 0, z: -20, width: 14, height: 28, depth: 14, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'pk-t2', type: 'tree', category: 'vegetation', shape: 'regular', x: -15, y: 0, z: -10, width: 6, height: 10, depth: 6, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'pk-t3', type: 'tree', category: 'vegetation', shape: 'regular', x: 5, y: 0, z: 15, width: 11, height: 22, depth: 11, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'pk-t4', type: 'tree', category: 'vegetation', shape: 'regular', x: 20, y: 0, z: -15, width: 8, height: 15, depth: 8, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'pk-t5', type: 'tree', category: 'vegetation', shape: 'regular', x: -5, y: 0, z: 30, width: 13, height: 25, depth: 13, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'pk-t6', type: 'tree', category: 'vegetation', shape: 'regular', x: 30, y: 0, z: 5, width: 5, height: 8, depth: 5, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'pk-t7', type: 'tree', category: 'vegetation', shape: 'regular', x: -20, y: 0, z: 20, width: 9, height: 18, depth: 9, material: 'wood', resistance: 0.8, density: 0.6 },
+      { id: 'pk-f1', type: 'fence', category: 'barrier', shape: 'regular', x: -40, y: 0, z: -30, width: 20, height: 3, depth: 1, material: 'wood', resistance: 1.0, density: 0.7 },
+      { id: 'pk-g1', type: 'wind_generator', category: 'energy', shape: 'regular', x: 35, y: 0, z: -25, width: 6, height: 20, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'micro', scale: 0.7 },
+    ],
+    particleCount: 300,
+  },
+  {
+    id: 'offshore',
+    name: { ua: 'Офшор', en: 'Offshore' },
+    description: { ua: 'Морська платформа з потужними вітрами та мінімальною турбулентністю.', en: 'Offshore platform with powerful winds and minimal turbulence.' },
+    config: {
+      windSpeed: 15, windAngle: 270, windElevation: 0,
+      turbulenceIntensity: 0.08, turbulenceScale: 0.4,
+      gustFrequency: 2, gustIntensity: 0.08,
+      temperature: 10, humidity: 90, altitude: 0,
+      surfaceRoughness: 0.0002, referenceHeight: 10,
+      terrainSlopeX: 0, terrainSlopeZ: 0,
+    },
+    obstacles: [
+      { id: 'os-g1', type: 'wind_generator', category: 'energy', shape: 'regular', x: -30, y: 0, z: -20, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.6 },
+      { id: 'os-g2', type: 'wind_generator', category: 'energy', shape: 'regular', x: -30, y: 0, z: 20, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.6 },
+      { id: 'os-g3', type: 'wind_generator', category: 'energy', shape: 'regular', x: 10, y: 0, z: -20, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.6 },
+      { id: 'os-g4', type: 'wind_generator', category: 'energy', shape: 'regular', x: 10, y: 0, z: 20, width: 6, height: 30, depth: 6, material: 'steel', resistance: 0.3, density: 0.5, generatorSubtype: 'hawt3', scale: 1.6 },
+      { id: 'os-t1', type: 'tower', category: 'structure', shape: 'regular', x: 35, y: 0, z: 0, width: 5, height: 30, depth: 5, material: 'steel', resistance: 1.2, density: 0.9 },
+    ],
+    particleCount: 500,
+  },
 ];
 
 const MouseTracker: React.FC<{
@@ -335,7 +402,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   });
   const [particleCount, setParticleCount] = useState(250);
   const [particleImpact, setParticleImpact] = useState(1.0);
-  const [particleTrailLength, setParticleTrailLength] = useState(1.0);
+  const [particleTrailLength, setParticleTrailLength] = useState(3.0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [selectedObstacleType, setSelectedObstacleType] = useState<string>('building');
   const [selectedGeneratorSubtype, setSelectedGeneratorSubtype] = useState<GeneratorSubtype>('hawt3');
@@ -346,6 +413,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [showHeightRuler, setShowHeightRuler] = useState(false);
   const [showWindProfile, setShowWindProfile] = useState(false);
   const [showPressureMap, setShowPressureMap] = useState(false);
+  const [showEnergyDensity, setShowEnergyDensity] = useState(false);
+  const [showTurbulenceField, setShowTurbulenceField] = useState(false);
+  const [showWindShear, setShowWindShear] = useState(false);
   const [ghostPosition, setGhostPosition] = useState<[number, number, number] | null>(null);
   const [obstacleEnergies, setObstacleEnergies] = useState<Map<string, number>>(new Map());
   const [collisionEffects, setCollisionEffects] = useState<Array<{
@@ -673,25 +743,23 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </button>
       </div>
 
-      {/* Analysis checkboxes — right of scenarios button */}
-      <div className="absolute top-12 left-[195px] z-20 flex gap-2" style={{ pointerEvents: 'auto' }}>
-        <label className="flex items-center gap-1 cursor-pointer group">
-          <input type="checkbox" checked={showHeightRuler} onChange={(e) => setShowHeightRuler(e.target.checked)} 
-            className="w-3 h-3 accent-primary rounded" />
-          <Ruler className="w-3 h-3 text-primary/60 group-hover:text-primary" />
-          <span className="text-[9px] font-mono text-muted-foreground group-hover:text-foreground">{t('heightRuler', lang)}</span>
-        </label>
-        <label className="flex items-center gap-1 cursor-pointer group">
-          <input type="checkbox" checked={showWindProfile} onChange={(e) => setShowWindProfile(e.target.checked)} 
-            className="w-3 h-3 accent-cyan-400 rounded" />
-          <Eye className="w-3 h-3 text-cyan-400/60 group-hover:text-cyan-400" />
-          <span className="text-[9px] font-mono text-muted-foreground group-hover:text-foreground">{t('windProfile', lang)}</span>
-        </label>
-        <label className="flex items-center gap-1 cursor-pointer group">
-          <input type="checkbox" checked={showPressureMap} onChange={(e) => setShowPressureMap(e.target.checked)} 
-            className="w-3 h-3 accent-orange-400 rounded" />
-          <span className="text-[9px] font-mono text-muted-foreground group-hover:text-foreground">{t('pressureZones', lang)}</span>
-        </label>
+      {/* Analysis checkboxes — 6 items in 2 rows */}
+      <div className="absolute top-12 left-[195px] z-20 grid grid-cols-3 gap-x-3 gap-y-1" style={{ pointerEvents: 'auto' }}>
+        {[
+          { key: 'ruler', checked: showHeightRuler, set: setShowHeightRuler, icon: '📏', label: t('heightRuler', lang), color: 'text-primary' },
+          { key: 'vprofile', checked: showWindProfile, set: setShowWindProfile, icon: '🌬️', label: t('windProfile', lang), color: 'text-cyan-400' },
+          { key: 'pressure', checked: showPressureMap, set: setShowPressureMap, icon: '🔴', label: t('pressureZones', lang), color: 'text-orange-400' },
+          { key: 'energy', checked: showEnergyDensity, set: setShowEnergyDensity, icon: '⚡', label: t('energyDensity', lang), color: 'text-yellow-400' },
+          { key: 'turbulence', checked: showTurbulenceField, set: setShowTurbulenceField, icon: '🌀', label: t('turbulenceField', lang), color: 'text-purple-400' },
+          { key: 'shear', checked: showWindShear, set: setShowWindShear, icon: '📊', label: t('windShearLayer', lang), color: 'text-emerald-400' },
+        ].map(item => (
+          <label key={item.key} className="flex items-center gap-1 cursor-pointer group">
+            <input type="checkbox" checked={item.checked} onChange={(e) => item.set(e.target.checked)}
+              className="w-3 h-3 accent-primary rounded" />
+            <span className="text-[8px]">{item.icon}</span>
+            <span className={`text-[9px] font-mono text-muted-foreground group-hover:text-foreground transition-colors`}>{item.label}</span>
+          </label>
+        ))}
       </div>
 
       {/* Scenario picker dropdown with custom scrollbar */}
@@ -785,6 +853,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
           {/* Pressure zones visualization */}
           {showPressureMap && obstacles.map((obs, i) => {
+            if (obs.type === 'wind_generator') return null;
             const cx = obs.x + obs.width / 2;
             const cz = obs.z + obs.depth / 2;
             const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
@@ -792,21 +861,110 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             const highPressureZ = cz - Math.sin(angleRad) * obs.depth;
             const lowPressureX = cx + Math.cos(angleRad) * obs.width * 1.5;
             const lowPressureZ = cz + Math.sin(angleRad) * obs.depth * 1.5;
+            const pressureIntensity = Math.min(physicsConfig.windSpeed / 15, 1);
             return (
               <group key={`pressure-${i}`}>
-                {/* High pressure (windward) — red */}
+                {/* High pressure (windward) — red with label */}
                 <mesh position={[highPressureX, obs.height * 0.5, highPressureZ]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <circleGeometry args={[obs.width * 0.4, 16]} />
-                  <meshBasicMaterial color="#ff4444" transparent opacity={0.15} side={THREE.DoubleSide} />
+                  <circleGeometry args={[obs.width * 0.5 * (0.5 + pressureIntensity * 0.5), 20]} />
+                  <meshBasicMaterial color="#ff4444" transparent opacity={0.15 + pressureIntensity * 0.1} side={THREE.DoubleSide} />
                 </mesh>
-                {/* Low pressure (leeward) — blue */}
+                <Html position={[highPressureX, obs.height * 0.7, highPressureZ]} center style={{ pointerEvents: 'none' }}>
+                  <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(255,50,50,0.3)', color: '#ff6666' }}>
+                    H+ {(0.5 * physicsConfig.airDensity * physicsConfig.windSpeed * physicsConfig.windSpeed).toFixed(0)} Pa
+                  </div>
+                </Html>
+                {/* Low pressure (leeward) — blue with label */}
                 <mesh position={[lowPressureX, obs.height * 0.5, lowPressureZ]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <circleGeometry args={[obs.width * 0.5, 16]} />
-                  <meshBasicMaterial color="#4444ff" transparent opacity={0.12} side={THREE.DoubleSide} />
+                  <circleGeometry args={[obs.width * 0.6 * (0.5 + pressureIntensity * 0.5), 20]} />
+                  <meshBasicMaterial color="#4444ff" transparent opacity={0.12 + pressureIntensity * 0.08} side={THREE.DoubleSide} />
                 </mesh>
+                <Html position={[lowPressureX, obs.height * 0.7, lowPressureZ]} center style={{ pointerEvents: 'none' }}>
+                  <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(50,50,255,0.3)', color: '#6666ff' }}>
+                    L-
+                  </div>
+                </Html>
               </group>
             );
           })}
+
+          {/* Energy Density visualization — colored height bands */}
+          {showEnergyDensity && (
+            <group position={[48, 0, 48]}>
+              {[5, 15, 25, 35, 45].map(h => {
+                const windAtH = calculateWindShear(physicsConfig.windSpeed, physicsConfig.referenceHeight, h, physicsConfig.surfaceRoughness);
+                const power = 0.5 * physicsConfig.airDensity * Math.pow(windAtH, 3);
+                const intensity = Math.min(power / 1500, 1);
+                return (
+                  <group key={`ed-${h}`}>
+                    <mesh position={[0, h, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+                      <ringGeometry args={[1, 3, 20]} />
+                      <meshBasicMaterial color={intensity > 0.5 ? '#ff8800' : '#00aaff'} transparent opacity={0.08 + intensity * 0.15} side={THREE.DoubleSide} />
+                    </mesh>
+                    <Html position={[4, h, 0]} center style={{ pointerEvents: 'none' }}>
+                      <div className="text-[7px] font-mono px-1 rounded" style={{ 
+                        backgroundColor: 'rgba(0,0,0,0.8)', color: intensity > 0.5 ? '#ffaa33' : '#44aaff',
+                        border: `1px solid ${intensity > 0.5 ? 'rgba(255,136,0,0.4)' : 'rgba(0,170,255,0.4)'}`
+                      }}>
+                        {h}m: {power.toFixed(0)} W/m²
+                      </div>
+                    </Html>
+                  </group>
+                );
+              })}
+            </group>
+          )}
+
+          {/* Turbulence field visualization — spinning markers */}
+          {showTurbulenceField && (
+            <group>
+              {[[-20, 10, -20], [0, 20, 0], [20, 10, 20], [-15, 30, 15], [15, 15, -15]].map(([px, py, pz], i) => {
+                const ti = physicsConfig.turbulenceIntensity * physicsConfig.windSpeed;
+                const size = 1 + ti * 0.3;
+                return (
+                  <group key={`turb-${i}`} position={[px, py, pz]}>
+                    <mesh rotation={[Math.PI / 2, 0, 0]}>
+                      <torusGeometry args={[size, 0.1, 6, 16]} />
+                      <meshBasicMaterial color="#aa44ff" transparent opacity={0.15 + ti * 0.02} side={THREE.DoubleSide} />
+                    </mesh>
+                    <Html position={[size + 1, 0, 0]} center style={{ pointerEvents: 'none' }}>
+                      <div className="text-[6px] font-mono px-0.5 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.7)', color: '#bb66ff' }}>
+                        TI={physicsConfig.turbulenceIntensity.toFixed(2)}
+                      </div>
+                    </Html>
+                  </group>
+                );
+              })}
+            </group>
+          )}
+
+          {/* Wind shear layer visualization — horizontal gradient bands */}
+          {showWindShear && (
+            <group position={[-48, 0, 48]}>
+              {[2, 10, 30, 50, 80].map((h, i, arr) => {
+                const speedH = calculateWindShear(physicsConfig.windSpeed, physicsConfig.referenceHeight, h, physicsConfig.surfaceRoughness);
+                const nextH = arr[i + 1] || h + 20;
+                const speedNext = calculateWindShear(physicsConfig.windSpeed, physicsConfig.referenceHeight, nextH, physicsConfig.surfaceRoughness);
+                const shearExp = h > 1 ? Math.log(speedH / (physicsConfig.windSpeed || 1)) / Math.log(h / physicsConfig.referenceHeight) : 0;
+                return (
+                  <group key={`shear-${h}`}>
+                    <mesh position={[0, h, 0]}>
+                      <boxGeometry args={[6, 0.15, 0.15]} />
+                      <meshBasicMaterial color="#22ff88" transparent opacity={0.3 + (speedH / 20) * 0.3} />
+                    </mesh>
+                    <Html position={[5, h, 0]} center style={{ pointerEvents: 'none' }}>
+                      <div className="text-[7px] font-mono px-1 rounded" style={{ 
+                        backgroundColor: 'rgba(0,0,0,0.85)', color: '#44ffaa',
+                        border: '1px solid rgba(34,255,136,0.3)'
+                      }}>
+                        {h}m: {speedH.toFixed(1)}m/s α≈{Math.abs(shearExp).toFixed(2)}
+                      </div>
+                    </Html>
+                  </group>
+                );
+              })}
+            </group>
+          )}
 
           {/* Objects stay upright — terrain Y offset only */}
           <group>

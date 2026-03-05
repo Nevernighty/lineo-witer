@@ -82,14 +82,14 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   const posHistoryRef = useRef<Float32Array[]>([]);
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
-    vertexColors: true, transparent: true, opacity: 0.95
+    vertexColors: true, transparent: true, opacity: 1.0
   }), []);
 
   const trailMaterials = useMemo(() => [
+    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
     new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }),
     new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }),
     new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.06, blending: THREE.AdditiveBlending, depthWrite: false }),
   ], []);
 
   const arrowAngleRad = (windAngle * Math.PI) / 180;
@@ -177,7 +177,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
       // Update material opacity based on trailLengthMultiplier
       const baseMat = trailMaterials[seg];
-      baseMat.opacity = trailActive ? [0.35, 0.22, 0.12, 0.06][seg] * trailLengthMultiplier : 0;
+      baseMat.opacity = trailActive ? [0.5, 0.35, 0.22, 0.12][seg] * Math.min(trailLengthMultiplier, 3) : 0;
 
       for (let i = 0; i < count; i++) {
         if (!trailActive) {
