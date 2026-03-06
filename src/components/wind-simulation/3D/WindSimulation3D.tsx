@@ -1016,6 +1016,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
               onObstacleEnergyUpdate={handleObstacleEnergyUpdate}
               particleImpact={particleImpact}
               particleTrailLength={particleTrailLength}
+              glowIntensity={particleGlow}
             />
 
             <CollisionEffectsManager collisions={collisionEffects} onRemoveCollision={handleRemoveCollision} />
@@ -1050,6 +1051,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
                     obstacle={obstacle}
                     windSpeed={physicsConfig.windSpeed}
                     windAngle={physicsConfig.windAngle}
+                    wobbliness={wobbliness}
                     isSelected={interactionMode === 'select' && selectedObstacleIndex === index}
                   />
                 </group>
@@ -1093,6 +1095,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           onParticleImpactChange={setParticleImpact}
           particleTrailLength={particleTrailLength}
           onParticleTrailLengthChange={setParticleTrailLength}
+          wobbliness={wobbliness}
+          onWobblinessChange={setWobbliness}
+          particleGlow={particleGlow}
+          onParticleGlowChange={setParticleGlow}
         />
       </div>
 
