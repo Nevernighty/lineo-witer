@@ -15,16 +15,28 @@ interface InstancedParticlesProps {
   impactMultiplier?: number;
   trailLengthMultiplier?: number;
   windAngle?: number;
+  glowIntensity?: number;
 }
 
+// Arrow-like elongated particle geometry for directional visibility
 const createParticleGeometry = () => {
   const geometry = new THREE.BufferGeometry();
+  // Elongated arrow shape: nose at +Z, tail at -Z
   const vertices = new Float32Array([
-    0, 0, 0.8,  -0.18, 0, 0,  0, 0.18, 0,
-    0.18, 0, 0,  0, -0.18, 0,  0, 0, -0.25,
+    // Nose (front point)
+    0, 0, 1.2,
+    // Body cross-section (4 points)
+    -0.15, 0.1, 0,
+    0.15, 0.1, 0,
+    0.15, -0.1, 0,
+    -0.15, -0.1, 0,
+    // Tail (back point, slightly wider)
+    0, 0, -0.4,
   ]);
   const indices = new Uint16Array([
+    // Nose triangles
     0, 1, 2,  0, 2, 3,  0, 3, 4,  0, 4, 1,
+    // Tail triangles
     5, 2, 1,  5, 3, 2,  5, 4, 3,  5, 1, 4,
   ]);
   geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
@@ -33,52 +45,58 @@ const createParticleGeometry = () => {
   return geometry;
 };
 
-// Speed-based color: blue (slow) -> green (medium) -> orange/red (fast)
-const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number) => {
-  const maxSpeed = 15;
+// Enhanced speed coloring with better distinction
+const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
+  const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
 
   if (absorbed) {
-    // Absorption: bright yellow-white pulse
-    c.setRGB(1, 0.95, 0.4);
+    const pulse = 0.8 + Math.sin(Date.now() * 0.02) * 0.2;
+    c.setRGB(1 * pulse * glow, 0.95 * pulse * glow, 0.3 * pulse);
     return;
   }
 
   if (hasCollided) {
     const intensity = Math.min(t * impactMul, 1);
-    c.setRGB(1, 0.3 + (1 - intensity) * 0.4, 0.05);
+    c.setRGB(Math.min(1, (1 + intensity * 0.5) * glow), 0.2 + (1 - intensity) * 0.3, 0.02);
     return;
   }
 
-  if (t < 0.33) {
-    const p = t / 0.33;
-    c.setRGB(0.1, 0.3 + p * 0.5, 0.8 + p * 0.2);
-  } else if (t < 0.66) {
-    const p = (t - 0.33) / 0.33;
-    c.setRGB(0.1 + p * 0.1, 0.8, 1 - p * 0.7);
+  // Blue → cyan → green → yellow → orange gradient
+  if (t < 0.2) {
+    const p = t / 0.2;
+    c.setRGB(0.1 * glow, 0.2 + p * 0.4, (0.9 + p * 0.1) * glow);
+  } else if (t < 0.4) {
+    const p = (t - 0.2) / 0.2;
+    c.setRGB(0.1 * glow, (0.6 + p * 0.4) * glow, (1 - p * 0.5) * glow);
+  } else if (t < 0.65) {
+    const p = (t - 0.4) / 0.25;
+    c.setRGB((0.1 + p * 0.15) * glow, (1.0) * glow, (0.5 - p * 0.3) * glow);
+  } else if (t < 0.85) {
+    const p = (t - 0.65) / 0.2;
+    c.setRGB((0.25 + p * 0.75) * glow, (1 - p * 0.2) * glow, (0.2 - p * 0.15) * glow);
   } else {
-    const p = (t - 0.66) / 0.34;
-    c.setRGB(0.2 + p * 0.8, 0.8 - p * 0.3, 0.3 - p * 0.25);
+    const p = (t - 0.85) / 0.15;
+    c.setRGB(Math.min(1, (1 + p * 0.3) * glow), (0.8 - p * 0.4) * glow, 0.05 * glow);
   }
 };
 
-const TRAIL_SEGMENTS = 4;
+const TRAIL_SEGMENTS = 5;
 
 export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   particles,
   impactMultiplier = 1.0,
   trailLengthMultiplier = 1.0,
-  windAngle = 0
+  windAngle = 0,
+  glowIntensity = 1.0
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
-  // 4 trail segment meshes
-  const trailRefs = useRef<(THREE.InstancedMesh | null)[]>([null, null, null, null]);
+  const trailRefs = useRef<(THREE.InstancedMesh | null)[]>(Array(TRAIL_SEGMENTS).fill(null));
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particleGeometry = useMemo(() => createParticleGeometry(), []);
   const tempColor = useMemo(() => new THREE.Color(), []);
   
-  // Position history buffer: [particleIndex][segmentIndex] = {x,y,z}
   const posHistoryRef = useRef<Float32Array[]>([]);
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
@@ -86,10 +104,11 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   }), []);
 
   const trailMaterials = useMemo(() => [
-    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.12, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: '#00ff66', transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: '#00ff44', transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }),
+    new THREE.MeshBasicMaterial({ color: '#00ff22', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false }),
   ], []);
 
   const arrowAngleRad = (windAngle * Math.PI) / 180;
@@ -99,11 +118,10 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     const time = state.clock.elapsedTime;
     const count = particles.length;
 
-    // Initialize position history if needed
+    // Initialize position history
     if (posHistoryRef.current.length !== TRAIL_SEGMENTS || 
         (posHistoryRef.current[0] && posHistoryRef.current[0].length !== count * 3)) {
       posHistoryRef.current = Array.from({ length: TRAIL_SEGMENTS }, () => new Float32Array(count * 3));
-      // Fill with current positions
       for (let seg = 0; seg < TRAIL_SEGMENTS; seg++) {
         for (let i = 0; i < count; i++) {
           const p = particles[i];
@@ -116,11 +134,10 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       }
     }
 
-    // Shift history: move each segment back one
+    // Shift history
     for (let seg = TRAIL_SEGMENTS - 1; seg > 0; seg--) {
       posHistoryRef.current[seg].set(posHistoryRef.current[seg - 1]);
     }
-    // Store current positions in segment 0
     for (let i = 0; i < count; i++) {
       const p = particles[i];
       if (p) {
@@ -146,20 +163,20 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       }
       
       const isAbsorbed = particle.absorbed || false;
-      let baseScale = particle.size * (particle.hasCollided ? impactMultiplier * 1.3 : 1);
+      let baseScale = particle.size * (particle.hasCollided ? impactMultiplier * 1.4 : 1);
       if (isAbsorbed) {
-        baseScale *= 1.5 + Math.sin(time * 10) * 0.3;
+        baseScale *= 1.6 + Math.sin(time * 12) * 0.35;
       }
-      const speedScale = Math.min(1 + speed * 0.18, 3.5);
-      const pulse = 1 + Math.sin(time * 3 + i * 0.5) * 0.05;
-      const lateralCompress = Math.max(0.5, 1 - speed * 0.03);
+      // Elongate more by speed for directional clarity
+      const speedScale = Math.min(1 + speed * 0.22, 4.0);
+      const pulse = 1 + Math.sin(time * 3 + i * 0.5) * 0.04;
+      const lateralCompress = Math.max(0.4, 1 - speed * 0.04);
       dummy.scale.set(baseScale * speedScale * pulse, baseScale * pulse * lateralCompress, baseScale * pulse * lateralCompress);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
-      // Speed-based coloring
       if (meshRef.current!.instanceColor) {
-        getSpeedColor(tempColor, speed, particle.hasCollided, isAbsorbed, impactMultiplier);
+        getSpeedColor(tempColor, speed, particle.hasCollided, isAbsorbed, impactMultiplier, glowIntensity);
         meshRef.current!.instanceColor.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
       }
     }
@@ -169,15 +186,14 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
     // Trail segments
     const trailActive = trailLengthMultiplier > 0.01;
-    const trailScales = [0.7, 0.5, 0.35, 0.2];
+    const trailScales = [0.65, 0.5, 0.35, 0.22, 0.12];
 
     for (let seg = 0; seg < TRAIL_SEGMENTS; seg++) {
       const trailMesh = trailRefs.current[seg];
       if (!trailMesh) continue;
 
-      // Update material opacity based on trailLengthMultiplier
       const baseMat = trailMaterials[seg];
-      baseMat.opacity = trailActive ? [0.5, 0.35, 0.22, 0.12][seg] * Math.min(trailLengthMultiplier, 3) : 0;
+      baseMat.opacity = trailActive ? [0.55, 0.4, 0.28, 0.16, 0.08][seg] * Math.min(trailLengthMultiplier, 4) * glowIntensity : 0;
 
       for (let i = 0; i < count; i++) {
         if (!trailActive) {
@@ -222,7 +238,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
   return (
     <group>
-      {/* Trail segments (rendered behind particles) */}
+      {/* Trail segments */}
       {trailMaterials.map((mat, seg) => (
         <instancedMesh
           key={`trail-${seg}`}

@@ -32,6 +32,10 @@ interface AdvancedWindControlsProps {
   onParticleImpactChange?: (v: number) => void;
   particleTrailLength?: number;
   onParticleTrailLengthChange?: (v: number) => void;
+  wobbliness?: number;
+  onWobblinessChange?: (v: number) => void;
+  particleGlow?: number;
+  onParticleGlowChange?: (v: number) => void;
 }
 
 const GlowSlider: React.FC<{
@@ -86,7 +90,9 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   showWakeZones = false, onToggleWakeZones, showLocalHits = false,
   onToggleLocalHits, lang, particleCount = 250, onParticleCountChange,
   particleImpact = 1.0, onParticleImpactChange,
-  particleTrailLength = 1.0, onParticleTrailLengthChange
+  particleTrailLength = 1.0, onParticleTrailLengthChange,
+  wobbliness = 1.0, onWobblinessChange,
+  particleGlow = 1.0, onParticleGlowChange
 }) => {
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
     const newConfig = { ...config, [key]: value };
@@ -139,7 +145,6 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
               min={50} max={2000} step={50} label={t('particleCount', lang)} displayValue={`${particleCount}`}
               infoText={t('infoParticleCount', lang)} />
           )}
-          {/* Particle appearance settings */}
           {onParticleImpactChange && (
             <GlowSlider value={particleImpact} onChange={(v) => onParticleImpactChange(v)}
               min={0.1} max={3.0} step={0.1} label={t('particleImpact', lang)} displayValue={`${particleImpact.toFixed(1)}x`}
@@ -149,6 +154,11 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             <GlowSlider value={particleTrailLength} onChange={(v) => onParticleTrailLengthChange(v)}
               min={0} max={10.0} step={0.5} label={t('particleTrail', lang)} displayValue={`${particleTrailLength.toFixed(1)}x`}
               infoText={t('infoParticleTrail', lang)} />
+          )}
+          {onParticleGlowChange && (
+            <GlowSlider value={particleGlow} onChange={(v) => onParticleGlowChange(v)}
+              min={0.2} max={3.0} step={0.1} label={t('particleGlow', lang)} displayValue={`${particleGlow.toFixed(1)}x`}
+              infoText={t('infoParticleGlow', lang)} />
           )}
         </TabsContent>
 
@@ -165,6 +175,11 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <GlowSlider value={config.gustIntensity} onChange={(v) => updateConfig('gustIntensity', v)}
             min={0} max={1} step={0.05} label={t('gustPower', lang)} displayValue={`${(config.gustIntensity * 100).toFixed(0)}%`}
             infoText={t('infoGustPower', lang)} />
+          {onWobblinessChange && (
+            <GlowSlider value={wobbliness} onChange={(v) => onWobblinessChange(v)}
+              min={0} max={3.0} step={0.1} label={t('wobbliness', lang)} displayValue={`${wobbliness.toFixed(1)}x`}
+              infoText={t('infoWobbliness', lang)} />
+          )}
         </TabsContent>
 
         <TabsContent value="atmo" className="p-3 space-y-3 mt-0">

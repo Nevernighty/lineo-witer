@@ -14,6 +14,8 @@ const translations: Record<string, Record<Lang, string>> = {
   scale: { ua: 'Масштаб', en: 'Scale' },
   gustFreq: { ua: 'Част. поривів', en: 'Gust Freq' },
   gustPower: { ua: 'Сила поривів', en: 'Gust Power' },
+  wobbliness: { ua: 'Хитавиця', en: 'Wobbliness' },
+  infoWobbliness: { ua: 'Коефіцієнт деформації об\'єктів від вітру. Дерева та паркани хитаються як желе. Більше = сильніша анімація.', en: 'Object deformation coefficient from wind. Trees and fences wobble like jelly. Higher = stronger animation.' },
   
   // Atmosphere tab
   temperature: { ua: 'Температура', en: 'Temperature' },
@@ -189,7 +191,7 @@ const translations: Record<string, Record<Lang, string>> = {
   particleImpact: { ua: 'Імпакт', en: 'Impact' },
   particleTrail: { ua: 'Слід', en: 'Trail' },
   infoParticleImpact: { ua: 'Множник розміру та яскравості при колізії. Більше = помітніше зіткнення.', en: 'Collision size & brightness multiplier. Higher = more visible impacts.' },
-  infoParticleTrail: { ua: 'Довжина сліду частинки. 0 = без сліду, 2 = довгий яскравий слід.', en: 'Particle trail length. 0 = no trail, 2 = long bright trail.' },
+  infoParticleTrail: { ua: 'Довжина сліду частинки. 0 = без сліду, 10 = дуже довгий яскравий слід.', en: 'Particle trail length. 0 = no trail, 10 = very long bright trail.' },
 
   // Select mode
   placeMode: { ua: 'Встановити', en: 'Place' },
@@ -199,13 +201,33 @@ const translations: Record<string, Record<Lang, string>> = {
   // Scenarios
   scenarios: { ua: 'Сценарії', en: 'Scenarios' },
   
-  // Analysis toggles
+  // Analysis toggles - existing 6
   heightRuler: { ua: 'Лінійка', en: 'Ruler' },
   windProfile: { ua: 'Профіль V', en: 'V Profile' },
   pressureZones: { ua: 'Тиск', en: 'Pressure' },
   energyDensity: { ua: 'Енерг. W/m²', en: 'Energy W/m²' },
   turbulenceField: { ua: 'Турбулент.', en: 'Turbulence' },
   windShearLayer: { ua: 'Зсув α', en: 'Shear α' },
+  
+  // Analysis toggles - new 3
+  wakeMap: { ua: 'Карта слідів', en: 'Wake Map' },
+  capacityFactor: { ua: 'Коеф. потужн.', en: 'Capacity Factor' },
+  betzOverlay: { ua: 'Бетц зони', en: 'Betz Zones' },
+  
+  // Analysis info tooltips
+  infoHeightRuler: { ua: 'Вертикальна шкала з реальними показниками швидкості вітру V(h) та густини потужності P/A = 0.5ρV³ на кожній висоті.', en: 'Vertical scale showing real wind speed V(h) and power density P/A = 0.5ρV³ at each height.' },
+  infoWindProfile: { ua: 'Візуалізація профілю вітру за степеневим законом V(h) = Vref(h/href)^α. Стрілки показують швидкість на різних висотах.', en: 'Wind profile visualization using power law V(h) = Vref(h/href)^α. Arrows show speed at various heights.' },
+  infoPressureZones: { ua: 'Зони тиску перед (H+) та позаду (L-) перешкод. Формула: ΔP = 0.5ρV² (динамічний тиск).', en: 'Pressure zones upstream (H+) and downstream (L-) of obstacles. Formula: ΔP = 0.5ρV².' },
+  infoEnergyDensity: { ua: 'Кольорові кільця показують густину енергії вітру W/m² на різних висотах. Жовтогарячий = висока енергія, синій = низька.', en: 'Colored rings show wind energy density W/m² at various heights. Orange = high, blue = low energy.' },
+  infoTurbulenceField: { ua: 'Тороїдні маркери візуалізують інтенсивність турбулентності TI = σᵥ/V̄ у різних точках просторового поля.', en: 'Toroid markers visualize turbulence intensity TI = σᵥ/V̄ at various spatial field points.' },
+  infoWindShear: { ua: 'Шари зсуву вітру з показником α (roughness exponent). Показує як швидкість змінюється з висотою та коефіцієнт шорсткості.', en: 'Wind shear layers with α exponent. Shows how speed changes with height and roughness coefficient.' },
+  infoWakeMap: { ua: 'Візуалізація зон аеродинамічного сліду за перешкодами та турбінами. Показує дефіцит швидкості та зони турбулентності.', en: 'Visualization of aerodynamic wake zones behind obstacles and turbines. Shows velocity deficit and turbulence zones.' },
+  infoCapacityFactor: { ua: 'Коефіцієнт використання потужності CF = Pactual/Prated. Показує реальну ефективність генераторів відносно номінальної.', en: 'Capacity factor CF = Pactual/Prated. Shows actual generator efficiency relative to rated power.' },
+  infoBetzOverlay: { ua: 'Зони ліміту Бетца (59.3%) навколо турбін. Показує теоретичний максимум захоплення енергії вітру.', en: 'Betz limit (59.3%) zones around turbines. Shows theoretical max wind energy capture.' },
+
+  // Appearance settings
+  particleGlow: { ua: 'Світіння', en: 'Glow' },
+  infoParticleGlow: { ua: 'Інтенсивність світіння частинок. Більше = яскравіший неоновий ефект.', en: 'Particle glow intensity. Higher = brighter neon effect.' },
 };
 
 export function t(key: string, lang: Lang): string {

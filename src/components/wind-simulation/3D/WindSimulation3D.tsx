@@ -15,6 +15,7 @@ import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '.
 import { t, type Lang } from '@/utils/i18n';
 import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
 import { Crosshair, MousePointer, Map as MapIcon, Ruler, Eye } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as THREE from 'three';
 
 interface WindSimulation3DProps {
@@ -403,6 +404,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [particleCount, setParticleCount] = useState(250);
   const [particleImpact, setParticleImpact] = useState(1.0);
   const [particleTrailLength, setParticleTrailLength] = useState(3.0);
+  const [wobbliness, setWobbliness] = useState(1.0);
+  const [particleGlow, setParticleGlow] = useState(1.0);
   const [obstacles, setObstacles] = useState<Obstacle[]>([]);
   const [selectedObstacleType, setSelectedObstacleType] = useState<string>('building');
   const [selectedGeneratorSubtype, setSelectedGeneratorSubtype] = useState<GeneratorSubtype>('hawt3');
@@ -416,6 +419,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [showEnergyDensity, setShowEnergyDensity] = useState(false);
   const [showTurbulenceField, setShowTurbulenceField] = useState(false);
   const [showWindShear, setShowWindShear] = useState(false);
+  const [showWakeMap, setShowWakeMap] = useState(false);
+  const [showCapacityFactor, setShowCapacityFactor] = useState(false);
+  const [showBetzOverlay, setShowBetzOverlay] = useState(false);
   const [ghostPosition, setGhostPosition] = useState<[number, number, number] | null>(null);
   const [obstacleEnergies, setObstacleEnergies] = useState<Map<string, number>>(new Map());
   const [collisionEffects, setCollisionEffects] = useState<Array<{
@@ -743,23 +749,41 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </button>
       </div>
 
-      {/* Analysis checkboxes — 6 items in 2 rows */}
-      <div className="absolute top-12 left-[195px] z-20 grid grid-cols-3 gap-x-3 gap-y-1" style={{ pointerEvents: 'auto' }}>
-        {[
-          { key: 'ruler', checked: showHeightRuler, set: setShowHeightRuler, icon: '📏', label: t('heightRuler', lang), color: 'text-primary' },
-          { key: 'vprofile', checked: showWindProfile, set: setShowWindProfile, icon: '🌬️', label: t('windProfile', lang), color: 'text-cyan-400' },
-          { key: 'pressure', checked: showPressureMap, set: setShowPressureMap, icon: '🔴', label: t('pressureZones', lang), color: 'text-orange-400' },
-          { key: 'energy', checked: showEnergyDensity, set: setShowEnergyDensity, icon: '⚡', label: t('energyDensity', lang), color: 'text-yellow-400' },
-          { key: 'turbulence', checked: showTurbulenceField, set: setShowTurbulenceField, icon: '🌀', label: t('turbulenceField', lang), color: 'text-purple-400' },
-          { key: 'shear', checked: showWindShear, set: setShowWindShear, icon: '📊', label: t('windShearLayer', lang), color: 'text-emerald-400' },
-        ].map(item => (
-          <label key={item.key} className="flex items-center gap-1 cursor-pointer group">
-            <input type="checkbox" checked={item.checked} onChange={(e) => item.set(e.target.checked)}
-              className="w-3 h-3 accent-primary rounded" />
-            <span className="text-[8px]">{item.icon}</span>
-            <span className={`text-[9px] font-mono text-muted-foreground group-hover:text-foreground transition-colors`}>{item.label}</span>
-          </label>
-        ))}
+      {/* Analysis checkboxes — 9 items in 3 rows, styled */}
+      <div className="absolute top-12 left-[195px] z-20 bg-background/80 backdrop-blur-sm rounded-lg border border-primary/30 p-2 shadow-[0_0_12px_rgba(57,255,20,0.1)]" style={{ pointerEvents: 'auto' }}>
+        <div className="grid grid-cols-3 gap-x-3 gap-y-1.5">
+          {[
+            { key: 'ruler', checked: showHeightRuler, set: setShowHeightRuler, icon: '📏', label: t('heightRuler', lang), color: 'border-primary/50', info: t('infoHeightRuler', lang) },
+            { key: 'vprofile', checked: showWindProfile, set: setShowWindProfile, icon: '🌬️', label: t('windProfile', lang), color: 'border-cyan-500/50', info: t('infoWindProfile', lang) },
+            { key: 'pressure', checked: showPressureMap, set: setShowPressureMap, icon: '🔴', label: t('pressureZones', lang), color: 'border-orange-500/50', info: t('infoPressureZones', lang) },
+            { key: 'energy', checked: showEnergyDensity, set: setShowEnergyDensity, icon: '⚡', label: t('energyDensity', lang), color: 'border-yellow-500/50', info: t('infoEnergyDensity', lang) },
+            { key: 'turbulence', checked: showTurbulenceField, set: setShowTurbulenceField, icon: '🌀', label: t('turbulenceField', lang), color: 'border-purple-500/50', info: t('infoTurbulenceField', lang) },
+            { key: 'shear', checked: showWindShear, set: setShowWindShear, icon: '📊', label: t('windShearLayer', lang), color: 'border-emerald-500/50', info: t('infoWindShear', lang) },
+            { key: 'wake', checked: showWakeMap, set: setShowWakeMap, icon: '💨', label: t('wakeMap', lang), color: 'border-sky-500/50', info: t('infoWakeMap', lang) },
+            { key: 'capacity', checked: showCapacityFactor, set: setShowCapacityFactor, icon: '📈', label: t('capacityFactor', lang), color: 'border-lime-500/50', info: t('infoCapacityFactor', lang) },
+            { key: 'betz', checked: showBetzOverlay, set: setShowBetzOverlay, icon: '🎯', label: t('betzOverlay', lang), color: 'border-rose-500/50', info: t('infoBetzOverlay', lang) },
+          ].map(item => (
+            <label key={item.key} className={`flex items-center gap-1.5 cursor-pointer group px-1.5 py-1 rounded transition-all hover:bg-primary/10 ${item.checked ? 'bg-primary/15 shadow-[0_0_6px_rgba(57,255,20,0.15)]' : ''}`}>
+              <input type="checkbox" checked={item.checked} onChange={(e) => item.set(e.target.checked)}
+                className="hidden" />
+              <div className={`w-3 h-3 rounded border-2 ${item.color} flex items-center justify-center transition-all ${item.checked ? 'bg-primary/40 border-primary shadow-[0_0_4px_rgba(57,255,20,0.5)]' : 'bg-background/40'}`}>
+                {item.checked && <span className="text-[6px] text-primary font-bold">✓</span>}
+              </div>
+              <span className="text-[8px]">{item.icon}</span>
+              <span className={`text-[9px] font-mono transition-colors ${item.checked ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'}`}>{item.label}</span>
+              <TooltipProvider delayDuration={200}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span className="text-[8px] text-muted-foreground/50 hover:text-primary cursor-help transition-colors">ⓘ</span>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="max-w-[240px] bg-[#0d1117] border-primary/40 text-[10px] z-50">
+                    <p>{item.info}</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </label>
+          ))}
+        </div>
       </div>
 
       {/* Scenario picker dropdown with custom scrollbar */}
@@ -992,6 +1016,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
               onObstacleEnergyUpdate={handleObstacleEnergyUpdate}
               particleImpact={particleImpact}
               particleTrailLength={particleTrailLength}
+              glowIntensity={particleGlow}
             />
 
             <CollisionEffectsManager collisions={collisionEffects} onRemoveCollision={handleRemoveCollision} />
@@ -1026,6 +1051,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
                     obstacle={obstacle}
                     windSpeed={physicsConfig.windSpeed}
                     windAngle={physicsConfig.windAngle}
+                    wobbliness={wobbliness}
                     isSelected={interactionMode === 'select' && selectedObstacleIndex === index}
                   />
                 </group>
@@ -1069,6 +1095,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           onParticleImpactChange={setParticleImpact}
           particleTrailLength={particleTrailLength}
           onParticleTrailLengthChange={setParticleTrailLength}
+          wobbliness={wobbliness}
+          onWobblinessChange={setWobbliness}
+          particleGlow={particleGlow}
+          onParticleGlowChange={setParticleGlow}
         />
       </div>
 
