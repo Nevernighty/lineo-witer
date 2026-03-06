@@ -15,6 +15,7 @@ import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '.
 import { t, type Lang } from '@/utils/i18n';
 import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
 import { Crosshair, MousePointer, Map as MapIcon, Ruler, Eye } from 'lucide-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import * as THREE from 'three';
 
 interface WindSimulation3DProps {
