@@ -1,94 +1,141 @@
 
-# Виправлення UI, фізики частинок та візуалізації
 
-## 1. Кнопки "Встановити/Вибрати" перекривають статистику
+## Grand Overhaul Plan
 
-**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
+This plan addresses all requested improvements across 8 work areas.
 
-**Рішення (WindSimulation3D.tsx):**
-- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
-- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
+### 1. Compact Analysis Checkboxes with Dropdown
 
-## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
+**Current**: 9 checkboxes in a fixed 3x3 grid panel always visible at `top-12 left-[195px]`.
 
-**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
+**Change**: Replace with a collapsible dropdown button ("📊 Аналіз ▾") that expands a compact panel. Each checkbox gets:
+- Animated toggle with color-coded dot that pulses when active
+- Info button (ⓘ) with rich tooltip containing formulas, units, and real-time values
+- On-hover: highlight corresponding 3D visualization zone briefly
+- Hidden by default, toggled by clicking the button
 
-**Рішення:**
-- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
-- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
-- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
-- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
-- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
-
-## 3. "Слід" (Trail) налаштування не працює
-
-**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
-
-**Рішення (InstancedParticles.tsx):**
-- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
-- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
-- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
-- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
-- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
-- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
-- Колір trail segments = колір частинки з зниженою яскравістю
-
-## 4. Реалістичніші частинки та оптимізація
-
-**AdvancedParticleSystem.tsx:**
-- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
-- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
-- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
-- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
-- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
-
-**InstancedParticles.tsx:**
-- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
-- Залишити 2 instanced meshes: particles + trails (замість 3)
-
-## 5. Генератори всмоктують частинки — візуалізація
-
-**AdvancedParticleSystem.tsx:**
-- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
-- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
-- Передати `absorbed` стан в InstancedParticles як окреме поле
-
-**InstancedParticles.tsx:**
-- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
-- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
-
-**WindGenerator3D.tsx:**
-- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
-
-## 6. Стрілки напрямку вітру після колізії
-
-**CollisionEffect.tsx:**
-- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
-- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
-- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
-
-**AdvancedParticleSystem.tsx:**
-- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
-- Передати в `CollisionEffectsManager`
-
-**WindSimulation3D.tsx:**
-- Оновити тип `collisionEffects` щоб включити `deflection`
-
-## 7. Кращі impact ефекти
-
-**CollisionEffect.tsx:**
-- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
-- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
-- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
-- Тривалість збільшити з 0.5с до 0.8с
+**Files**: `WindSimulation3D.tsx` (lines 752-787)
 
 ---
 
-## Технічна послідовність
+### 2. Particle Appearance Presets under "Хитавиця" Settings
 
-1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
-2. `Obstacle3D.tsx` — rotation тільки по Y
-3. `GhostObstacle.tsx` — rotation тільки по Y
-4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
-5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
-6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
+**Current**: Single wobbliness slider in `AdvancedWindControls.tsx` turb tab.
+
+**Change**: Add a new "Вигляд частинок" (Particle Appearance) section in turb tab with:
+- **Preset selector** (dropdown): "Стандарт", "Димка", "Стріли", "Іскри", "Потоки" — each sets particle size, trail length, glow, and color profile
+- **Default wobbliness per object type**: trees=1.5, buildings=0.3, fences=0.8, walls=0.1 (pass as map from controls)
+- **New animated setting**: "Пульсація" (Pulsation) slider — controls particle size oscillation frequency/amplitude
+- Tree wobbliness defaults reduced from current aggressive values
+
+**Files**: `AdvancedWindControls.tsx`, `AdvancedParticleSystem.tsx`, `InstancedParticles.tsx`, `WindSimulation3D.tsx`
+
+---
+
+### 3. Enhanced Generator Suction Visibility
+
+**Current**: Suction uses `attractK=7.0` but visual feedback is subtle (IntakeCone with 10% opacity cone).
+
+**Changes**:
+- **IntakeCone overhaul** in `WindGenerator3D.tsx`: Animated converging spiral lines using rotating ring groups, pulsing with wind speed. Opacity scales with `attractK`. Add particle-path funnel lines converging at rotor
+- **Absorption flash**: When particle enters rotor radius, emit a brief bright flash sphere (0.3s lifetime) at rotor center
+- **Power popup enhancement**: Show animated energy counter with spark icon, real kW/MW value, efficiency %, and capacity factor
+- **Per-generator dropdown**: Add `Html` tooltip on hover/click showing detailed specs (Cp, cut-in/out, swept area, annual yield estimate)
+- Increase `attractK` values by 40% across all types for more visible suction
+
+**Files**: `WindGenerator3D.tsx`, `AdvancedParticleSystem.tsx`
+
+---
+
+### 4. Fix Tower Model (Upside Down)
+
+**Current**: Tower legs use `Cylinder args={[legR * 0.7, legR * 1.5, ...]}` — first arg is top radius, second is bottom. Currently wider at bottom (1.5) and narrower at top (0.7), but the leg rotation `[sz * 0.08, 0, -sx * 0.08]` may invert visually because legs are positioned at `obstacle.height / 2` center.
+
+**Fix**: The tower legs spread should taper from wide at ground to narrow at top. The issue is the cylinder renders centered at `obstacle.height/2`, so top=`legR*1.5` and bottom=`legR*0.7` would make legs wider at top. Swap to `args={[legR * 0.5, legR * 1.8, obstacle.height, 6]}` — narrower top, wider base. Also increase `legSpread` factor so legs visually spread outward from base, and fix the `(1 - 0.3)` constant to properly interpolate.
+
+**File**: `Obstacle3D.tsx` (lines 394-456)
+
+---
+
+### 5. More Scenarios with Physics Explanations
+
+**Current**: 12 scenarios with brief 1-line descriptions.
+
+**Add 4 new scenarios**:
+- **Долина** (Valley): Katabatic wind drainage, cold air pooling. Temperature inversion effects.
+- **Острів** (Island): Sea-breeze circulation, thermal contrast, convergence zones.
+- **Степ** (Steppe): Low roughness, high Weibull k, consistent power density.
+- **Гірський хребет** (Mountain Ridge): Foehn effect, orographic lift, rotor turbulence.
+
+Each gets 2-3 sentence description explaining the unique physics phenomenon. Add `physicsNote` field to `ScenarioPreset` interface shown in scenario picker.
+
+**File**: `WindSimulation3D.tsx`
+
+---
+
+### 6. Generator Object Info Dropdown
+
+**Current**: Generator shows floating label with type name and power. "мікро турбіна kW..." is static.
+
+**Change**: Make the `Html` label clickable, expanding into a compact dropdown card showing:
+- Generator type full name + icon
+- Swept area, hub height, rotor diameter
+- Cut-in / cut-out / rated speed
+- Current power + capacity factor
+- Estimated annual energy production (AEP)
+- Betz limit comparison bar
+
+**File**: `WindGenerator3D.tsx`
+
+---
+
+### 7. Info Page Overhaul + New Pages
+
+**Current**: 6 tabs (fundamentals, potential, turbines, printing, components, specs).
+
+**Add 2 new tabs**:
+- **"Симуляція"** (Simulation Guide): Explains what each analysis overlay measures, how scenarios differ, keyboard shortcuts, placement strategies
+- **"Зелена енергія"** (Green Energy): CO2 offset calculations, grid integration basics, storage overview, Ukraine green transition roadmap
+
+**Link from settings/weather**: Add "📖 Детальніше" button in GeneratorSettings and WeatherDisplay that links to relevant InfoPage tab via URL params.
+
+**Files**: `InfoPage.tsx`, new `src/components/info/SimulationGuide.tsx`, new `src/components/info/GreenEnergy.tsx`, `GeneratorSettings.tsx`, `WeatherDisplay.tsx`
+
+---
+
+### 8. Sound Effects + Visual Polish
+
+**Current**: 4 basic oscillator sounds (place, rotate, clear, scale).
+
+**Add**:
+- `playAbsorbSound()`: High-pitched chirp when particle enters generator rotor
+- `playWindGustSound()`: Low rumble during gust events
+- Improve existing sounds with layered oscillators and reverb-like delay
+
+**Visual**:
+- Add animated pulsation setting that makes particles breathe
+- Improve collision flash with expanding ring + directional sparks
+- Better trail colors that inherit particle speed color instead of fixed green
+
+**Files**: `sounds.ts`, `InstancedParticles.tsx`, `CollisionEffect.tsx`
+
+---
+
+### Implementation Priority
+
+1. Fix tower model (quick fix)
+2. Compact analysis dropdown + overhaul 9 checkboxes
+3. Enhanced generator suction + popups + dropdown info
+4. Particle presets + reduced tree wobble defaults + pulsation setting
+5. New scenarios with physics explanations
+6. Generator detail dropdown
+7. Info page new tabs + interlinking
+8. SFX improvements + visual polish
+
+### Technical Notes
+
+- Total files modified: ~12 files
+- No new dependencies needed
+- All changes are React/Three.js within existing architecture
+- i18n strings added to `src/utils/i18n.ts` for all new labels
+
