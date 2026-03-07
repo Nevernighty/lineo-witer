@@ -392,22 +392,33 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
       }
 
       case 'tower': {
-        const legSpread = obstacle.width * 0.4;
+        const legSpread = obstacle.width * 0.5;
         const legR = 0.25;
         return (
           <group position={[cx, 0, cz]} ref={buildingWobbleRef}>
-            {/* Four legs */}
-            {[[-1,-1],[1,-1],[1,1],[-1,1]].map(([sx, sz], i) => (
-              <Cylinder key={i} args={[legR * 0.7, legR * 1.5, obstacle.height, 6]}
-                position={[sx * legSpread * (1 - 0.3), obstacle.height / 2, sz * legSpread * (1 - 0.3)]}
-                rotation={[sz * 0.08, 0, -sx * 0.08]}>
-                <meshPhongMaterial color="#aaaaaa" />
-              </Cylinder>
-            ))}
+            {/* Four legs — wider at base (bottom), narrower at top */}
+            {[[-1,-1],[1,-1],[1,1],[-1,1]].map(([sx, sz], i) => {
+              // Each leg tapers: bottom radius larger, top radius smaller
+              // Position legs spread wider at base
+              const bottomSpread = legSpread * 1.2;
+              const topSpread = legSpread * 0.4;
+              const midX = sx * (bottomSpread + topSpread) / 2;
+              const midZ = sz * (bottomSpread + topSpread) / 2;
+              // Tilt legs outward from center
+              const tiltAngle = 0.12;
+              return (
+                <Cylinder key={i} args={[legR * 0.5, legR * 1.8, obstacle.height, 6]}
+                  position={[midX, obstacle.height / 2, midZ]}
+                  rotation={[sz * tiltAngle, 0, -sx * tiltAngle]}>
+                  <meshPhongMaterial color="#aaaaaa" />
+                </Cylinder>
+              );
+            })}
             {/* Cross braces */}
             {Array.from({ length: 5 }).map((_, i) => {
               const y = (i + 1) * obstacle.height / 6;
-              const spread = legSpread * (1 - (y / obstacle.height) * 0.3);
+              const frac = y / obstacle.height;
+              const spread = legSpread * (1.2 - frac * 0.8);
               return (
                 <group key={i}>
                   <Box args={[spread * 2, 0.15, 0.15]} position={[0, y, 0]}>
@@ -416,7 +427,6 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
                   <Box args={[0.15, 0.15, spread * 2]} position={[0, y, 0]}>
                     <meshPhongMaterial color="#999999" />
                   </Box>
-                  {/* Diagonal braces */}
                   {i % 2 === 0 && (
                     <Box args={[0.1, spread * 2.2, 0.1]} position={[0, y, 0]} rotation={[0, 0, Math.PI / 4]}>
                       <meshPhongMaterial color="#888888" />

@@ -36,6 +36,10 @@ interface AdvancedWindControlsProps {
   onWobblinessChange?: (v: number) => void;
   particleGlow?: number;
   onParticleGlowChange?: (v: number) => void;
+  pulsation?: number;
+  onPulsationChange?: (v: number) => void;
+  particlePreset?: string;
+  onParticlePresetChange?: (preset: string) => void;
 }
 
 const GlowSlider: React.FC<{
@@ -92,7 +96,9 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   particleImpact = 1.0, onParticleImpactChange,
   particleTrailLength = 1.0, onParticleTrailLengthChange,
   wobbliness = 1.0, onWobblinessChange,
-  particleGlow = 1.0, onParticleGlowChange
+  particleGlow = 1.0, onParticleGlowChange,
+  pulsation = 0, onPulsationChange,
+  particlePreset = 'standard', onParticlePresetChange
 }) => {
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
     const newConfig = { ...config, [key]: value };
@@ -179,6 +185,39 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
             <GlowSlider value={wobbliness} onChange={(v) => onWobblinessChange(v)}
               min={0} max={3.0} step={0.1} label={t('wobbliness', lang)} displayValue={`${wobbliness.toFixed(1)}x`}
               infoText={t('infoWobbliness', lang)} />
+          )}
+          {onPulsationChange && (
+            <GlowSlider value={pulsation} onChange={(v) => onPulsationChange(v)}
+              min={0} max={3.0} step={0.1} label={t('pulsation', lang)} displayValue={`${pulsation.toFixed(1)}x`}
+              infoText={t('infoPulsation', lang)} />
+          )}
+          
+          {/* Particle appearance presets */}
+          {onParticlePresetChange && (
+            <div className="pt-2 border-t border-primary/15">
+              <Label className="text-[9px] text-primary/80 uppercase tracking-wide mb-1.5 block">{t('particlePreset', lang)}</Label>
+              <div className="grid grid-cols-5 gap-0.5">
+                {[
+                  { id: 'standard', label: t('presetStandard', lang), emoji: '💨' },
+                  { id: 'smoke', label: t('presetSmoke', lang), emoji: '🌫️' },
+                  { id: 'arrows', label: t('presetArrows', lang), emoji: '➡️' },
+                  { id: 'sparks', label: t('presetSparks', lang), emoji: '✨' },
+                  { id: 'flows', label: t('presetFlows', lang), emoji: '🌊' },
+                ].map(p => (
+                  <button key={p.id}
+                    onClick={() => onParticlePresetChange(p.id)}
+                    className={`flex flex-col items-center px-1 py-1.5 rounded text-[7px] font-mono border transition-all ${
+                      particlePreset === p.id
+                        ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_6px_hsl(var(--primary)/0.3)]'
+                        : 'bg-background/30 border-primary/15 text-muted-foreground hover:border-primary/40'
+                    }`}
+                  >
+                    <span className="text-[10px]">{p.emoji}</span>
+                    <span className="mt-0.5 leading-none">{p.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
           )}
         </TabsContent>
 
