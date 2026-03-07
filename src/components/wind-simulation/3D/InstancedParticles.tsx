@@ -16,28 +16,22 @@ interface InstancedParticlesProps {
   trailLengthMultiplier?: number;
   windAngle?: number;
   glowIntensity?: number;
+  pulsation?: number;
 }
 
-// Arrow-like elongated particle geometry for directional visibility
 const createParticleGeometry = () => {
   const geometry = new THREE.BufferGeometry();
-  // Elongated arrow shape: nose at +Z, tail at -Z
   const vertices = new Float32Array([
-    // Nose (front point)
     0, 0, 1.2,
-    // Body cross-section (4 points)
     -0.15, 0.1, 0,
     0.15, 0.1, 0,
     0.15, -0.1, 0,
     -0.15, -0.1, 0,
-    // Tail (back point, slightly wider)
     0, 0, -0.4,
   ]);
   const indices = new Uint16Array([
-    // Nose triangles
-    0, 1, 2,  0, 2, 3,  0, 3, 4,  0, 4, 1,
-    // Tail triangles
-    5, 2, 1,  5, 3, 2,  5, 4, 3,  5, 1, 4,
+    0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1,
+    5, 2, 1, 5, 3, 2, 5, 4, 3, 5, 1, 4,
   ]);
   geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
   geometry.setIndex(new THREE.BufferAttribute(indices, 1));
@@ -45,7 +39,6 @@ const createParticleGeometry = () => {
   return geometry;
 };
 
-// Enhanced speed coloring with better distinction
 const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
   const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
@@ -62,7 +55,6 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
     return;
   }
 
-  // Blue → cyan → green → yellow → orange gradient
   if (t < 0.2) {
     const p = t / 0.2;
     c.setRGB(0.1 * glow, 0.2 + p * 0.4, (0.9 + p * 0.1) * glow);
@@ -88,7 +80,8 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   impactMultiplier = 1.0,
   trailLengthMultiplier = 1.0,
   windAngle = 0,
-  glowIntensity = 1.0
+  glowIntensity = 1.0,
+  pulsation = 0
 }) => {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const trailRefs = useRef<(THREE.InstancedMesh | null)[]>(Array(TRAIL_SEGMENTS).fill(null));
@@ -118,7 +111,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     const time = state.clock.elapsedTime;
     const count = particles.length;
 
-    // Initialize position history
     if (posHistoryRef.current.length !== TRAIL_SEGMENTS || 
         (posHistoryRef.current[0] && posHistoryRef.current[0].length !== count * 3)) {
       posHistoryRef.current = Array.from({ length: TRAIL_SEGMENTS }, () => new Float32Array(count * 3));
@@ -134,7 +126,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       }
     }
 
-    // Shift history
     for (let seg = TRAIL_SEGMENTS - 1; seg > 0; seg--) {
       posHistoryRef.current[seg].set(posHistoryRef.current[seg - 1]);
     }
@@ -147,7 +138,9 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       }
     }
 
-    // Main particles
+    // Pulsation effect
+    const pulseMul = pulsation > 0 ? 1 + Math.sin(time * (2 + pulsation * 3)) * pulsation * 0.15 : 1;
+
     for (let i = 0; i < count; i++) {
       const particle = particles[i];
       if (!particle) continue;
@@ -167,9 +160,8 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       if (isAbsorbed) {
         baseScale *= 1.6 + Math.sin(time * 12) * 0.35;
       }
-      // Elongate more by speed for directional clarity
       const speedScale = Math.min(1 + speed * 0.22, 4.0);
-      const pulse = 1 + Math.sin(time * 3 + i * 0.5) * 0.04;
+      const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.04);
       const lateralCompress = Math.max(0.4, 1 - speed * 0.04);
       dummy.scale.set(baseScale * speedScale * pulse, baseScale * pulse * lateralCompress, baseScale * pulse * lateralCompress);
       dummy.updateMatrix();
@@ -184,7 +176,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
 
-    // Trail segments
     const trailActive = trailLengthMultiplier > 0.01;
     const trailScales = [0.65, 0.5, 0.35, 0.22, 0.12];
 
@@ -238,7 +229,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
   return (
     <group>
-      {/* Trail segments */}
       {trailMaterials.map((mat, seg) => (
         <instancedMesh
           key={`trail-${seg}`}
@@ -248,7 +238,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
         />
       ))}
 
-      {/* Main particles */}
       <instancedMesh ref={meshRef} args={[particleGeometry, particleMaterial, count]} frustumCulled={false}>
         <instancedBufferAttribute attach="instanceColor" args={[instanceColors, 3]} />
       </instancedMesh>

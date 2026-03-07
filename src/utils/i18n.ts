@@ -181,6 +181,8 @@ const translations: Record<string, Record<Lang, string>> = {
   printing3d: { ua: '3D Друк', en: '3D Printing' },
   components: { ua: 'Компоненти', en: 'Components' },
   technical: { ua: 'Технічне', en: 'Technical' },
+  simulationGuide: { ua: 'Симуляція', en: 'Simulation' },
+  greenEnergy: { ua: 'Зелена енергія', en: 'Green Energy' },
 
   // Wake zone enhanced
   wakeLength: { ua: 'Довж. сліду', en: 'Wake Length' },
@@ -201,15 +203,13 @@ const translations: Record<string, Record<Lang, string>> = {
   // Scenarios
   scenarios: { ua: 'Сценарії', en: 'Scenarios' },
   
-  // Analysis toggles - existing 6
+  // Analysis toggles
   heightRuler: { ua: 'Лінійка', en: 'Ruler' },
   windProfile: { ua: 'Профіль V', en: 'V Profile' },
   pressureZones: { ua: 'Тиск', en: 'Pressure' },
   energyDensity: { ua: 'Енерг. W/m²', en: 'Energy W/m²' },
   turbulenceField: { ua: 'Турбулент.', en: 'Turbulence' },
   windShearLayer: { ua: 'Зсув α', en: 'Shear α' },
-  
-  // Analysis toggles - new 3
   wakeMap: { ua: 'Карта слідів', en: 'Wake Map' },
   capacityFactor: { ua: 'Коеф. потужн.', en: 'Capacity Factor' },
   betzOverlay: { ua: 'Бетц зони', en: 'Betz Zones' },
@@ -228,6 +228,30 @@ const translations: Record<string, Record<Lang, string>> = {
   // Appearance settings
   particleGlow: { ua: 'Світіння', en: 'Glow' },
   infoParticleGlow: { ua: 'Інтенсивність світіння частинок. Більше = яскравіший неоновий ефект.', en: 'Particle glow intensity. Higher = brighter neon effect.' },
+  
+  // Pulsation
+  pulsation: { ua: 'Пульсація', en: 'Pulsation' },
+  infoPulsation: { ua: 'Частота та амплітуда осциляції розміру частинок. Створює ефект "дихання" вітру.', en: 'Frequency and amplitude of particle size oscillation. Creates a wind "breathing" effect.' },
+  
+  // Particle presets
+  particlePreset: { ua: 'Вигляд частинок', en: 'Particle Style' },
+  presetStandard: { ua: 'Стандарт', en: 'Standard' },
+  presetSmoke: { ua: 'Димка', en: 'Smoke' },
+  presetArrows: { ua: 'Стріли', en: 'Arrows' },
+  presetSparks: { ua: 'Іскри', en: 'Sparks' },
+  presetFlows: { ua: 'Потоки', en: 'Flows' },
+  
+  // Analysis panel
+  analysisPanel: { ua: '📊 Аналіз', en: '📊 Analysis' },
+  
+  // Scenario physics notes
+  physicsNoteValley: { ua: 'Катабатичний вітер: холодне повітря стікає по схилах вночі. Інверсія температури створює стабільний шар, що обмежує вертикальне перемішування.', en: 'Katabatic wind: cold air drains downslope at night. Temperature inversion creates stable layer limiting vertical mixing.' },
+  physicsNoteIsland: { ua: 'Бризова циркуляція: різниця нагрівання суші та моря створює циклічний потік. Конвергенція на навітряному боці підсилює вертикальні рухи.', en: 'Sea-breeze circulation: differential land-sea heating creates cyclic flow. Windward convergence enhances vertical motion.' },
+  physicsNoteSteppe: { ua: 'Низька шорсткість (z₀ ≈ 0.01) забезпечує рівномірний профіль вітру з високим параметром k розподілу Вейбулла — ідеальні умови для ВЕС.', en: 'Low roughness (z₀ ≈ 0.01) ensures uniform wind profile with high Weibull k parameter — ideal for wind farms.' },
+  physicsNoteMountainRidge: { ua: 'Фен-ефект: повітря піднімається навітряним схилом, конденсується, потім сухе та тепле спускається підвітряним. Орографічний підйом може подвоїти швидкість.', en: 'Foehn effect: air rises windward, condenses, then descends leeward dry and warm. Orographic lift can double wind speed.' },
+  
+  // More info link
+  moreInfo: { ua: '📖 Детальніше', en: '📖 More Info' },
 };
 
 export function t(key: string, lang: Lang): string {

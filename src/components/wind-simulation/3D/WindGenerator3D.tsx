@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Html, Cylinder, Box, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
@@ -181,36 +181,72 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
   );
 };
 
-// Intake cone with pulsating opacity and converging flow arrows
-const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number }> = ({ towerHeight, rotorDiameter, windAngleRad }) => {
-  const coneRef = useRef<THREE.Mesh>(null);
+// Enhanced IntakeCone with animated spiral rings and converging funnel
+const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; windSpeed: number }> = ({ towerHeight, rotorDiameter, windAngleRad, windSpeed }) => {
+  const groupRef = useRef<THREE.Group>(null);
+  const spiralRef = useRef<THREE.Group>(null);
+  const flashRef = useRef<THREE.Mesh>(null);
+
   useFrame((state) => {
-    if (!coneRef.current) return;
-    const mat = coneRef.current.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.1 + Math.sin(state.clock.elapsedTime * 2) * 0.06;
+    const time = state.clock.elapsedTime;
+    if (spiralRef.current) {
+      spiralRef.current.rotation.z = time * windSpeed * 0.1;
+    }
+    if (flashRef.current) {
+      const mat = flashRef.current.material as THREE.MeshBasicMaterial;
+      const pulse = Math.sin(time * 6) * 0.5 + 0.5;
+      mat.opacity = 0.05 + pulse * 0.15 * Math.min(windSpeed / 10, 1);
+    }
   });
 
-  const coneLength = rotorDiameter * 2.5;
+  const coneLength = rotorDiameter * 3;
+  const windIntensity = Math.min(windSpeed / 12, 1);
+
   return (
-    <group position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
-      <mesh ref={coneRef} position={[0, 0, coneLength / 2]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[rotorDiameter * 0.6, coneLength, 12]} />
-        <meshBasicMaterial color="#00ffaa" transparent opacity={0.1} depthWrite={false} side={THREE.DoubleSide} />
+    <group ref={groupRef} position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
+      {/* Main intake funnel */}
+      <mesh position={[0, 0, coneLength / 2]} rotation={[Math.PI / 2, 0, 0]}>
+        <coneGeometry args={[rotorDiameter * 0.7, coneLength, 16]} />
+        <meshBasicMaterial color="#00ffaa" transparent opacity={0.06 + windIntensity * 0.06} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
+      
+      {/* Animated spiral rings */}
+      <group ref={spiralRef}>
+        {[1, 2, 3, 4, 5].map(i => (
+          <mesh key={`spiral-${i}`} position={[0, 0, rotorDiameter * 0.4 * i]} rotation={[Math.PI / 2, i * 0.5, 0]}>
+            <ringGeometry args={[rotorDiameter * 0.1 * i, rotorDiameter * 0.1 * i + 0.15, 20]} />
+            <meshBasicMaterial color="#00ffaa" transparent opacity={0.08 + windIntensity * 0.08} side={THREE.DoubleSide} />
+          </mesh>
+        ))}
+      </group>
+
       {/* Converging flow arrows */}
       {[-1, 0, 1].map(i => (
-        <mesh key={i} position={[i * rotorDiameter * 0.3, i * 0.5, rotorDiameter * 0.8]} rotation={[-Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.25, 0.9, 4]} />
-          <meshBasicMaterial color="#00ffaa" transparent opacity={0.35} />
+        <mesh key={i} position={[i * rotorDiameter * 0.35, i * 0.5, rotorDiameter * 1.0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.3, 1.2, 4]} />
+          <meshBasicMaterial color="#00ffaa" transparent opacity={0.25 + windIntensity * 0.2} />
         </mesh>
       ))}
-      {/* Additional suction indicator rings */}
-      {[1, 2, 3].map(i => (
-        <mesh key={`ring-${i}`} position={[0, 0, rotorDiameter * 0.3 * i]} rotation={[Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[rotorDiameter * 0.15 * i, rotorDiameter * 0.15 * i + 0.1, 16]} />
-          <meshBasicMaterial color="#00ffaa" transparent opacity={0.1} side={THREE.DoubleSide} />
-        </mesh>
-      ))}
+
+      {/* Absorption flash at rotor center */}
+      <mesh ref={flashRef} position={[0, 0, 0]}>
+        <sphereGeometry args={[rotorDiameter * 0.35, 12, 12]} />
+        <meshBasicMaterial color="#88ffcc" transparent opacity={0.1} depthWrite={false} />
+      </mesh>
+
+      {/* Funnel convergence lines */}
+      {[0, 1, 2, 3].map(i => {
+        const angle = (i / 4) * Math.PI * 2;
+        const r = rotorDiameter * 0.6;
+        return (
+          <mesh key={`funnel-${i}`} 
+            position={[Math.cos(angle) * r * 0.3, Math.sin(angle) * r * 0.3, coneLength * 0.3]}
+            rotation={[Math.PI / 2 + Math.sin(angle) * 0.1, 0, Math.cos(angle) * 0.1]}>
+            <cylinderGeometry args={[0.04, 0.04, coneLength * 0.5, 4]} />
+            <meshBasicMaterial color="#00ffaa" transparent opacity={0.12 + windIntensity * 0.1} />
+          </mesh>
+        );
+      })}
     </group>
   );
 };
@@ -223,6 +259,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const nacelleSize = obstacle.width * 0.35;
   const wobbleRef = useRef<THREE.Group>(null);
   const wobblePhase = useRef(Math.random() * Math.PI * 2);
+  const [showDetails, setShowDetails] = useState(false);
 
   const power = useMemo(() => {
     return calculateGeneratorPower(
@@ -235,15 +272,29 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
     return calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, towerHeight + obstacle.y), config.surfaceRoughness);
   }, [config.windSpeed, config.referenceHeight, config.surfaceRoughness, towerHeight, obstacle.y]);
 
-  // Wind turbine wobble in strong winds
+  const detailData = useMemo(() => {
+    const sweptArea = Math.PI * Math.pow(rotorDiameter / 2, 2);
+    const betzPower = 0.5 * config.airDensity * sweptArea * Math.pow(adjustedSpeed, 3) * 0.593;
+    const efficiency = betzPower > 0 ? (power / betzPower * 100) : 0;
+    const capacityFactor = power > 0 ? Math.min(power / (betzPower * 1.2), 1) : 0;
+    // Rough AEP estimate: power * capacity * 8760h
+    const aep = power * capacityFactor * 8760 / 1000; // kWh
+    return {
+      sweptArea: sweptArea.toFixed(1),
+      hubHeight: (towerHeight + obstacle.y).toFixed(0),
+      efficiency: efficiency.toFixed(1),
+      capacityFactor: (capacityFactor * 100).toFixed(1),
+      aep: aep > 1000 ? `${(aep / 1000).toFixed(1)} MWh` : `${aep.toFixed(0)} kWh`,
+      betzPower: betzPower >= 1000 ? `${(betzPower / 1000).toFixed(1)} kW` : `${betzPower.toFixed(0)} W`,
+    };
+  }, [power, adjustedSpeed, rotorDiameter, config.airDensity, towerHeight, obstacle.y]);
+
   useFrame((state) => {
     if (!wobbleRef.current) return;
     const time = state.clock.elapsedTime;
     const windStrength = Math.min(config.windSpeed / 20, 1);
-    // Subtle wobble — less than trees, more mechanical
     const wobbleIntensity = windStrength * 0.025;
     const angleRad = (config.windAngle * Math.PI) / 180;
-    
     wobbleRef.current.rotation.x = Math.sin(time * 1.2 + wobblePhase.current) * wobbleIntensity
       + Math.cos(angleRad) * wobbleIntensity * 0.5;
     wobbleRef.current.rotation.z = Math.cos(time * 0.8 + wobblePhase.current) * wobbleIntensity * 0.6
@@ -256,10 +307,9 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
 
   const towerColor = isSelected ? '#00ff00' : '#8899aa';
   const nacelleColor = isSelected ? '#00ff00' : '#ccddee';
-  const powerStr = power >= 1000 ? `${(power / 1000).toFixed(1)} kW` : `${power.toFixed(0)} W`;
+  const powerStr = power >= 1000000 ? `${(power / 1000000).toFixed(2)} MW` : power >= 1000 ? `${(power / 1000).toFixed(1)} kW` : `${power.toFixed(0)} W`;
   const subtypeName = specs.nameUa;
 
-  // Y rotation only
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
   const scaleVal = obstacle.scale || 1;
   const windAngleRad = (config.windAngle * Math.PI) / 180;
@@ -274,16 +324,31 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       </group>
 
-      <IntakeCone towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} />
+      <IntakeCone towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} windSpeed={config.windSpeed} />
 
-      <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'none' }}>
-        <div className="rounded px-1.5 py-0.5 text-center border shadow-lg" style={{
-          backgroundColor: 'rgba(0,0,0,0.85)', borderColor: '#39ff1450', minWidth: '55px'
-        }}>
+      <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'auto' }}>
+        <div 
+          className="rounded-lg px-2 py-1 text-center border shadow-lg cursor-pointer transition-all hover:scale-105"
+          style={{ backgroundColor: 'rgba(0,0,0,0.9)', borderColor: '#39ff1460', minWidth: '70px' }}
+          onClick={() => setShowDetails(!showDetails)}
+        >
           <div className="text-[7px] text-green-400/80 font-mono">{subtypeName}</div>
-          <div className="text-[8px] text-green-400 font-semibold">⚡</div>
-          <div className="text-foreground text-xs font-mono font-semibold">{powerStr}</div>
-          <div className="text-[7px] text-green-400/60">Cp={specs.cp}</div>
+          <div className="text-[10px] text-green-400 font-semibold">⚡ {powerStr}</div>
+          <div className="text-[7px] text-green-400/60">Cp={specs.cp} | {adjustedSpeed.toFixed(1)} m/s</div>
+          
+          {showDetails && (
+            <div className="mt-1.5 pt-1.5 border-t border-green-500/20 text-left space-y-0.5">
+              <div className="text-[7px] text-cyan-400">📐 A = {detailData.sweptArea} m²</div>
+              <div className="text-[7px] text-cyan-400">🏗 H = {detailData.hubHeight} m</div>
+              <div className="text-[7px] text-yellow-400">🎯 η = {detailData.efficiency}% Betz</div>
+              <div className="text-[7px] text-lime-400">📊 CF = {detailData.capacityFactor}%</div>
+              <div className="text-[7px] text-orange-400">📈 AEP ≈ {detailData.aep}</div>
+              <div className="text-[7px] text-purple-400">🌀 Betz max: {detailData.betzPower}</div>
+              <div className="text-[6px] text-muted-foreground mt-1">
+                Cut-in: {specs.cutIn} m/s | Cut-out: {specs.cutOut} m/s
+              </div>
+            </div>
+          )}
         </div>
       </Html>
 
