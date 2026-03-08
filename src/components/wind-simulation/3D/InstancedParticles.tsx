@@ -146,25 +146,25 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
 
   if (hasCollided) {
     const intensity = Math.min(t * impactMul, 1);
-    c.setRGB(Math.min(1, (1 + intensity * 0.5) * glow), 0.2 + (1 - intensity) * 0.3, 0.02);
+    c.setRGB(Math.min(1, (1 + intensity * 0.5) * glowBoost), 0.2 + (1 - intensity) * 0.3, 0.02);
     return;
   }
 
   if (t < 0.2) {
     const p = t / 0.2;
-    c.setRGB(0.1 * glow, 0.2 + p * 0.4, (0.9 + p * 0.1) * glow);
+    c.setRGB(0.1 * glowBoost, 0.2 + p * 0.4, (0.9 + p * 0.1) * glowBoost);
   } else if (t < 0.4) {
     const p = (t - 0.2) / 0.2;
-    c.setRGB(0.1 * glow, (0.6 + p * 0.4) * glow, (1 - p * 0.5) * glow);
+    c.setRGB(0.1 * glowBoost, (0.6 + p * 0.4) * glowBoost, (1 - p * 0.5) * glowBoost);
   } else if (t < 0.65) {
     const p = (t - 0.4) / 0.25;
-    c.setRGB((0.1 + p * 0.15) * glow, (1.0) * glow, (0.5 - p * 0.3) * glow);
+    c.setRGB((0.1 + p * 0.15) * glowBoost, (1.0) * glowBoost, (0.5 - p * 0.3) * glowBoost);
   } else if (t < 0.85) {
     const p = (t - 0.65) / 0.2;
-    c.setRGB((0.25 + p * 0.75) * glow, (1 - p * 0.2) * glow, (0.2 - p * 0.15) * glow);
+    c.setRGB((0.25 + p * 0.75) * glowBoost, (1 - p * 0.2) * glowBoost, (0.2 - p * 0.15) * glowBoost);
   } else {
     const p = (t - 0.85) / 0.15;
-    c.setRGB(Math.min(1, (1 + p * 0.3) * glow), (0.8 - p * 0.4) * glow, 0.05 * glow);
+    c.setRGB(Math.min(1, (1 + p * 0.3) * glowBoost), (0.8 - p * 0.4) * glowBoost, 0.05 * glowBoost);
   }
 };
 
