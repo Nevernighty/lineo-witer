@@ -259,6 +259,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       }
 
       for (const obstacle of obstacles) {
+        if (obstacle.type === 'wind_generator') continue; // generators use Jensen wake below
         const obstacleCenter = {
           x: obstacle.x + obstacle.width / 2,
           y: obstacle.y + obstacle.height / 2,
@@ -268,9 +269,13 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         
         if (isInWakeZone(particle, obstacleCenter, obstacle, windDirection, physics.wakeLength)) {
           const distance = Math.sqrt((particle.x - obstacleCenter.x) ** 2 + (particle.z - obstacleCenter.z) ** 2);
+          // Exponential obstacle shadow model
+          const obstacleSize = Math.max(obstacle.width, obstacle.depth) * (obstacle.scale || 1);
+          const shadowFactor = 1 - Math.exp(-distance / obstacleSize);
           const wakeReduction = calculateWakeVelocity(distance, physics.wakeLength, effectiveSpeed) / effectiveSpeed;
-          targetSpeedX *= wakeReduction;
-          targetSpeedZ *= wakeReduction;
+          const combinedReduction = Math.min(wakeReduction, shadowFactor);
+          targetSpeedX *= combinedReduction;
+          targetSpeedZ *= combinedReduction;
           const wakeTurbulence = physics.turbulenceGeneration * 0.5;
           targetSpeedX += (Math.random() - 0.5) * wakeTurbulence;
           targetSpeedY += (Math.random() - 0.5) * wakeTurbulence;

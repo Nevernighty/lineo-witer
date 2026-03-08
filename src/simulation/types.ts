@@ -16,6 +16,8 @@ export interface SimulationParams {
   referenceHeight: number;
   terrainSlopeX: number;
   terrainSlopeZ: number;
+  /** Wind shear model: 'power' (default) or 'log' (logarithmic profile) */
+  shearModel?: 'power' | 'log';
 }
 
 export interface ParticleData {
@@ -60,4 +62,24 @@ export interface QualityPreset {
   turbulenceDetail: number; // scale multiplier
   enableWakeViz: boolean;
   enableAnalysisOverlays: boolean;
+}
+
+// --- Visualization output types for overlays ---
+
+export interface VectorFieldSample {
+  position: [number, number, number];
+  direction: [number, number, number];
+  magnitude: number;
+}
+
+export interface WakeZoneData {
+  center: [number, number, number];
+  length: number;
+  width: number;
+  deficit: number;
+}
+
+export interface TurbulenceFieldSample {
+  position: [number, number, number];
+  intensity: number;
 }

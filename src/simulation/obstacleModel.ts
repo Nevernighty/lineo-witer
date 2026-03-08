@@ -68,6 +68,22 @@ export function getSurfaceNormal(
   return [nx, ny, nz];
 }
 
+/**
+ * Exponential obstacle shadow model
+ *
+ * shadowFactor = exp(-distance / obstacleSize)
+ *
+ * Returns wind speed reduction factor (0..1) behind buildings.
+ * 0 = full shadow (right behind obstacle), 1 = no shadow (far away).
+ */
+export function computeObstacleShadow(
+  distance: number,
+  obstacleSize: number
+): number {
+  if (obstacleSize <= 0) return 1;
+  return 1 - Math.exp(-distance / obstacleSize);
+}
+
 /** Drag coefficients per obstacle type */
 export const OBSTACLE_PHYSICS: Record<string, {
   dragCoefficient: number;

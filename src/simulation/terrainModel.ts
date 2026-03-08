@@ -14,7 +14,22 @@ export function getTerrainYOffset(
 }
 
 /**
- * Slope speed-up (hill effect): empirical factor
+ * Simplified slope speed-up factor
+ * multiplier = 1 + slopeAngle * 0.2, capped at 1.4
+ *
+ * Approximation of hill speed-up effect for real-time visualization.
+ */
+export function computeSlopeSpeedup(
+  baseSpeed: number,
+  slopeAngleDeg: number
+): number {
+  const multiplier = Math.min(1.4, 1 + Math.abs(slopeAngleDeg) * 0.2);
+  return baseSpeed * multiplier;
+}
+
+/**
+ * Legacy terrain speed-up (hill effect): empirical factor using tan()
+ * Kept for backward compatibility.
  */
 export function computeTerrainSpeedup(
   baseSpeed: number,
