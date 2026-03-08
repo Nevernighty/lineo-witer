@@ -363,19 +363,14 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
     return <div className="text-muted-foreground">{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
   }
 
-  // Display weather: selectedWeather (custom point) or weather (user location)
-  const displayWeather = isCustomPoint && selectedWeather ? selectedWeather : weather;
-  const displayLat = parseFloat(selectedLat) || location.lat;
-  const displayLon = parseFloat(selectedLon) || location.lon;
+  const pot = potentialNames[weather.potentialClass as keyof typeof potentialNames];
+  const seasonLabel = seasonNames[weather.season as keyof typeof seasonNames][lang];
+  const beaufortLabel = beaufortNames[weather.beaufort]?.[lang] || '';
 
-  const pot = potentialNames[displayWeather.potentialClass as keyof typeof potentialNames];
-  const seasonLabel = seasonNames[displayWeather.season as keyof typeof seasonNames][lang];
-  const beaufortLabel = beaufortNames[displayWeather.beaufort]?.[lang] || '';
+  const windyUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=m%2Fs&metricTemp=%C2%B0C&zoom=${windyZoom}&overlay=${windyOverlay}&product=ecmwf&level=${windyLevel}&lat=${location.lat}&lon=${location.lon}`;
 
-  const windyUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=m%2Fs&metricTemp=%C2%B0C&zoom=${windyZoom}&overlay=${windyOverlay}&product=ecmwf&level=${windyLevel}&lat=${displayLat}&lon=${displayLon}`;
-
-  const airDensity = (displayWeather.pressure * 100) / (287.05 * (displayWeather.temperature + 273.15));
-  const actualWPD = 0.5 * airDensity * Math.pow(displayWeather.windSpeed, 3);
+  const airDensity = (weather.pressure * 100) / (287.05 * (weather.temperature + 273.15));
+  const actualWPD = 0.5 * airDensity * Math.pow(weather.windSpeed, 3);
 
   return (
     <div className="space-y-4">
