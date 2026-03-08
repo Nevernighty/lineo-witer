@@ -511,6 +511,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       windAngle={config.windAngle}
       glowIntensity={glowIntensity}
       pulsation={pulsation}
+      preset={particlePreset}
     />
   );
 };
