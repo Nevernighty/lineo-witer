@@ -46,10 +46,10 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
   }
 };
 
-const TRAIL_SEGMENTS = 8;
-const TRAIL_OPACITY_BASE = [0.6, 0.5, 0.42, 0.34, 0.26, 0.19, 0.12, 0.07];
-const TRAIL_FADE = [0.85, 0.72, 0.6, 0.48, 0.37, 0.27, 0.18, 0.1];
-const FRAME_SKIP = 3; // store history every Nth frame for wider spacing
+const TRAIL_SEGMENTS = 6;
+const TRAIL_OPACITY_BASE = [0.7, 0.55, 0.42, 0.3, 0.18, 0.08];
+const TRAIL_FADE = [0.9, 0.72, 0.55, 0.4, 0.26, 0.14];
+const FRAME_SKIP = 4; // store history every Nth frame for wider spacing
 
 export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   bufferRef,
