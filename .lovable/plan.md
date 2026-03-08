@@ -1,83 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Knowledge Base Deep Overhaul — Bigger Charts, Better Visuals, More Interactivity
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Core Problem
-The PowerCurveSVG and all SVG charts use tiny font sizes (6-8px in SVG units) with cramped viewBoxes (`h-32`, `h-16`). Text is unreadable. Charts feel like thumbnails, not informational graphics. The whole knowledge base needs more visual depth, larger interactive elements, and proper sizing.
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-### Changes
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-#### 1. `WindEnergyFundamentals.tsx` — Major SVG & Content Overhaul
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-**PowerCurveSVG:**
-- Enlarge from `h-32` to `h-56`, viewBox from `300×160` to `400×220`
-- Font sizes from 6-8 → 10-12
-- Add colored operating zones (cut-in gray, cubic green, rated orange, cut-out red) as filled rects behind curve
-- Add hover-interactive vertical crosshair line with tooltip (useState for hovered speed)
-- Add animated current-point dot on curve
-- Add dashed cut-in and rated speed vertical lines with labels
-- Add V³ cubic exponent annotation with arrow
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-**BetzGauge:**
-- Enlarge from `w-28 h-28` to `w-40 h-40`
-- Add animated stroke-dasharray transition on mount
-- Add percentage labels for both rings
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-**New: WeibullDistributionSVG** — interactive chart showing f(V) distribution with adjustable k parameter via simple buttons (k=1.5, 2.0, 2.5, 3.0), curve redraws with spring animation
+## 3. "Слід" (Trail) налаштування не працює
 
-**New: WindShearProfileSVG** — vertical height vs wind speed profile showing logarithmic increase, with terrain type markers
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-**Increase all text:** `text-[10px]` → `text-xs`, `text-[11px]` → `text-sm` where appropriate
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
-#### 2. `TechnicalSpecs.tsx` — Bigger Rotor Chart + Interactive AEP Calculator
+## 4. Реалістичніші частинки та оптимізація
 
-**RotorComparisonSVG:**
-- Enlarge from `h-16` to `h-32`, viewBox from `300×80` to `400×140`
-- Font sizes 7 → 11
-- Add animated bar growth on mount
-- Add swept area annotation (πr² values)
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
 
-**New: Simple AEP Calculator** — interactive section with sliders for wind speed (5-10 m/s) and rotor diameter (100-220m), shows calculated AEP in real-time with formula breakdown
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
 
-**New: PowerCurveComparisonSVG** — overlay power curves for 2-3 turbine models showing how larger rotors capture more at low wind
+## 5. Генератори всмоктують частинки — візуалізація
 
-#### 3. `TurbineCategories.tsx` — Larger Silhouettes + Efficiency Comparison
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
 
-**TurbineSilhouette:**
-- Enlarge from `w-8 h-10` to `w-14 h-16`
-- Add animated rotation on the HAWT blades (CSS animation)
-- More detail in silhouettes
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
 
-**New: EfficiencyComparisonSVG** — horizontal bar chart comparing Cp of all turbine types with animated bars
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
 
-#### 4. `UkraineWindPotential.tsx` — Animated Seasonal Chart + More Detail
+## 6. Стрілки напрямку вітру після колізії
 
-**Seasonal chart:** Convert from grid of small cards to proper bar chart SVG (`h-40`) with animated bars, labels, and hover values
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
 
-**New: WeibullSeasonalSVG** — small chart showing winter vs summer Weibull distributions overlaid
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
 
-#### 5. `PrintableComponents.tsx` — Larger Stress Diagram
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
 
-**BladeStressSVG:**
-- Enlarge from `h-16` to `h-28`, viewBox from `200×80` to `300×120`
-- Font sizes 6 → 10
-- Add animated force arrow pulsing
-- Add bending moment distribution curve along blade span
+## 7. Кращі impact ефекти
 
-**New: MaterialStrengthBarChart** — horizontal bars comparing tensile strength of all materials with color coding
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
 
-#### 6. `PrintingConsiderations.tsx` — Visual Print Parameter Guide
+---
 
-**New: LayerOrientationSVG** — shows correct vs incorrect print orientation for structural loads with clear visual
+## Технічна послідовність
 
-### Files Modified
-
-| File | Key Changes |
-|------|-------------|
-| `WindEnergyFundamentals.tsx` | PowerCurve h-56 with zones/hover, BetzGauge w-40, WeibullSVG, WindShearSVG |
-| `TechnicalSpecs.tsx` | RotorComparison h-32, AEP calculator, PowerCurve comparison |
-| `TurbineCategories.tsx` | Larger silhouettes, efficiency comparison chart |
-| `UkraineWindPotential.tsx` | Seasonal bar chart SVG, Weibull seasonal overlay |
-| `PrintableComponents.tsx` | BladeStress h-28, material strength bars |
-| `PrintingConsiderations.tsx` | Layer orientation SVG |
-
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори

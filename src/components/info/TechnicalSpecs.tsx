@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Calculator, Settings, Volume2, Wind } from 'lucide-react';
 import {
   Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
 import { motion } from 'framer-motion';
+import { Slider } from '@/components/ui/slider';
 
 const turbineSpecs = [
   { model: 'Vestas V150-4.2', power: '4.2 MW', rotor: '150m', hub: '105–166m', cutIn: '3', cutOut: '25', regulation: 'Pitch', aep: '~15 GWh/yr' },
@@ -23,7 +24,7 @@ const economicMetrics = [
   { metric_ua: 'Ресурс турбіни', metric_en: 'Turbine Lifespan', value: '25–30 years', trend_ua: 'Подовжується', trend_en: 'Extending' },
 ];
 
-// Rotor size comparison SVG
+// Rotor comparison — bigger, animated
 const RotorComparisonSVG = () => {
   const turbines = [
     { name: 'E-138', rotor: 138, color: 'hsl(25 90% 55%)' },
@@ -33,21 +34,83 @@ const RotorComparisonSVG = () => {
     { name: 'HX 220', rotor: 220, color: 'hsl(0 80% 55%)' },
   ];
   const maxR = 220;
+  const W = 420, H = 150;
   return (
-    <svg viewBox="0 0 300 80" className="w-full h-16">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-32 sm:h-36">
       {turbines.map((t, i) => {
-        const w = (t.rotor / maxR) * 240;
-        const y = 10 + i * 14;
+        const w = (t.rotor / maxR) * 280;
+        const y = 10 + i * 26;
+        const area = Math.round(Math.PI * (t.rotor / 2) ** 2);
         return (
           <g key={i}>
-            <rect x="50" y={y} width={w} height="10" rx="2" fill={t.color} opacity="0.7"
-              style={{ filter: `drop-shadow(0 0 3px ${t.color}50)` }} />
-            <text x="46" y={y + 8} textAnchor="end" fontSize="7" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{t.name}</text>
-            <text x={52 + w} y={y + 8} fontSize="7" fill="hsl(var(--foreground))" fontFamily="monospace">{t.rotor}m</text>
+            <motion.rect x="70" y={y} width={w} height="18" rx="3" fill={t.color} opacity="0.75"
+              initial={{ width: 0 }} animate={{ width: w }} transition={{ delay: i * 0.1, duration: 0.6, ease: 'easeOut' }}
+              style={{ filter: `drop-shadow(0 0 4px ${t.color}50)` }} />
+            <text x="64" y={y + 13} textAnchor="end" fontSize="11" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{t.name}</text>
+            <text x={74 + w} y={y + 13} fontSize="11" fill="hsl(var(--foreground))" fontFamily="monospace" fontWeight="600">{t.rotor}m</text>
+            <text x={74 + w + 50} y={y + 13} fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{area.toLocaleString()} m²</text>
           </g>
         );
       })}
     </svg>
+  );
+};
+
+// Interactive AEP Calculator
+const AEPCalculator = ({ lang }: { lang: 'ua' | 'en' }) => {
+  const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
+  const [windSpeed, setWindSpeed] = useState(7);
+  const [rotorD, setRotorD] = useState(150);
+
+  const calc = useMemo(() => {
+    const rho = 1.225;
+    const A = Math.PI * (rotorD / 2) ** 2;
+    const Cp = 0.45;
+    const cf = 0.30;
+    const pRated = 0.5 * rho * A * Math.pow(windSpeed, 3) * Cp / 1e6; // MW
+    const aep = pRated * 8760 * cf; // MWh
+    return { A: Math.round(A), pRated: pRated.toFixed(2), aep: Math.round(aep), aepGWh: (aep / 1000).toFixed(1) };
+  }, [windSpeed, rotorD]);
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <div>
+          <div className="flex justify-between text-xs mb-1.5">
+            <span className="text-muted-foreground">{L('Середня швидкість вітру', 'Mean Wind Speed')}</span>
+            <span className="font-mono text-primary font-semibold">{windSpeed.toFixed(1)} {L('м/с', 'm/s')}</span>
+          </div>
+          <Slider value={[windSpeed]} onValueChange={([v]) => setWindSpeed(v)} min={4} max={12} step={0.5} />
+        </div>
+        <div>
+          <div className="flex justify-between text-xs mb-1.5">
+            <span className="text-muted-foreground">{L('Діаметр ротора', 'Rotor Diameter')}</span>
+            <span className="font-mono text-primary font-semibold">{rotorD}m</span>
+          </div>
+          <Slider value={[rotorD]} onValueChange={([v]) => setRotorD(v)} min={80} max={240} step={10} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { label: L('Площа ометання', 'Swept Area'), value: `${calc.A.toLocaleString()} m²`, icon: '⊙' },
+          { label: L('Потужність (пік)', 'Peak Power'), value: `${calc.pRated} MW`, icon: '⚡' },
+          { label: L('AEP (CF=30%)', 'AEP (CF=30%)'), value: `${calc.aepGWh} GWh`, icon: '📊' },
+          { label: L('Домогосподарства', 'Households'), value: `~${Math.round(calc.aep / 4).toLocaleString()}`, icon: '🏠' },
+        ].map((item, i) => (
+          <motion.div key={i} layout className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+            <span className="text-xs text-muted-foreground">{item.icon} {item.label}</span>
+            <p className="text-base sm:text-lg font-mono font-bold text-foreground mt-0.5">{item.value}</p>
+          </motion.div>
+        ))}
+      </div>
+
+      <div className="p-3 rounded-lg text-xs" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.15)' }}>
+        <p className="font-mono text-primary text-center text-sm">
+          AEP = P<sub>rated</sub> × 8760h × CF = {calc.pRated} × 8760 × 0.30 = <strong>{calc.aepGWh} GWh</strong>
+        </p>
+      </div>
+    </div>
   );
 };
 
@@ -57,16 +120,15 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stalker-card p-4 sm:p-5">
-        <h3 className="text-sm sm:text-base font-semibold mb-1 flex items-center gap-2">
+        <h3 className="text-base sm:text-lg font-semibold mb-1 flex items-center gap-2">
           <Settings className="w-4 h-4 text-primary" /> {L('Специфікації сучасних вітротурбін', 'Modern Wind Turbine Specifications')}
         </h3>
-        <p className="text-xs text-muted-foreground mb-3">
+        <p className="text-xs sm:text-sm text-muted-foreground mb-4">
           {L('Промислові референсні турбіни з номінальною потужністю, геометрією ротора та оцінкою річного виробництва.',
              'Industrial-scale reference turbines with rated power, rotor geometry, and estimated annual energy production.')}
         </p>
-        {/* Rotor comparison */}
-        <div className="p-2 rounded-lg mb-2" style={{ backgroundColor: 'hsl(222 28% 10%)', border: '1px solid hsl(var(--border) / 0.2)' }}>
-          <p className="text-[10px] font-semibold text-muted-foreground mb-1">{L('Порівняння діаметрів ротора', 'Rotor Diameter Comparison')}</p>
+        <div className="p-3 rounded-lg mb-3" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--border) / 0.2)' }}>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">{L('Порівняння діаметрів ротора (+ площа ометання πr²)', 'Rotor Diameter Comparison (+ swept area πr²)')}</p>
           <RotorComparisonSVG />
         </div>
       </motion.div>
@@ -80,24 +142,24 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
                 <div className="flex items-center gap-3 text-left w-full">
                   <div className="flex-1">
                     <span className="text-xs sm:text-sm font-semibold">{t.model}</span>
-                    <div className="flex items-center gap-2 mt-0.5 text-[10px] text-muted-foreground">
-                      <Badge variant="outline" className="text-[10px] border-primary/30 bg-primary/5 text-primary">{t.power}</Badge>
+                    <div className="flex items-center gap-2 mt-0.5 text-xs text-muted-foreground">
+                      <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{t.power}</Badge>
                       <span>{L('Ротор', 'Rotor')}: {t.rotor}</span>
                     </div>
                   </div>
-                  <span className="text-[10px] font-mono text-primary shrink-0">{t.aep}</span>
+                  <span className="text-xs font-mono text-primary shrink-0">{t.aep}</span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4 pt-0">
-                <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
                   {[
                     { label: L('Висота щогли', 'Hub Height'), value: t.hub },
                     { label: L('Регулювання', 'Regulation'), value: ('regulation_ua' in t && lang === 'ua') ? (t as any).regulation_ua : ('regulation_en' in t && lang === 'en') ? (t as any).regulation_en : t.regulation },
                     { label: L('Швидкість пуску', 'Cut-in Speed'), value: `${t.cutIn} ${L('м/с', 'm/s')}` },
                     { label: L('Швидкість зупинки', 'Cut-out Speed'), value: `${t.cutOut} ${L('м/с', 'm/s')}` },
                   ].map((spec, j) => (
-                    <div key={j} className="p-2 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                      <span className="text-[10px] text-muted-foreground">{spec.label}</span>
+                    <div key={j} className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                      <span className="text-xs text-muted-foreground">{spec.label}</span>
                       <p className="font-mono text-foreground">{spec.value}</p>
                     </div>
                   ))}
@@ -108,18 +170,31 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
         ))}
       </Accordion>
 
+      {/* Interactive AEP Calculator */}
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+        className="stalker-card p-4 sm:p-5">
+        <h3 className="text-base sm:text-lg font-semibold mb-1 flex items-center gap-2">
+          <Calculator className="w-5 h-5 text-primary" /> {L('Інтерактивний калькулятор AEP', 'Interactive AEP Calculator')}
+        </h3>
+        <p className="text-xs sm:text-sm text-muted-foreground mb-4">
+          {L('Регулюйте швидкість вітру та діаметр ротора для оцінки річного виробництва енергії в реальному часі.',
+             'Adjust wind speed and rotor diameter to estimate annual energy production in real-time.')}
+        </p>
+        <AEPCalculator lang={lang} />
+      </motion.div>
+
       {/* Economic Metrics */}
       <div className="stalker-card p-4 sm:p-5">
-        <h3 className="text-sm sm:text-base font-semibold mb-3 flex items-center gap-2">
+        <h3 className="text-base sm:text-lg font-semibold mb-3 flex items-center gap-2">
           <Calculator className="w-4 h-4 text-primary" /> {L('Економічні показники', 'Economic Performance')}
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {economicMetrics.map((item, i) => (
             <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
-              className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide">{lang === 'ua' ? item.metric_ua : item.metric_en}</p>
-              <p className="text-sm sm:text-base font-bold text-foreground mt-0.5">{item.value}</p>
-              <p className="text-[10px] text-primary mt-0.5">{lang === 'ua' ? item.trend_ua : item.trend_en}</p>
+              className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">{lang === 'ua' ? item.metric_ua : item.metric_en}</p>
+              <p className="text-base sm:text-lg font-bold text-foreground mt-0.5">{item.value}</p>
+              <p className="text-xs text-primary mt-0.5">{lang === 'ua' ? item.trend_ua : item.trend_en}</p>
             </motion.div>
           ))}
         </div>
@@ -130,76 +205,60 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
         {[
           { value: 'aep', icon: Calculator, title: L('Метод розрахунку AEP', 'AEP Calculation Method'), content: (
             <div className="space-y-2">
-              <p>{L('Річне виробництво енергії інтегрує криву потужності турбіни з розподілом вітру на ділянці:', 'Annual Energy Production integrates the turbine power curve against the site wind distribution:')}</p>
-              <div className="p-2.5 rounded-lg font-mono text-center text-primary text-sm" style={{ backgroundColor: 'hsl(222 28% 10%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+              <p>{L('Річне виробництво інтегрує криву потужності з розподілом вітру:', 'Annual Energy Production integrates the power curve against wind distribution:')}</p>
+              <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
                 AEP = 8760 × ∫ P(V) · f(V) dV
               </div>
-              <p>{L('Втрати: сліди (5–10%), електричні (2–3%), доступність (95–98%), забруднення лопатей (1–2%), обмерзання (0–5% залежно від клімату).',
-                   'Losses applied: wake (5–10%), electrical (2–3%), availability (95–98%), blade soiling (1–2%), icing (0–5% depending on climate).')}</p>
-              <p>{L('Чисте AEP зазвичай 75–85% від валового після всіх коефіцієнтів втрат.',
-                   'Net AEP is typically 75–85% of gross AEP after all loss factors.')}</p>
+              <p>{L('Втрати: сліди (5–10%), електричні (2–3%), доступність (95–98%), забруднення лопатей (1–2%).', 'Losses: wake (5–10%), electrical (2–3%), availability (95–98%), blade soiling (1–2%).')}</p>
             </div>
           )},
           { value: 'power-curve', icon: Wind, title: L('Зривне vs кутове регулювання', 'Stall vs Pitch Regulation'), content: (
             <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                  <p className="text-[10px] font-semibold text-foreground">{L('Зривне регулювання', 'Stall Regulation')}</p>
-                  <p className="text-[10px] mt-0.5">{L('Аеродинаміка лопаті природно обмежує потужність вище номінальної швидкості. Простіше, але потужність падає при сильному вітрі.',
-                     'Blade aerodynamics naturally limit power above rated speed. Simpler but power drops in high winds.')}</p>
+                <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                  <p className="text-xs font-semibold text-foreground">{L('Зривне регулювання', 'Stall Regulation')}</p>
+                  <p className="text-xs mt-1">{L('Аеродинаміка лопаті природно обмежує потужність. Простіше, але потужність падає.', 'Blade aerodynamics naturally limit power. Simpler but power drops.')}</p>
                 </div>
-                <div className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
-                  <p className="text-[10px] font-semibold text-primary">{L('Кутове регулювання', 'Pitch Regulation')}</p>
-                  <p className="text-[10px] mt-0.5">{L('Активний контроль кута лопаті підтримує номінальну потужність. Дозволяє аварійне прапорування. Стандарт на сучасних турбінах.',
-                     'Active blade angle control maintains rated power. Enables emergency feathering. Standard on modern utility turbines.')}</p>
+                <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
+                  <p className="text-xs font-semibold text-primary">{L('Кутове регулювання', 'Pitch Regulation')}</p>
+                  <p className="text-xs mt-1">{L('Активний контроль кута лопаті підтримує номінал. Стандарт на сучасних турбінах.', 'Active blade angle control maintains rated power. Standard on modern turbines.')}</p>
                 </div>
               </div>
-              <p>{L('Активні системи реагують за 3–5 секунд. IPC (Individual Pitch Control) регулює кожну лопать окремо для зменшення асиметричних навантажень.',
-                   'Active pitch systems respond in 3–5 seconds. Individual Pitch Control (IPC) adjusts each blade independently to reduce asymmetric loads.')}</p>
             </div>
           )},
           { value: 'wake', icon: Wind, title: L('Сліди та розташування', 'Wake Effects & Spacing'), content: (
             <div className="space-y-2">
-              <p>{L('Турбіни за слідом відчувають знижену швидкість вітру та підвищену турбулентність:',
-                   'Downstream turbines in a wake experience reduced wind speed and increased turbulence:')}</p>
+              <p>{L('Турбіни за слідом відчувають знижену швидкість та підвищену турбулентність:', 'Downstream turbines experience reduced speed and increased turbulence:')}</p>
               <div className="space-y-1.5">
                 {[
-                  { label: L('Дефіцит швидкості на 5D', 'Velocity deficit at 5D'), value: '20–40%' },
-                  { label: L('Дефіцит швидкості на 10D', 'Velocity deficit at 10D'), value: '5–15%' },
-                  { label: L('Відновлення турбулентності', 'Turbulence recovery'), value: '10–15D' },
+                  { label: L('Дефіцит на 5D', 'Deficit at 5D'), value: '20–40%' },
+                  { label: L('Дефіцит на 10D', 'Deficit at 10D'), value: '5–15%' },
+                  { label: L('Відновлення', 'Recovery'), value: '10–15D' },
                 ].map((item, i) => (
-                  <div key={i} className="flex justify-between p-2 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                  <div key={i} className="flex justify-between p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
                     <span>{item.label}</span>
                     <span className="font-mono text-primary">{item.value}</span>
                   </div>
                 ))}
               </div>
-              <div className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
-                <p className="text-[10px] font-semibold text-primary">{L('Галузеве правило', 'Industry Rule')}</p>
-                <p className="text-[10px]">{L('Мінімум 5D перпендикулярно переважному вітру, 7–10D у напрямку переважного вітру.',
-                   'Minimum 5D spacing perpendicular to prevailing wind, 7–10D in prevailing direction.')}</p>
-              </div>
             </div>
           )},
-          { value: 'noise', icon: Volume2, title: L('Поширення шуму та нормативи', 'Noise Propagation & Regulations'), content: (
+          { value: 'noise', icon: Volume2, title: L('Шум та нормативи', 'Noise & Regulations'), content: (
             <div className="space-y-2">
-              <p>{L('Шум вітротурбіни: аеродинамічний (широкосмуговий, задня кромка) та механічний (редуктор, генератор) компоненти.',
-                   'Wind turbine noise: aerodynamic (broadband, trailing edge) and mechanical (gearbox, generator) components.')}</p>
-              <div className="p-2.5 rounded-lg font-mono text-center text-primary text-sm" style={{ backgroundColor: 'hsl(222 28% 10%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+              <p>{L('Аеродинамічний (задня кромка) та механічний (редуктор) компоненти шуму.', 'Aerodynamic (trailing edge) and mechanical (gearbox) noise components.')}</p>
+              <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
                 L<sub>p</sub> = L<sub>w</sub> − 10·log₁₀(4πr²) − α·r
               </div>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                  <p className="text-[10px] font-semibold text-foreground">{L('На 500м', 'At 500m')}</p>
+                <div className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                  <p className="text-xs font-semibold text-foreground">{L('На 500м', 'At 500m')}</p>
                   <p className="font-mono text-foreground">~40 dB(A)</p>
                 </div>
-                <div className="p-2 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                  <p className="text-[10px] font-semibold text-foreground">{L('Ліміт ЄС (ніч)', 'EU limit (night)')}</p>
+                <div className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                  <p className="text-xs font-semibold text-foreground">{L('Ліміт ЄС (ніч)', 'EU limit (night)')}</p>
                   <p className="font-mono text-foreground">35–40 dB(A)</p>
                 </div>
               </div>
-              <p>{L('Зубчасті кромки задньої частини зменшують широкосмуговий шум на 2–5 дБ(А). Шумооптимізовані режими обмінюють 1–3% AEP на відповідність.',
-                   'Trailing edge serrations reduce broadband noise by 2–5 dB(A). Noise-optimized modes trade 1–3% AEP for compliance.')}</p>
             </div>
           )},
         ].map(item => (
@@ -211,7 +270,7 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
                   <span className="text-xs sm:text-sm font-semibold">{item.title}</span>
                 </div>
               </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 pt-0 text-xs text-muted-foreground">
+              <AccordionContent className="px-4 pb-4 pt-0 text-xs sm:text-sm text-muted-foreground">
                 {item.content}
               </AccordionContent>
             </div>
