@@ -283,12 +283,35 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     (physicsConfig.terrainSlopeZ * Math.PI) / 180, 0, -(physicsConfig.terrainSlopeX * Math.PI) / 180
   ];
 
+  // Second-click-hold drag: first click selects, second click on same object + hold = drag
+  const selectClickCountRef = useRef(0);
+  const lastSelectedIndexRef = useRef<number | null>(null);
+
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.altKey) return;
     if (interactionMode === 'select') {
-      if (ghostPosition) { selectObstacleAt(ghostPosition); dragStartRef.current = { x: ghostPosition[0], z: ghostPosition[2] }; isDraggingRef.current = false; }
+      if (ghostPosition) {
+        // Find what we clicked
+        let clickedIdx = -1;
+        obstacles.forEach((obs, idx) => {
+          const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
+          const dist = Math.sqrt((ghostPosition[0] - cx) ** 2 + (ghostPosition[2] - cz) ** 2);
+          const maxReach = Math.max(obs.width, obs.depth) * (obs.scale || 1);
+          if (dist < maxReach && (clickedIdx === -1)) { clickedIdx = idx; }
+        });
+
+        if (clickedIdx >= 0 && clickedIdx === selectedObstacleIndex) {
+          // Second click on already-selected → start drag
+          dragStartRef.current = { x: ghostPosition[0], z: ghostPosition[2] };
+          isDraggingRef.current = false;
+        } else {
+          // First click or different object → just select
+          setSelectedObstacleIndex(clickedIdx >= 0 ? clickedIdx : null);
+          dragStartRef.current = null;
+        }
+      }
     } else { if (ghostPosition) addObstacle(ghostPosition[0], 0, ghostPosition[2]); }
-  }, [interactionMode, ghostPosition, addObstacle, selectObstacleAt]);
+  }, [interactionMode, ghostPosition, addObstacle, obstacles, selectedObstacleIndex]);
 
   const handleCanvasPointerMove = useCallback(() => {
     if (interactionMode === 'select' && dragStartRef.current && selectedObstacleIndex !== null && ghostPosition) {
