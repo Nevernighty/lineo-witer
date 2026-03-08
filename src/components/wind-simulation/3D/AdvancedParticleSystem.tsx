@@ -328,7 +328,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             }
           }
 
-          if (dist < gen.rotorRadius * 1.2 && !particle.absorbed) {
+          if (dist < gen.rotorRadius * 0.8 && !particle.absorbed) {
             particle.absorbed = true;
             particle.absorptionTimer = 25;
             
@@ -337,7 +337,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               absorbSoundCooldown.current = 0.3;
             }
             
-            if (onCollisionEvent && Math.random() < 0.25) {
+            if (onCollisionEvent && Math.random() < 0.60) {
               onCollisionEvent({
                 id: `absorb-${Date.now()}-${Math.random()}`,
                 position: [particle.x, particle.y, particle.z],
