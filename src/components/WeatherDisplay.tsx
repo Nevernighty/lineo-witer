@@ -523,8 +523,8 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
         <span className="text-xs font-semibold text-foreground">{t('forecast24h', lang)}</span>
         <div className="flex items-end gap-[2px] mt-3 h-16 relative">
-          {displayWeather.forecast24h.map((f, i) => {
-            const maxS = Math.max(...displayWeather.forecast24h.map(ff => ff.speed));
+          {weather.forecast24h.map((f, i) => {
+            const maxS = Math.max(...weather.forecast24h.map(ff => ff.speed));
             const h = Math.max(4, (f.speed / maxS) * 60);
             const isHovered = hoveredBar === i;
             return (
