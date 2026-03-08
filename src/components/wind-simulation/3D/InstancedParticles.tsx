@@ -132,34 +132,39 @@ const PRESET_CONFIG: Record<string, { baseSizeMul: number; opacity: number; tail
 const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
   const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
+  // Glow: floor at 0.35, boost brightness above 1.0
+  const glowFloor = Math.max(glow, 0.35);
+  const glowBoost = glow > 1.0 ? 1.0 + (glow - 1.0) * 0.6 : glowFloor;
 
   if (absorbed) {
-    const pulse = 0.8 + Math.sin(Date.now() * 0.02) * 0.2;
-    c.setRGB(1 * pulse * glow, 0.95 * pulse * glow, 0.3 * pulse);
+    // Grey/silver with subtle white pulse — "energy extracted" look
+    const pulse = 0.55 + Math.sin(Date.now() * 0.015) * 0.15;
+    const grey = pulse * 0.65;
+    c.setRGB(grey, grey, grey * 1.05);
     return;
   }
 
   if (hasCollided) {
     const intensity = Math.min(t * impactMul, 1);
-    c.setRGB(Math.min(1, (1 + intensity * 0.5) * glow), 0.2 + (1 - intensity) * 0.3, 0.02);
+    c.setRGB(Math.min(1, (1 + intensity * 0.5) * glowBoost), 0.2 + (1 - intensity) * 0.3, 0.02);
     return;
   }
 
   if (t < 0.2) {
     const p = t / 0.2;
-    c.setRGB(0.1 * glow, 0.2 + p * 0.4, (0.9 + p * 0.1) * glow);
+    c.setRGB(0.1 * glowBoost, 0.2 + p * 0.4, (0.9 + p * 0.1) * glowBoost);
   } else if (t < 0.4) {
     const p = (t - 0.2) / 0.2;
-    c.setRGB(0.1 * glow, (0.6 + p * 0.4) * glow, (1 - p * 0.5) * glow);
+    c.setRGB(0.1 * glowBoost, (0.6 + p * 0.4) * glowBoost, (1 - p * 0.5) * glowBoost);
   } else if (t < 0.65) {
     const p = (t - 0.4) / 0.25;
-    c.setRGB((0.1 + p * 0.15) * glow, (1.0) * glow, (0.5 - p * 0.3) * glow);
+    c.setRGB((0.1 + p * 0.15) * glowBoost, (1.0) * glowBoost, (0.5 - p * 0.3) * glowBoost);
   } else if (t < 0.85) {
     const p = (t - 0.65) / 0.2;
-    c.setRGB((0.25 + p * 0.75) * glow, (1 - p * 0.2) * glow, (0.2 - p * 0.15) * glow);
+    c.setRGB((0.25 + p * 0.75) * glowBoost, (1 - p * 0.2) * glowBoost, (0.2 - p * 0.15) * glowBoost);
   } else {
     const p = (t - 0.85) / 0.15;
-    c.setRGB(Math.min(1, (1 + p * 0.3) * glow), (0.8 - p * 0.4) * glow, 0.05 * glow);
+    c.setRGB(Math.min(1, (1 + p * 0.3) * glowBoost), (0.8 - p * 0.4) * glowBoost, 0.05 * glowBoost);
   }
 };
 
@@ -190,11 +195,11 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     transparent: true,
-    opacity: presetCfg.opacity,
+    opacity: Math.min(1, presetCfg.opacity * Math.max(glowIntensity * 1.5, 0.4)),
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     side: THREE.DoubleSide,
-  }), [presetCfg.opacity]);
+  }), [presetCfg.opacity, glowIntensity]);
 
   const maxCount = useRef(2000);
   const arrowAngleRad = (windAngle * Math.PI) / 180;
@@ -240,7 +245,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
       // Tail length grows with speed AND trailLengthMultiplier
       const tailLength = 1 + speed * 0.12 * tailMul;
-      const cappedTail = Math.min(tailLength, 10.0);
+      const cappedTail = Math.min(tailLength, 60.0);
       const lateralSize = baseScale * 0.8;
       const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.03);
 

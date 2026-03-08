@@ -331,7 +331,19 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             }
           }
 
-          if (dist < gen.rotorRadius * 0.8 && !particle.absorbed) {
+          // VAWT: cylindrical absorption zone (horizontal distance + height check)
+          // HAWT: spherical zone (3D distance)
+          const shouldAbsorb = gen.isVAWT
+            ? (() => {
+                const horizDist = Math.sqrt(dx * dx + dz * dz);
+                const towerHeight = gen.cy; // center height
+                const rotorHalfH = gen.rotorRadius * 1.2; // vertical extent
+                const inHeight = particle.y > (towerHeight - rotorHalfH) && particle.y < (towerHeight + rotorHalfH);
+                return horizDist < gen.rotorRadius * 0.6 && inHeight;
+              })()
+            : dist < gen.rotorRadius * 0.8;
+          
+          if (shouldAbsorb && !particle.absorbed) {
             particle.absorbed = true;
             particle.absorptionTimer = 25;
             

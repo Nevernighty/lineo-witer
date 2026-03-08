@@ -158,7 +158,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           )}
           {onParticleTrailLengthChange && (
             <GlowSlider value={particleTrailLength} onChange={(v) => onParticleTrailLengthChange(v)}
-              min={0} max={10.0} step={0.5} label={t('particleTrail', lang)} displayValue={`${particleTrailLength.toFixed(1)}x`}
+              min={0} max={100.0} step={1} label={t('particleTrail', lang)} displayValue={`${particleTrailLength.toFixed(0)}x`}
               infoText={t('infoParticleTrail', lang)} />
           )}
           {onParticleGlowChange && (
