@@ -570,7 +570,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         <span className="text-xs font-semibold text-foreground mb-2 block">
           {lang === 'ua' ? 'Клас вітрового ресурсу (NREL)' : 'Wind Resource Class (NREL)'}
         </span>
-        <WPDClassBar wpd={displayWeather.wpd} lang={lang} />
+        <WPDClassBar wpd={weather.wpd} lang={lang} />
       </div>
 
       {/* Wind Energy Potential */}
