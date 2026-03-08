@@ -225,7 +225,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         cy: isVAWT ? o.y + o.height * (o.scale || 1) * 0.75 : o.y + o.height * (o.scale || 1),
         cz: o.z + o.depth / 2,
         rotorRadius: rotorDiameter / 2,
-        attractRadius: rotorDiameter * suctionPhysics.suctionRadius,
+        attractRadius: Math.min(rotorDiameter * suctionPhysics.suctionRadius, rotorDiameter * 4),
         cp: specs.cp,
         subtype,
         isVAWT,
@@ -353,8 +353,8 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
 
       // Higher lerpFactor near generators for responsive suction
       const nearGenerator = generators.some(g => {
-        const dx = g.center.x - particle.x;
-        const dz = g.center.z - particle.z;
+        const dx = g.cx - particle.x;
+        const dz = g.cz - particle.z;
         return Math.sqrt(dx*dx + dz*dz) < g.attractRadius;
       });
       const lerpFactor = nearGenerator ? 0.3 : 0.12;
