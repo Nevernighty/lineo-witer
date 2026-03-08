@@ -417,7 +417,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             cumulativeEnergyRef.current.set(obstacleId, cumEntries);
 
             const deflection: [number, number, number] = [nx, ny, nz];
-            if (onCollisionEvent && Math.random() < 0.2) {
+            if (onCollisionEvent && Math.random() < 0.08) {
               onCollisionEvent({
                 id: `collision-${Date.now()}-${Math.random()}`,
                 position: [particle.x, particle.y, particle.z],

@@ -162,8 +162,8 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
               infoText={t('infoParticleTrail', lang)} />
           )}
           {onParticleGlowChange && (
-            <GlowSlider value={particleGlow} onChange={(v) => onParticleGlowChange(v)}
-              min={0.2} max={3.0} step={0.1} label={t('particleGlow', lang)} displayValue={`${particleGlow.toFixed(1)}x`}
+             <GlowSlider value={particleGlow} onChange={(v) => onParticleGlowChange(v)}
+              min={0.01} max={3.0} step={0.01} label={t('particleGlow', lang)} displayValue={`${particleGlow.toFixed(2)}x`}
               infoText={t('infoParticleGlow', lang)} />
           )}
         </TabsContent>

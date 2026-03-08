@@ -153,11 +153,11 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const handlePresetChange = useCallback((preset: string) => {
     setParticlePreset(preset);
     switch (preset) {
-      case 'smoke': setParticleGlow(0.5); setParticleTrailLength(6); setPulsation(0.5); break;
-      case 'arrows': setParticleGlow(1.5); setParticleTrailLength(1); setPulsation(0); break;
-      case 'sparks': setParticleGlow(2.5); setParticleTrailLength(4); setPulsation(1.5); break;
-      case 'flows': setParticleGlow(1.2); setParticleTrailLength(8); setPulsation(0.8); break;
-      default: setParticleGlow(1.0); setParticleTrailLength(3.0); setPulsation(0); break;
+      case 'smoke': setParticleGlow(0.15); setParticleTrailLength(6); setPulsation(0.5); break;
+      case 'arrows': setParticleGlow(0.4); setParticleTrailLength(1); setPulsation(0); break;
+      case 'sparks': setParticleGlow(0.8); setParticleTrailLength(4); setPulsation(1.5); break;
+      case 'flows': setParticleGlow(0.3); setParticleTrailLength(8); setPulsation(0.8); break;
+      default: setParticleGlow(0.2); setParticleTrailLength(3.0); setPulsation(0); break;
     }
   }, []);
 

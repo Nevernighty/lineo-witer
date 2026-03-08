@@ -185,10 +185,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
           const elongation = Math.min(1 + spd * 0.12 * trailLengthMultiplier, 3.0);
           dummy.scale.set(s * elongation, s * 0.7, s * 0.7);
 
-          const vx = buf.velocities[i3];
-          const vy = buf.velocities[i3 + 1];
-          const vz = buf.velocities[i3 + 2];
-          if (Math.abs(vx) + Math.abs(vy) + Math.abs(vz) > 0.1) {
+          if (spd > 0.1) {
             dummy.lookAt(hx + vx, hy + vy, hz + vz);
           }
         }
