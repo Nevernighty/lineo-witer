@@ -395,7 +395,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {displayWeather.isLive ? (
+            {weather.isLive ? (
               <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-mono" style={{ backgroundColor: 'hsl(120 100% 54% / 0.1)', color: 'hsl(120 80% 60%)', borderColor: 'hsl(120 100% 54% / 0.3)' }}>
                 <Wifi className="w-3 h-3" /> Live
               </span>
