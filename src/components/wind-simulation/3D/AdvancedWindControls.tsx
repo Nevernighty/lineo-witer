@@ -136,7 +136,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           })}
         </TabsList>
 
-        <TabsContent value="wind" className="p-3 space-y-3 mt-0">
+        <TabsContent value="wind" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.windSpeed} onChange={(v) => updateConfig('windSpeed', v)}
             min={0} max={30} step={0.5} label={t('speed', lang)} displayValue={`${config.windSpeed.toFixed(1)} m/s`}
             infoText={t('infoSpeed', lang)} />
