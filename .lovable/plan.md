@@ -1,65 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Knowledge Base Full Visual & Content Overhaul
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Problems Found
-1. **ExpandableCards still look like ugly dropdowns** — flat dark bg, no visual distinction, tiny text, feel like accordion wrappers
-2. **Scrollbar not consistently styled** — `eng-scrollbar` class applied but the main page `<main>` overflow isn't using it
-3. **PrintingConsiderations** — content is good now but expandable sections at bottom are hard to discover
-4. **BladeStressSVG** — hover works but the SVG is still cramped, legend overlaps tooltip area at bottom
-5. **UkraineWindPotential** — bottom strategy section feels like plain cards, timeline is a basic flex row
-6. **WindEnergyFundamentals** — "Поглиблені концепції" expandables at bottom look the worst — user specifically complained about these
-7. **gl-matrix build errors** — pre-existing from node_modules, not our code
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-### Plan
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-**1. Create shared `ExpandableSection` component** — `src/components/info/ExpandableSection.tsx`
-New reusable component replacing all per-file ExpandableCard duplicates:
-- Larger padding, bigger font, colored left border (3px) matching section color
-- Gradient header background on hover (subtle)
-- Icon with glow when open
-- Smooth spring animation (framer-motion layout)
-- Badge showing section type (formula, concept, data)
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-**2. `WindEnergyFundamentals.tsx`** — Fix "Поглиблені концепції"
-- Remove inline `ExpandableCard` definition, import shared one
-- Make the 3 advanced concepts (Betz, Reynolds, TSR) into visually richer cards:
-  - Each gets a colored left border + subtle gradient bg when open
-  - Formula blocks get bigger font + glow
-  - Add mini SVG illustrations (momentum disc for Betz, airfoil for Reynolds)
-- Fix Betz gauge text clipping — increase viewBox width from 130 to 140
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-**3. `PrintingConsiderations.tsx`** — Structure improvement
-- Remove inline `ExpandableCard`, import shared
-- Group expandable sections under a clear header with numbered steps
-- Add color-coded severity indicators (critical/recommended/optional) to each section
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-**4. `PrintableComponents.tsx`** — Blade stress visualization
-- Increase BladeStressSVG viewBox height from 320 to 360 to prevent tooltip/legend overlap
-- Add RPM slider to make it interactive (change omega dynamically)
-- Move legend outside SVG into HTML below for better layout
+## 3. "Слід" (Trail) налаштування не працює
 
-**5. `UkraineWindPotential.tsx`** — Timeline enhancement
-- Replace basic flex timeline with connected nodes (vertical line + glowing dots)
-- Remove inline `ExpandableSection`, import shared
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-**6. `TechnicalSpecs.tsx`** — Import shared expandable
-- Remove inline `ExpandableCard`, use shared component
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
-**7. `InfoPage.tsx`** — Scrollbar
-- Add `eng-scrollbar` to `<main>` with `overflow-y: auto` and `max-h-[calc(100vh-56px)]`
+## 4. Реалістичніші частинки та оптимізація
 
-### Files Modified
-| File | Changes |
-|------|---------|
-| `src/components/info/ExpandableSection.tsx` | NEW — shared expandable component |
-| `WindEnergyFundamentals.tsx` | Import shared expandable, fix SVG clipping, enhance advanced concepts |
-| `PrintingConsiderations.tsx` | Import shared expandable, add severity badges |
-| `PrintableComponents.tsx` | Bigger blade SVG, add RPM slider, move legend to HTML |
-| `UkraineWindPotential.tsx` | Import shared expandable, better timeline |
-| `TechnicalSpecs.tsx` | Import shared expandable |
-| `InfoPage.tsx` | Fix main scrollbar |
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
 
-### Build Errors
-The `gl-matrix` errors are from `node_modules` type declarations — not our code. They don't affect runtime. No action needed.
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
 
+## 5. Генератори всмоктують частинки — візуалізація
+
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
+
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
+
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
+
+## 6. Стрілки напрямку вітру після колізії
+
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
+
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
+
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
+
+## 7. Кращі impact ефекти
+
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
+
+---
+
+## Технічна послідовність
+
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори

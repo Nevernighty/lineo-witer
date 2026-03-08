@@ -2,44 +2,15 @@ import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { 
   Wind, Zap, TrendingUp, Gauge, 
-  ArrowRight, AlertCircle, CheckCircle, Info, Layers, ChevronDown
+  ArrowRight, AlertCircle, CheckCircle, Info, Layers, Atom, BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
+import { ExpandableSection } from './ExpandableSection';
 
 const cardVariants = {
   hidden: { opacity: 0, y: 16 },
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.3 } }),
-};
-
-// Reusable expandable section component
-const ExpandableCard = ({ title, icon: Icon, children, color = 'hsl(var(--primary))' }: { title: string; icon?: any; children: React.ReactNode; color?: string }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="rounded-lg overflow-hidden transition-all duration-300" style={{
-      backgroundColor: 'hsl(222 28% 12%)',
-      border: `1px solid ${open ? color + '40' : 'hsl(var(--border) / 0.2)'}`,
-      boxShadow: open ? `0 0 20px ${color}15` : 'none',
-    }}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left group">
-        <div className="flex items-center gap-2">
-          {Icon && <Icon className="w-4 h-4" style={{ color }} />}
-          <span className="text-xs sm:text-sm font-semibold text-foreground">{title}</span>
-        </div>
-        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }} className="overflow-hidden">
-            <div className="px-4 pb-4 text-xs sm:text-sm text-muted-foreground">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
 };
 
 // Interactive Power Curve SVG
@@ -65,7 +36,6 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
     ? hoverV < cutIn ? 0 : hoverV >= cutOut ? 0 : hoverV >= rated ? 100 : Math.min(100, ((hoverV - cutIn) / (rated - cutIn)) ** 3 * 100)
     : null;
 
-  // Clamp tooltip position
   const tooltipX = hoverV !== null ? Math.max(pad.l + 44, Math.min(W - pad.r - 44, vToX(hoverV))) : 0;
 
   return (
@@ -78,13 +48,11 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
       }}
       onMouseLeave={() => setHoverV(null)}>
       
-      {/* Operating zones */}
       <rect x={pad.l} y={pad.t} width={vToX(cutIn) - pad.l} height={plotH} fill="hsl(var(--muted-foreground))" opacity="0.04" />
       <rect x={vToX(cutIn)} y={pad.t} width={vToX(rated) - vToX(cutIn)} height={plotH} fill="hsl(120 80% 50%)" opacity="0.04" />
       <rect x={vToX(rated)} y={pad.t} width={vToX(cutOut) - vToX(rated)} height={plotH} fill="hsl(25 90% 55%)" opacity="0.04" />
       <rect x={vToX(cutOut)} y={pad.t} width={vToX(vMax) - vToX(cutOut)} height={plotH} fill="hsl(0 70% 50%)" opacity="0.06" />
 
-      {/* Grid lines */}
       {[0, 25, 50, 75, 100].map(p => (
         <g key={p}>
           <line x1={pad.l} y1={pToY(p)} x2={W - pad.r} y2={pToY(p)} stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.15" />
@@ -98,33 +66,25 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
         </g>
       ))}
 
-      {/* Axes */}
       <line x1={pad.l} y1={pad.t + plotH} x2={W - pad.r} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.5" />
       <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.5" />
 
-      {/* Axis labels */}
       <text x={(pad.l + W - pad.r) / 2} y={H - 8} textAnchor="middle" fontSize="12" fill="hsl(var(--muted-foreground))">{L('Швидкість вітру (м/с)', 'Wind Speed (m/s)')}</text>
       <text x={14} y={(pad.t + pad.t + plotH) / 2} textAnchor="middle" fontSize="12" fill="hsl(var(--muted-foreground))" transform={`rotate(-90 14 ${(pad.t + pad.t + plotH) / 2})`}>{L('Потужність (%)', 'Power (%)')}</text>
 
-      {/* Cut-in / rated / cut-out dashed lines */}
       <line x1={vToX(cutIn)} y1={pad.t} x2={vToX(cutIn)} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" strokeDasharray="4 3" opacity="0.5" />
       <line x1={vToX(rated)} y1={pad.t} x2={vToX(rated)} y2={pad.t + plotH} stroke="hsl(25 90% 55%)" strokeWidth="1" strokeDasharray="4 3" opacity="0.5" />
       <line x1={vToX(cutOut)} y1={pad.t} x2={vToX(cutOut)} y2={pad.t + plotH} stroke="hsl(0 70% 50%)" strokeWidth="1" strokeDasharray="4 3" opacity="0.5" />
 
-      {/* Zone labels */}
       <text x={(vToX(0) + vToX(cutIn)) / 2} y={pad.t + plotH - 8} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" opacity="0.6">{L('Тихо', 'Idle')}</text>
       <text x={(vToX(cutIn) + vToX(rated)) / 2} y={pad.t + 14} textAnchor="middle" fontSize="10" fontWeight="600" fill="hsl(120 80% 50%)">P ∝ V³</text>
       <text x={(vToX(rated) + vToX(cutOut)) / 2} y={pad.t + 14} textAnchor="middle" fontSize="10" fontWeight="600" fill="hsl(25 90% 55%)">{L('Номінал', 'Rated')}</text>
       <text x={(vToX(cutOut) + vToX(vMax)) / 2} y={pad.t + 14} textAnchor="middle" fontSize="9" fill="hsl(0 70% 50%)">{L('Стоп', 'Cut-out')}</text>
 
-      {/* Power curve fill */}
       <polygon points={`${vToX(0)},${pToY(0)} ${points.join(' ')} ${vToX(vMax)},${pToY(0)}`} fill="hsl(var(--primary))" opacity="0.06" />
-      
-      {/* Power curve line */}
       <polyline points={points.join(' ')} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5"
         strokeDasharray="800" strokeDashoffset="800" style={{ animation: 'drawCurve 2s ease-out forwards' }} />
 
-      {/* Hover crosshair & tooltip */}
       {hoverV !== null && hoverP !== null && (
         <>
           <line x1={vToX(hoverV)} y1={pad.t} x2={vToX(hoverV)} y2={pad.t + plotH} stroke="hsl(var(--primary))" strokeWidth="1" opacity="0.5" strokeDasharray="2 2" />
@@ -140,18 +100,18 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   );
 };
 
-// Betz Limit Gauge — fixed viewBox to prevent clipping
+// Betz Limit Gauge — wider viewBox
 const BetzGauge = ({ lang }: { lang: 'ua' | 'en' }) => {
   const betzPct = 59.3;
   const practicalPct = 47;
   const r = 48;
   const rInner = 36;
-  const cx = 65, cy = 60;
+  const cx = 70, cy = 60;
   const circ = 2 * Math.PI * r;
   const circInner = 2 * Math.PI * rInner;
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
   return (
-    <svg viewBox="0 0 130 120" className="w-40 h-36">
+    <svg viewBox="0 0 140 125" className="w-44 h-40">
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="8" opacity="0.08" />
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(210 90% 60%)" strokeWidth="8"
         strokeDasharray={`${(betzPct / 100) * circ} ${circ}`} strokeLinecap="round" transform={`rotate(-90 ${cx} ${cy})`}
@@ -288,6 +248,31 @@ const WindShearSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
     </svg>
   );
 };
+
+// Momentum disc mini SVG for Betz explanation
+const MomentumDiscSVG = () => (
+  <svg viewBox="0 0 200 80" className="w-full h-16 mt-2">
+    <defs>
+      <marker id="flowArr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0 0 L6 3 L0 6Z" fill="hsl(var(--primary))" opacity="0.6" /></marker>
+    </defs>
+    {/* Streamtube */}
+    <path d="M10 25 Q60 20 90 18 L90 62 Q60 60 10 55Z" fill="hsl(210 90% 60%)" opacity="0.06" stroke="hsl(210 90% 60%)" strokeWidth="0.5" />
+    <path d="M110 15 Q140 12 190 8 L190 72 Q140 68 110 65Z" fill="hsl(25 90% 55%)" opacity="0.06" stroke="hsl(25 90% 55%)" strokeWidth="0.5" />
+    {/* Disc */}
+    <line x1="100" y1="10" x2="100" y2="70" stroke="hsl(var(--primary))" strokeWidth="2" />
+    <text x="100" y="6" textAnchor="middle" fontSize="8" fill="hsl(var(--primary))" fontWeight="600">Rotor</text>
+    {/* Flow arrows */}
+    {[25, 40, 55].map(y => (
+      <g key={y}>
+        <line x1="15" y1={y} x2="85" y2={y} stroke="hsl(var(--primary))" strokeWidth="1" opacity="0.4" markerEnd="url(#flowArr)" />
+        <line x1="115" y1={y} x2="180" y2={y} stroke="hsl(var(--primary))" strokeWidth="1" opacity="0.25" markerEnd="url(#flowArr)" />
+      </g>
+    ))}
+    {/* Labels */}
+    <text x="45" y="75" textAnchor="middle" fontSize="8" fill="hsl(210 90% 60%)">V₁</text>
+    <text x="150" y="75" textAnchor="middle" fontSize="8" fill="hsl(25 90% 55%)">V₂ = ⅓V₁</text>
+  </svg>
+);
 
 export const WindEnergyFundamentals = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
@@ -511,36 +496,57 @@ export const WindEnergyFundamentals = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
         </div>
       </div>
 
-      {/* Advanced Concepts — Custom expandable cards */}
+      {/* Advanced Concepts — new ExpandableSection component */}
       <div className="stalker-card p-4 sm:p-5">
         <h3 className="text-base sm:text-lg font-semibold mb-3">{L('Поглиблені концепції', 'Advanced Concepts')}</h3>
-        <div className="space-y-2">
-          <ExpandableCard title={L('Ліміт Бетца — максимальне вилучення енергії', 'Betz Limit — Maximum Energy Extraction')} color="hsl(210 90% 60%)">
-            <div className="space-y-2">
-              <p>{L('Ліміт Бетца (59.3%) — максимальна теоретична ефективність вітротурбіни. Відкритий Альбертом Бетцом у 1919 р.', 'The Betz limit (59.3%) represents the maximum theoretical efficiency of a wind turbine. Discovered by Albert Betz in 1919.')}</p>
-              <p>{L('Якщо всю кінетичну енергію вилучити, повітря зупиниться за ротором, блокуючи вхідний потік. Оптимум — швидкість за ротором = ⅓ від вхідної.', 'If all kinetic energy were extracted, air would stop behind the rotor. Optimal: downstream speed = ⅓ of upstream.')}</p>
-              <div className="flex items-center gap-2 mt-2 flex-wrap">
+        <div className="space-y-2.5">
+          <ExpandableSection title={L('Ліміт Бетца — максимальне вилучення енергії', 'Betz Limit — Maximum Energy Extraction')} icon={Atom} color="hsl(210 90% 60%)" badge={L('Теорія', 'Theory')}>
+            <div className="space-y-3">
+              <p className="text-sm">{L('Ліміт Бетца (59.3%) — максимальна теоретична ефективність вітротурбіни. Відкритий Альбертом Бетцом у 1919 р.', 'The Betz limit (59.3%) represents the maximum theoretical efficiency of a wind turbine. Discovered by Albert Betz in 1919.')}</p>
+              <p className="text-sm">{L('Якщо всю кінетичну енергію вилучити, повітря зупиниться за ротором, блокуючи вхідний потік. Оптимум — швидкість за ротором = ⅓ від вхідної.', 'If all kinetic energy were extracted, air would stop behind the rotor. Optimal: downstream speed = ⅓ of upstream.')}</p>
+              <div className="rounded-lg p-3" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(210 90% 60% / 0.2)' }}>
+                <p className="text-xs font-semibold text-center mb-1" style={{ color: 'hsl(210 90% 60%)' }}>{L('Дискова модель імпульсу', 'Momentum Disc Model')}</p>
+                <MomentumDiscSVG />
+              </div>
+              <div className="p-3 rounded-lg font-mono text-center text-lg" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)', color: 'hsl(210 90% 60%)', textShadow: '0 0 12px hsl(210 90% 60% / 0.3)' }}>
+                Cp<sub>max</sub> = 16/27 ≈ 0.593
+              </div>
+              <div className="flex items-center gap-2 flex-wrap">
                 <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Теорія', 'Theory')}: 59.3%</Badge>
                 <ArrowRight className="w-3 h-3" />
                 <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">{L('Практика', 'Practice')}: 45–50%</Badge>
               </div>
             </div>
-          </ExpandableCard>
+          </ExpandableSection>
 
-          <ExpandableCard title={L('Число Рейнольдса — аеродинаміка лопаті', 'Reynolds Number — Blade Aerodynamics')} color="hsl(120 70% 50%)">
-            <div className="space-y-2">
-              <p>{L('Визначає ламінарний чи турбулентний потік над лопаттю. Впливає на підйомну силу та опір.', 'Determines laminar vs turbulent flow over the blade. Affects lift and drag.')}</p>
-              <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+          <ExpandableSection title={L('Число Рейнольдса — аеродинаміка лопаті', 'Reynolds Number — Blade Aerodynamics')} icon={Wind} color="hsl(120 70% 50%)" badge={L('Формула', 'Formula')}>
+            <div className="space-y-3">
+              <p className="text-sm">{L('Визначає ламінарний чи турбулентний потік над лопаттю. Впливає на підйомну силу та опір.', 'Determines laminar vs turbulent flow over the blade. Affects lift and drag.')}</p>
+              {/* Mini airfoil SVG */}
+              <div className="rounded-lg p-3" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(120 70% 50% / 0.2)' }}>
+                <svg viewBox="0 0 200 60" className="w-full h-12">
+                  <path d="M20 30 Q40 15 70 12 Q120 8 180 28 Q120 48 70 46 Q40 45 20 30Z" 
+                    fill="hsl(120 70% 50%)" opacity="0.08" stroke="hsl(120 70% 50%)" strokeWidth="1" />
+                  {[40, 70, 100, 130, 160].map((x, i) => (
+                    <line key={i} x1={x - 15} y1={12 + i * 2} x2={x} y2={15 + i * 1.5} stroke="hsl(210 90% 60%)" strokeWidth="0.7" opacity="0.4" markerEnd="url(#reArr)" />
+                  ))}
+                  <text x="100" y="56" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">Boundary layer transition</text>
+                  <defs>
+                    <marker id="reArr" markerWidth="4" markerHeight="4" refX="2" refY="2" orient="auto"><path d="M0 0 L4 2 L0 4Z" fill="hsl(210 90% 60%)" opacity="0.5" /></marker>
+                  </defs>
+                </svg>
+              </div>
+              <div className="p-3 rounded-lg font-mono text-center text-lg" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)', color: 'hsl(120 70% 50%)', textShadow: '0 0 12px hsl(120 70% 50% / 0.3)' }}>
                 Re = ρVL / μ
               </div>
-              <p>{L('Лопаті працюють при Re = 10⁶–10⁷. При низькому Re ламінарні пузирі відриву знижують ефективність.', 'Blades operate at Re = 10⁶–10⁷. At low Re, laminar separation bubbles reduce efficiency.')}</p>
+              <p className="text-sm">{L('Лопаті працюють при Re = 10⁶–10⁷. При низькому Re ламінарні пузирі відриву знижують ефективність.', 'Blades operate at Re = 10⁶–10⁷. At low Re, laminar separation bubbles reduce efficiency.')}</p>
             </div>
-          </ExpandableCard>
+          </ExpandableSection>
 
-          <ExpandableCard title={L('Коефіцієнт швидкохідності (λ)', 'Tip-Speed Ratio (λ)')} color="hsl(25 90% 55%)">
-            <div className="space-y-2">
-              <p>{L('λ — відношення швидкості кінця лопаті до швидкості вітру. Кожна конструкція має оптимальний λ для макс. Cp.', 'TSR is blade tip speed to wind speed ratio. Each design has optimal TSR for max Cp.')}</p>
-              <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+          <ExpandableSection title={L('Коефіцієнт швидкохідності (λ)', 'Tip-Speed Ratio (λ)')} icon={BarChart3} color="hsl(25 90% 55%)" badge={L('Формула', 'Formula')}>
+            <div className="space-y-3">
+              <p className="text-sm">{L('λ — відношення швидкості кінця лопаті до швидкості вітру. Кожна конструкція має оптимальний λ для макс. Cp.', 'TSR is blade tip speed to wind speed ratio. Each design has optimal TSR for max Cp.')}</p>
+              <div className="p-3 rounded-lg font-mono text-center text-lg" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)', color: 'hsl(25 90% 55%)', textShadow: '0 0 12px hsl(25 90% 55% / 0.3)' }}>
                 λ = ωR / V
               </div>
               <div className="space-y-1.5 mt-2">
@@ -550,36 +556,36 @@ export const WindEnergyFundamentals = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
                   { type: L("Дар'є VAWT", 'Darrieus VAWT'), tsr: 'λ = 4–6' },
                   { type: L('Савоніус VAWT', 'Savonius VAWT'), tsr: 'λ = 0.8–1.2' },
                 ].map((item, i) => (
-                  <div key={i} className="flex justify-between p-2 border-b last:border-0" style={{ borderColor: 'hsl(var(--border) / 0.2)' }}>
-                    <span>{item.type}</span>
+                  <div key={i} className="flex justify-between p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                    <span className="text-sm">{item.type}</span>
                     <span className="font-mono text-primary">{item.tsr}</span>
                   </div>
                 ))}
               </div>
             </div>
-          </ExpandableCard>
+          </ExpandableSection>
 
-          <ExpandableCard title={L('Коефіцієнт використання потужності', 'Capacity Factor')} color="hsl(270 70% 60%)">
-            <div className="space-y-2">
-              <p>{L('Вимірює фактичну віддачу vs теоретичний максимум. Враховує мінливість вітру, ТО, обмеження мережі.', 'Measures actual output vs theoretical max. Accounts for wind variability, maintenance, curtailment.')}</p>
-              <div className="flex gap-2 mt-2 flex-wrap">
+          <ExpandableSection title={L('Коефіцієнт використання потужності', 'Capacity Factor')} icon={Gauge} color="hsl(270 70% 60%)" badge={L('Дані', 'Data')}>
+            <div className="space-y-3">
+              <p className="text-sm">{L('Вимірює фактичну віддачу vs теоретичний максимум. Враховує мінливість вітру, ТО, обмеження мережі.', 'Measures actual output vs theoretical max. Accounts for wind variability, maintenance, curtailment.')}</p>
+              <div className="flex gap-2 flex-wrap">
                 <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Наземні', 'Onshore')}: 25–35%</Badge>
                 <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Морські', 'Offshore')}: 40–55%</Badge>
               </div>
             </div>
-          </ExpandableCard>
+          </ExpandableSection>
 
-          <ExpandableCard title={L('LCOE — Нівельована вартість енергії', 'LCOE — Levelized Cost of Energy')} color="hsl(0 60% 55%)">
-            <div className="space-y-2">
-              <p>{L('Середня вартість одиниці електроенергії за весь термін експлуатації проєкту.', 'Average cost per unit of electricity over project lifetime.')}</p>
+          <ExpandableSection title={L('LCOE — Нівельована вартість енергії', 'LCOE — Levelized Cost of Energy')} icon={Zap} color="hsl(0 60% 55%)" badge={L('Економіка', 'Economics')}>
+            <div className="space-y-3">
+              <p className="text-sm">{L('Середня вартість одиниці електроенергії за весь термін експлуатації проєкту.', 'Average cost per unit of electricity over project lifetime.')}</p>
               <div className="p-3 rounded-lg" style={{ backgroundColor: 'hsl(var(--primary) / 0.05)', border: '1px solid hsl(var(--primary) / 0.15)' }}>
                 <p className="font-mono text-sm text-center text-primary">
                   LCOE = ({L('Капітал + ОМ + Демонтаж', 'Capital + O&M + Decom.')}) / Σ(E × (1+r)<sup>-t</sup>)
                 </p>
               </div>
-              <p className="mt-1">{L('Наземна ВЕС: €25–45/МВт·год. Морська: €50–80/МВт·год. Конкурентні без субсидій.', 'Onshore: €25–45/MWh. Offshore: €50–80/MWh. Competitive without subsidies.')}</p>
+              <p className="text-sm">{L('Наземна ВЕС: €25–45/МВт·год. Морська: €50–80/МВт·год. Конкурентні без субсидій.', 'Onshore: €25–45/MWh. Offshore: €50–80/MWh. Competitive without subsidies.')}</p>
             </div>
-          </ExpandableCard>
+          </ExpandableSection>
         </div>
       </div>
     </div>

@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Calculator, Settings, Volume2, Wind, ChevronDown } from 'lucide-react';
+import { Calculator, Settings, Volume2, Wind } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
+import { ExpandableSection } from './ExpandableSection';
+import { ChevronDown } from 'lucide-react';
 
 const turbineSpecs = [
   { model: 'Vestas V150-4.2', power: '4.2 MW', rotor: '150m', hub: '105–166m', cutIn: '3', cutOut: '25', regulation: 'Pitch', aep: '~15 GWh/yr' },
@@ -20,36 +22,6 @@ const economicMetrics = [
   { metric_ua: 'Окупність', metric_en: 'Payback Period', value: '7–12 years', trend_ua: 'Скорочується', trend_en: 'Shortening' },
   { metric_ua: 'Ресурс турбіни', metric_en: 'Turbine Lifespan', value: '25–30 years', trend_ua: 'Подовжується', trend_en: 'Extending' },
 ];
-
-// Expandable card
-const ExpandableCard = ({ title, icon: Icon, children, color = 'hsl(var(--primary))' }: { title: string; icon: any; children: React.ReactNode; color?: string }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="rounded-lg overflow-hidden transition-all duration-300" style={{
-      backgroundColor: 'hsl(222 28% 12%)',
-      border: `1px solid ${open ? color + '40' : 'hsl(var(--border) / 0.2)'}`,
-      boxShadow: open ? `0 0 20px ${color}15` : 'none',
-    }}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4" style={{ color }} />
-          <span className="text-xs sm:text-sm font-semibold text-foreground">{title}</span>
-        </div>
-        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }} className="overflow-hidden">
-            <div className="px-4 pb-4 text-xs sm:text-sm text-muted-foreground">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
 
 // Rotor comparison
 const RotorComparisonSVG = () => {
@@ -246,19 +218,19 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
         </div>
       </div>
 
-      {/* Advanced Topics — custom expandables */}
-      <div className="space-y-2">
-        <ExpandableCard title={L('Метод розрахунку AEP', 'AEP Calculation Method')} icon={Calculator} color="hsl(120 70% 50%)">
+      {/* Advanced Topics — shared ExpandableSection */}
+      <div className="space-y-2.5">
+        <ExpandableSection title={L('Метод розрахунку AEP', 'AEP Calculation Method')} icon={Calculator} color="hsl(120 70% 50%)" badge={L('Формула', 'Formula')}>
           <div className="space-y-2">
-            <p>{L('Річне виробництво інтегрує криву потужності з розподілом вітру:', 'Annual Energy Production integrates the power curve against wind distribution:')}</p>
+            <p className="text-sm">{L('Річне виробництво інтегрує криву потужності з розподілом вітру:', 'Annual Energy Production integrates the power curve against wind distribution:')}</p>
             <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
               AEP = 8760 × ∫ P(V) · f(V) dV
             </div>
-            <p>{L('Втрати: сліди (5–10%), електричні (2–3%), доступність (95–98%), забруднення лопатей (1–2%).', 'Losses: wake (5–10%), electrical (2–3%), availability (95–98%), blade soiling (1–2%).')}</p>
+            <p className="text-sm">{L('Втрати: сліди (5–10%), електричні (2–3%), доступність (95–98%), забруднення лопатей (1–2%).', 'Losses: wake (5–10%), electrical (2–3%), availability (95–98%), blade soiling (1–2%).')}</p>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Зривне vs кутове регулювання', 'Stall vs Pitch Regulation')} icon={Wind} color="hsl(25 90% 55%)">
+        <ExpandableSection title={L('Зривне vs кутове регулювання', 'Stall vs Pitch Regulation')} icon={Wind} color="hsl(25 90% 55%)">
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
@@ -271,11 +243,11 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
               </div>
             </div>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Сліди та розташування', 'Wake Effects & Spacing')} icon={Wind} color="hsl(210 90% 60%)">
+        <ExpandableSection title={L('Сліди та розташування', 'Wake Effects & Spacing')} icon={Wind} color="hsl(210 90% 60%)">
           <div className="space-y-2">
-            <p>{L('Турбіни за слідом відчувають знижену швидкість та підвищену турбулентність:', 'Downstream turbines experience reduced speed and increased turbulence:')}</p>
+            <p className="text-sm">{L('Турбіни за слідом відчувають знижену швидкість та підвищену турбулентність:', 'Downstream turbines experience reduced speed and increased turbulence:')}</p>
             <div className="space-y-1.5">
               {[
                 { label: L('Дефіцит на 5D', 'Deficit at 5D'), value: '20–40%' },
@@ -283,17 +255,17 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
                 { label: L('Відновлення', 'Recovery'), value: '10–15D' },
               ].map((item, i) => (
                 <div key={i} className="flex justify-between p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                  <span>{item.label}</span>
+                  <span className="text-sm">{item.label}</span>
                   <span className="font-mono text-primary">{item.value}</span>
                 </div>
               ))}
             </div>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Шум та нормативи', 'Noise & Regulations')} icon={Volume2} color="hsl(0 60% 55%)">
+        <ExpandableSection title={L('Шум та нормативи', 'Noise & Regulations')} icon={Volume2} color="hsl(0 60% 55%)">
           <div className="space-y-2">
-            <p>{L('Аеродинамічний (задня кромка) та механічний (редуктор) компоненти шуму.', 'Aerodynamic (trailing edge) and mechanical (gearbox) noise components.')}</p>
+            <p className="text-sm">{L('Аеродинамічний (задня кромка) та механічний (редуктор) компоненти шуму.', 'Aerodynamic (trailing edge) and mechanical (gearbox) noise components.')}</p>
             <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
               L<sub>p</sub> = L<sub>w</sub> − 10·log₁₀(4πr²) − α·r
             </div>
@@ -308,7 +280,7 @@ export const TechnicalSpecs = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
               </div>
             </div>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
       </div>
     </div>
   );

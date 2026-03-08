@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { 
   Globe, Wind, Zap, TrendingUp, 
-  MapPin, Factory, Leaf, Target, Calendar, ChevronDown
+  MapPin, Factory, Leaf, Target, Calendar
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
+import { ExpandableSection } from './ExpandableSection';
 
 const regions = [
   { name_ua: 'Запорізька область', name_en: 'Zaporizhzhia Oblast', potential_ua: 'Дуже високий', potential_en: 'Very High', speed: '7.5–8.5', capacity: '2,500 MW', status: 'operational' },
@@ -97,25 +98,19 @@ const WindRoseSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
 
   return (
     <svg viewBox="0 0 200 210" className="w-full h-48 sm:h-56">
-      {/* Grid circles */}
       {[0.25, 0.5, 0.75, 1].map(f => (
         <circle key={f} cx={cx} cy={cy} r={R * f} fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.15" />
       ))}
-      {/* Axis lines */}
       {directions.map(d => {
         const [x, y] = polarToXY(d.angle, R);
         return <line key={d.angle} x1={cx} y1={cy} x2={x} y2={y} stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.1" />;
       })}
-      {/* Winter polygon */}
       <polygon points={makePolygon('winter')} fill="hsl(210 90% 60%)" opacity="0.15" stroke="hsl(210 90% 60%)" strokeWidth="1.5" />
-      {/* Summer polygon */}
       <polygon points={makePolygon('summer')} fill="hsl(25 90% 55%)" opacity="0.12" stroke="hsl(25 90% 55%)" strokeWidth="1.5" strokeDasharray="4 3" />
-      {/* Direction labels */}
       {directions.map(d => {
         const [x, y] = polarToXY(d.angle, R + 12);
         return <text key={d.angle} x={x} y={y + 3} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{d.label}</text>;
       })}
-      {/* Legend */}
       <rect x={10} y={195} width="10" height="3" rx="1" fill="hsl(210 90% 60%)" opacity="0.7" />
       <text x={24} y={199} fontSize="8" fill="hsl(210 90% 60%)">{L('Зима', 'Winter')}</text>
       <rect x={70} y={195} width="10" height="3" rx="1" fill="hsl(25 90% 55%)" opacity="0.7" />
@@ -124,38 +119,15 @@ const WindRoseSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   );
 };
 
-// Expandable section
-const ExpandableSection = ({ title, icon: Icon, children, color = 'hsl(var(--primary))' }: { title: string; icon: any; children: React.ReactNode; color?: string }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="rounded-lg overflow-hidden transition-all duration-300" style={{
-      backgroundColor: 'hsl(222 28% 12%)',
-      border: `1px solid ${open ? color + '40' : 'hsl(var(--border) / 0.2)'}`,
-      boxShadow: open ? `0 0 20px ${color}15` : 'none',
-    }}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4" style={{ color }} />
-          <span className="text-xs sm:text-sm font-semibold text-foreground">{title}</span>
-        </div>
-        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }} className="overflow-hidden">
-            <div className="px-4 pb-4 text-xs sm:text-sm text-muted-foreground">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
 export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
+
+  const timelineItems = [
+    { year: '2019', val: '1.2 GW', done: true },
+    { year: '2023', val: '1.67 GW', done: true },
+    { year: '2030', val: '10 GW', highlight: true },
+    { year: '2050', val: '70% RES' },
+  ];
 
   return (
     <div className="space-y-4 eng-scrollbar">
@@ -287,30 +259,35 @@ export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) =>
           ))}
         </div>
 
-        <div className="mt-3 p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          <p className="text-xs font-semibold text-foreground mb-2">{L('Хронологія розвитку', 'Development Timeline')}</p>
-          <div className="flex items-center justify-between text-xs">
-            {[
-              { year: '2019', val: '1.2 GW' }, { year: '2023', val: '1.67 GW' },
-              { year: '2030', val: '10 GW', highlight: true }, { year: '2050', val: '70% RES' },
-            ].map((t, i) => (
-              <React.Fragment key={i}>
-                {i > 0 && <div className="flex-1 h-0.5 mx-1" style={{ background: 'linear-gradient(90deg, hsl(var(--primary) / 0.5), hsl(var(--primary) / 0.2))' }} />}
-                <div className="text-center">
-                  <Badge variant={t.highlight ? 'default' : 'outline'} className={`text-[10px] mb-0.5 ${!t.highlight ? 'border-primary/30 bg-primary/5 text-primary' : ''}`}>
-                    {t.year}
-                  </Badge>
-                  <p className={t.highlight ? 'font-medium text-foreground' : 'text-muted-foreground'}>{t.val}</p>
-                </div>
-              </React.Fragment>
+        {/* Connected timeline */}
+        <div className="mt-4 p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+          <p className="text-xs font-semibold text-foreground mb-3">{L('Хронологія розвитку', 'Development Timeline')}</p>
+          <div className="relative flex items-center justify-between">
+            {/* Connecting line */}
+            <div className="absolute left-4 right-4 top-1/2 h-0.5 -translate-y-1/2"
+              style={{ background: 'linear-gradient(90deg, hsl(var(--primary) / 0.6), hsl(var(--primary) / 0.15))' }} />
+            {timelineItems.map((t, i) => (
+              <div key={i} className="relative z-10 flex flex-col items-center">
+                <div className="w-3 h-3 rounded-full mb-1.5"
+                  style={{
+                    backgroundColor: t.highlight ? 'hsl(var(--primary))' : t.done ? 'hsl(var(--primary))' : 'hsl(var(--muted))',
+                    boxShadow: t.highlight ? '0 0 12px hsl(var(--primary) / 0.6)' : t.done ? '0 0 6px hsl(var(--primary) / 0.3)' : 'none',
+                    opacity: t.done || t.highlight ? 1 : 0.5,
+                  }} />
+                <Badge variant={t.highlight ? 'default' : 'outline'}
+                  className={`text-[10px] mb-0.5 ${!t.highlight ? 'border-primary/30 bg-primary/5 text-primary' : ''}`}>
+                  {t.year}
+                </Badge>
+                <p className={`text-xs ${t.highlight ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>{t.val}</p>
+              </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Expandable sections instead of accordions */}
-      <div className="space-y-2">
-        <ExpandableSection title={L('Інтеграція в мережу та регулювання частоти', 'Grid Integration & Frequency Regulation')} icon={Zap} color="hsl(120 70% 50%)">
+      {/* Expandable sections */}
+      <div className="space-y-2.5">
+        <ExpandableSection title={L('Інтеграція в мережу та регулювання частоти', 'Grid Integration & Frequency Regulation')} icon={Zap} color="hsl(120 70% 50%)" badge={L('Мережа', 'Grid')}>
           <div className="space-y-2">
             {[
               { title: L('Регулювання частоти', 'Frequency Regulation'), text: L('Українська мережа працює на 50 Гц ±0.2 Гц. Сучасні вітротурбіни забезпечують синтетичну інерцію протягом 200мс.', 'Ukrainian grid operates at 50 Hz ±0.2 Hz. Modern turbines provide synthetic inertia within 200ms.') },
@@ -325,7 +302,7 @@ export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) =>
           </div>
         </ExpandableSection>
 
-        <ExpandableSection title={L('Сезонні вітрові патерни', 'Seasonal Wind Patterns')} icon={Wind} color="hsl(210 90% 60%)">
+        <ExpandableSection title={L('Сезонні вітрові патерни', 'Seasonal Wind Patterns')} icon={Wind} color="hsl(210 90% 60%)" badge={L('Клімат', 'Climate')}>
           <div className="space-y-2">
             <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(210 90% 60% / 0.2)' }}>
               <p className="text-xs font-semibold" style={{ color: 'hsl(210 90% 60%)' }}>{L('Зима (ПнЗх домінування)', 'Winter (NW dominant)')}</p>

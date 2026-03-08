@@ -1,60 +1,27 @@
 import React, { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
-import { Settings, Flame, Droplets, RotateCw, Shield, Zap, Layers, Wind, ChevronDown, Gauge } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { Settings, Flame, Droplets, RotateCw, Shield, Zap, Layers, Wind, Gauge } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
+import { ExpandableSection } from './ExpandableSection';
 
-// Expandable section
-const ExpandableCard = ({ title, icon: Icon, children, color = 'hsl(var(--primary))' }: { title: string; icon: any; children: React.ReactNode; color?: string }) => {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className="rounded-lg overflow-hidden transition-all duration-300" style={{
-      backgroundColor: 'hsl(222 28% 12%)',
-      border: `1px solid ${open ? color + '40' : 'hsl(var(--border) / 0.2)'}`,
-      boxShadow: open ? `0 0 20px ${color}15` : 'none',
-    }}>
-      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left">
-        <div className="flex items-center gap-2">
-          <Icon className="w-4 h-4" style={{ color }} />
-          <span className="text-xs sm:text-sm font-semibold text-foreground">{title}</span>
-        </div>
-        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-        </motion.div>
-      </button>
-      <AnimatePresence>
-        {open && (
-          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.25 }} className="overflow-hidden">
-            <div className="px-4 pb-4 text-xs sm:text-sm text-muted-foreground">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-};
-
-// Layer orientation diagram — bigger with animated arrows
+// Layer orientation diagram
 const LayerOrientationSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
   return (
     <svg viewBox="0 0 420 160" className="w-full h-36 sm:h-44">
-      {/* Correct */}
       <g>
         <text x="100" y="16" textAnchor="middle" fontSize="12" fontWeight="600" fill="hsl(120 70% 50%)">✓ {L('Правильно', 'Correct')}</text>
         <rect x="30" y="24" width="140" height="90" rx="6" fill="hsl(222 28% 12%)" stroke="hsl(120 70% 50%)" strokeWidth="1.5" opacity="0.6" />
         {[0, 1, 2, 3, 4, 5, 6, 7, 8].map(i => (
           <line key={i} x1="32" y1={28 + i * 10} x2="168" y2={28 + i * 10} stroke="hsl(var(--muted-foreground))" strokeWidth="0.5" opacity="0.2" />
         ))}
-        {/* Animated load arrows */}
         <g style={{ animation: 'pulse 2s ease-in-out infinite' }}>
           <line x1="18" y1="69" x2="5" y2="69" stroke="hsl(120 70% 50%)" strokeWidth="2.5" markerEnd="url(#arrG)" />
         </g>
         <text x="100" y="130" textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))">{L('Навантаження ∥ шарам', 'Load ∥ layers')}</text>
         <text x="100" y="145" textAnchor="middle" fontSize="9" fill="hsl(120 70% 50%)">σ = 100% UTS</text>
       </g>
-      
-      {/* Wrong */}
       <g>
         <text x="320" y="16" textAnchor="middle" fontSize="12" fontWeight="600" fill="hsl(0 70% 55%)">✗ {L('Неправильно', 'Wrong')}</text>
         <rect x="250" y="24" width="140" height="90" rx="6" fill="hsl(222 28% 12%)" stroke="hsl(0 70% 55%)" strokeWidth="1.5" opacity="0.6" />
@@ -68,7 +35,6 @@ const LayerOrientationSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
         <text x="320" y="130" textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))">{L('Навантаження ⊥ шарам', 'Load ⊥ layers')}</text>
         <text x="320" y="145" textAnchor="middle" fontSize="9" fill="hsl(0 70% 55%)">σ = 40-60% UTS</text>
       </g>
-      
       <defs>
         <marker id="arrG" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="hsl(120 70% 50%)" /></marker>
         <marker id="arrR" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0 0 L8 4 L0 8Z" fill="hsl(0 70% 55%)" /></marker>
@@ -85,7 +51,6 @@ const InfillStrengthSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   const W = 400, H = 200, pad = { l: 50, r: 20, t: 15, b: 45 };
   const plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
 
-  // Tensile strength curve (non-linear — diminishing returns above 60%)
   const strengthAt = (inf: number) => {
     if (inf <= 20) return 15 + inf * 0.8;
     if (inf <= 60) return 31 + (inf - 20) * 0.625;
@@ -126,14 +91,11 @@ const InfillStrengthSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
         <line x1={pad.l} y1={pad.t + plotH} x2={W - pad.r} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.4" />
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.4" />
 
-        {/* Optimal zone */}
         <rect x={pad.l + ((50 - 10) / 90) * plotW} y={pad.t} width={((80 - 50) / 90) * plotW} height={plotH} fill="hsl(var(--primary))" opacity="0.04" />
         <text x={pad.l + ((65 - 10) / 90) * plotW} y={pad.t + 12} textAnchor="middle" fontSize="9" fill="hsl(var(--primary))" opacity="0.6">{L('Оптимум', 'Optimal')}</text>
 
-        {/* Curve */}
         <polyline points={points.join(' ')} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" style={{ filter: 'drop-shadow(0 0 3px hsl(var(--primary) / 0.3))' }} />
         
-        {/* Current point */}
         <line x1={cx} y1={pad.t} x2={cx} y2={pad.t + plotH} stroke="hsl(var(--primary))" strokeWidth="1" opacity="0.3" strokeDasharray="3 3" />
         <circle cx={cx} cy={cy} r="5" fill="hsl(var(--primary))" style={{ filter: 'drop-shadow(0 0 6px hsl(var(--primary) / 0.6))' }} />
         <text x={cx + 10} y={cy - 8} fontSize="11" fontWeight="600" fill="hsl(var(--primary))" fontFamily="monospace">{currentStr.toFixed(0)} MPa</text>
@@ -150,38 +112,27 @@ const NACAAirfoilSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
   return (
     <svg viewBox="0 0 400 180" className="w-full h-36 sm:h-40">
-      {/* Airfoil shape */}
       <path d="M40 90 Q60 55 120 48 Q200 40 340 85 Q200 130 120 128 Q60 125 40 90Z" 
         fill="hsl(var(--primary) / 0.06)" stroke="hsl(var(--primary))" strokeWidth="1.5" />
-      
-      {/* Layer lines showing FDM layers */}
       {[0, 1, 2, 3, 4, 5, 6, 7].map(i => (
         <line key={i} x1="50" y1={58 + i * 10} x2="330" y2={58 + i * 10} 
           stroke="hsl(var(--muted-foreground))" strokeWidth="0.3" opacity="0.15" 
           clipPath="url(#airfoilClip)" />
       ))}
-      
-      {/* Surface roughness indicators */}
       <path d="M80 55 L85 53 L90 56 L95 52 L100 55 L105 53 L110 56 L115 52 L120 55" 
         stroke="hsl(25 90% 55%)" strokeWidth="1" fill="none" opacity="0.6" />
       <text x="100" y="44" textAnchor="middle" fontSize="9" fill="hsl(25 90% 55%)">Ra ≈ 10-50μm (FDM)</text>
-      
-      {/* Smooth surface ideal */}
       <path d="M180 42 L340 84" stroke="hsl(120 70% 50%)" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.5" />
       <text x="260" y="55" textAnchor="middle" fontSize="9" fill="hsl(120 70% 50%)">{'Ra < 5μm'} ({L('ідеал', 'ideal')})</text>
-      
-      {/* Airflow arrows */}
       {[60, 90, 130, 180, 240].map((x, i) => (
         <g key={i}>
           <line x1={x - 20} y1={88 - (i < 2 ? 30 : 20)} x2={x} y2={88 - (i < 2 ? 25 : 15)} 
             stroke="hsl(210 90% 60%)" strokeWidth="1" opacity="0.4" markerEnd="url(#airArr)" />
         </g>
       ))}
-      
       <text x="200" y="170" textAnchor="middle" fontSize="11" fill="hsl(var(--muted-foreground))">
         {L('Шорсткість FDM: Cl/Cd знижується на 10–25%', 'FDM roughness: Cl/Cd reduces by 10–25%')}
       </text>
-      
       <defs>
         <clipPath id="airfoilClip">
           <path d="M40 90 Q60 55 120 48 Q200 40 340 85 Q200 130 120 128 Q60 125 40 90Z" />
@@ -209,7 +160,7 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
         </p>
       </motion.div>
 
-      {/* NACA Airfoil Printing */}
+      {/* NACA Airfoil */}
       <div className="stalker-card p-4 sm:p-5">
         <h3 className="text-sm sm:text-base font-semibold mb-2 flex items-center gap-2">
           <Wind className="w-4 h-4 text-primary" /> {L('Друк аеродинамічного профілю', 'Printing Aerodynamic Profiles')}
@@ -236,21 +187,21 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
         </div>
       </div>
 
-      {/* Layer orientation diagram */}
+      {/* Layer orientation */}
       <div className="stalker-card p-4 sm:p-5">
         <h3 className="text-sm sm:text-base font-semibold mb-2 flex items-center gap-2">
           <Layers className="w-4 h-4 text-primary" /> {L('Орієнтація шарів відносно навантаження', 'Layer Orientation vs Load Direction')}
         </h3>
         <p className="text-xs text-muted-foreground mb-3">
-          {L('Адгезія шарів FDM — 40–60% від міцності в площині. Завжди орієнтуйте деталь так, щоб навантаження йшло вздовж шарів. Це критично для лопатей та хабу ротора.',
-             'FDM layer adhesion is 40–60% of in-plane strength. Always orient parts so load runs along layers. Critical for blades and rotor hub.')}
+          {L('Адгезія шарів FDM — 40–60% від міцності в площині. Завжди орієнтуйте деталь так, щоб навантаження йшло вздовж шарів.',
+             'FDM layer adhesion is 40–60% of in-plane strength. Always orient parts so load runs along layers.')}
         </p>
         <div className="rounded-lg p-3" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.15)' }}>
           <LayerOrientationSVG lang={lang} />
         </div>
       </div>
 
-      {/* Infill vs Strength interactive */}
+      {/* Infill vs Strength */}
       <div className="stalker-card p-4 sm:p-5">
         <h3 className="text-sm sm:text-base font-semibold mb-2 flex items-center gap-2">
           <Gauge className="w-4 h-4 text-primary" /> {L('Заповнення vs міцність (PETG)', 'Infill vs Strength (PETG)')}
@@ -295,11 +246,11 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
         </div>
       </div>
 
-      {/* Expandable engineering sections */}
-      <div className="space-y-2">
-        <ExpandableCard title={L('Структурний FEA-аналіз для FDM', 'Structural FEA Analysis for FDM')} icon={Shield} color="hsl(210 90% 60%)">
+      {/* Expandable engineering sections — now using shared component */}
+      <div className="space-y-2.5">
+        <ExpandableSection title={L('Структурний FEA-аналіз для FDM', 'Structural FEA Analysis for FDM')} icon={Shield} color="hsl(210 90% 60%)" badge={L('Критично', 'Critical')}>
           <div className="space-y-2">
-            <p>{L('FEA з ортотропними моделями матеріалу — обовʼязковий для обертових деталей:', 'FEA with orthotropic material models is mandatory for rotating parts:')}</p>
+            <p className="text-sm">{L('FEA з ортотропними моделями матеріалу — обовʼязковий для обертових деталей:', 'FEA with orthotropic material models is mandatory for rotating parts:')}</p>
             <div className="grid grid-cols-2 gap-2">
               <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
                 <p className="text-xs font-semibold text-foreground">{L('Статичний аналіз', 'Static Analysis')}</p>
@@ -312,16 +263,16 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
             </div>
             <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
               <p className="text-xs font-semibold text-primary mb-1">{L('Відцентрове навантаження', 'Centrifugal Loading')}</p>
-              <p className="text-xs font-mono text-center text-primary my-1">F = m·ω²·r</p>
+              <p className="text-sm font-mono text-center text-primary my-1">F = m·ω²·r</p>
               <p className="text-xs">{L('При 300 об/хв, лопать 0.5м, маса 100г: F ≈ 50Н на кінці. PETG (50 МПа) витримує при 60% заповненні та 3+ стінках.', 'At 300 RPM, 0.5m blade, 100g mass: F ≈ 50N at tip. PETG (50 MPa) handles with 60% infill and 3+ walls.')}</p>
             </div>
             <p className="text-xs">{L('Безкоштовні інструменти: FreeCAD FEM, Fusion 360 Simulation, SimScale (cloud).', 'Free tools: FreeCAD FEM, Fusion 360 Simulation, SimScale (cloud).')}</p>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Аналіз втоми обертових деталей', 'Fatigue Analysis for Rotating Parts')} icon={RotateCw} color="hsl(25 90% 55%)">
+        <ExpandableSection title={L('Аналіз втоми обертових деталей', 'Fatigue Analysis for Rotating Parts')} icon={RotateCw} color="hsl(25 90% 55%)" badge={L('Критично', 'Critical')}>
           <div className="space-y-2">
-            <p>{L('Кожен оберт = 1 цикл втоми. При 300 об/хв це 432,000 циклів/день або 157М/рік.', 'Each revolution = 1 fatigue cycle. At 300 RPM: 432,000 cycles/day or 157M/year.')}</p>
+            <p className="text-sm">{L('Кожен оберт = 1 цикл втоми. При 300 об/хв це 432,000 циклів/день або 157М/рік.', 'Each revolution = 1 fatigue cycle. At 300 RPM: 432,000 cycles/day or 157M/year.')}</p>
             <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
               <p className="text-xs font-semibold text-primary mb-1">{L('Правило проектування для нескінченного ресурсу', 'Infinite Life Design Rule')}</p>
               <p className="text-xs">{L('Макс. напруження < 30–40% UTS. PETG: ≤20 МПа. Нейлон: ≤28 МПа. ASA: ≤18 МПа.', 'Max stress < 30–40% UTS. PETG: ≤20 MPa. Nylon: ≤28 MPa. ASA: ≤18 MPa.')}</p>
@@ -332,9 +283,9 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
             </div>
             <p className="text-xs">{L('Галтелі r ≥ 2мм на всіх переходах. Концентрації напружень на межах шарів — місця ініціації тріщин.', 'Fillets r ≥ 2mm at all transitions. Layer boundary stress concentrations are crack initiation sites.')}</p>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Матеріали для зовнішньої експлуатації', 'Materials for Outdoor Operation')} icon={Flame} color="hsl(0 70% 55%)">
+        <ExpandableSection title={L('Матеріали для зовнішньої експлуатації', 'Materials for Outdoor Operation')} icon={Flame} color="hsl(0 70% 55%)" badge={L('Рекомендовано', 'Recommended')}>
           <div className="space-y-2">
             <div className="grid grid-cols-2 gap-2">
               {[
@@ -358,9 +309,9 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
               <p className="text-xs">{L('Нейлон: 2–8% маси. Сушити при 70°C 6–12 год перед друком. Зберігати з силікагелем. PETG та ASA < 0.3%.', 'Nylon: 2–8% mass. Dry at 70°C 6–12h before printing. Store with desiccant. PETG and ASA < 0.3%.')}</p>
             </div>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Постобробка та фінішна обробка', 'Post-Processing & Surface Finishing')} icon={Flame} color="hsl(120 70% 50%)">
+        <ExpandableSection title={L('Постобробка та фінішна обробка', 'Post-Processing & Surface Finishing')} icon={Flame} color="hsl(120 70% 50%)">
           <div className="space-y-2">
             {[
               { step: L('Відпал', 'Annealing'), detail: L('PETG до 80°C на 2 год для зняття напружень та +15% кристалічності. Розміри зміняться на ±0.5% — враховуйте в CAD.', 'PETG at 80°C for 2h to relieve stress and +15% crystallinity. Dimensions shift ±0.5% — account in CAD.') },
@@ -374,11 +325,11 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
               </div>
             ))}
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Балансування ротора', 'Rotor Balancing')} icon={Droplets} color="hsl(270 70% 60%)">
+        <ExpandableSection title={L('Балансування ротора', 'Rotor Balancing')} icon={Droplets} color="hsl(270 70% 60%)">
           <div className="space-y-2">
-            <p>{L('Незбалансовані ротори — вібрація, знос підшипників, шум. 3D-друк має варіацію маси ±2–5% між деталями.', 'Unbalanced rotors cause vibration, bearing wear, noise. 3D prints have ±2–5% mass variation between parts.')}</p>
+            <p className="text-sm">{L('Незбалансовані ротори — вібрація, знос підшипників, шум. 3D-друк має варіацію маси ±2–5% між деталями.', 'Unbalanced rotors cause vibration, bearing wear, noise. 3D prints have ±2–5% mass variation between parts.')}</p>
             <div className="space-y-1.5">
               {[
                 { step: 1, text: L('Зважте всі лопаті. Збіг маси в межах 0.5г.', 'Weigh all blades. Match mass within 0.5g.') },
@@ -393,9 +344,9 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
               ))}
             </div>
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
 
-        <ExpandableCard title={L('Контрольний список якості', 'Quality Control Checklist')} icon={Zap} color="hsl(50 90% 55%)">
+        <ExpandableSection title={L('Контрольний список якості', 'Quality Control Checklist')} icon={Zap} color="hsl(50 90% 55%)">
           <div className="space-y-1.5">
             {[
               L('Візуальний: без розшарування, ниток, недоекструзії', 'Visual: no delamination, stringing, under-extrusion'),
@@ -412,7 +363,7 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
               </div>
             ))}
           </div>
-        </ExpandableCard>
+        </ExpandableSection>
       </div>
     </div>
   );
