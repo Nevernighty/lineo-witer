@@ -183,7 +183,7 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
 };
 
 // Animated SuctionSpiral — replaces static IntakeCone
-const SPIRAL_COUNT = 16;
+const SPIRAL_COUNT = 24;
 const SuctionSpiral: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; windSpeed: number; adjustedSpeed: number; power: number }> = 
   ({ towerHeight, rotorDiameter, windAngleRad, windSpeed, adjustedSpeed, power }) => {
   const groupRef = useRef<THREE.Group>(null);
