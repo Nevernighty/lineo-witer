@@ -561,7 +561,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
           <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Реальна WPD' : 'Actual WPD'}</span>
           <p className="text-sm font-mono font-bold text-primary mt-0.5">{Math.round(actualWPD)} <span className="text-[10px] text-muted-foreground">W/m²</span></p>
           <p className="text-[9px] text-muted-foreground mt-1 font-mono">WPD = ½ρV³</p>
-          <p className="text-[9px] text-muted-foreground">= 0.5 × {airDensity.toFixed(2)} × {displayWeather.windSpeed}³</p>
+          <p className="text-[9px] text-muted-foreground">= 0.5 × {airDensity.toFixed(2)} × {weather.windSpeed}³</p>
         </div>
       </div>
 
