@@ -58,11 +58,11 @@ const GENERATOR_SUCTION_PHYSICS: Record<string, {
   wakeTurbulence: number;
   rotorEfficiency: number;
 }> = {
-  hawt3: { attractK: 20.0, suctionRadius: 7.5, speedReduction: 0.41, wakeTurbulence: 3.5, rotorEfficiency: 0.45 },
-  hawt2: { attractK: 17.0, suctionRadius: 6.75, speedReduction: 0.37, wakeTurbulence: 4.0, rotorEfficiency: 0.42 },
-  darrieus: { attractK: 13.0, suctionRadius: 5.25, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
-  savonius: { attractK: 10.0, suctionRadius: 4.5, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
-  micro: { attractK: 14.0, suctionRadius: 6.0, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
+  hawt3: { attractK: 60.0, suctionRadius: 15, speedReduction: 0.41, wakeTurbulence: 3.5, rotorEfficiency: 0.45 },
+  hawt2: { attractK: 50.0, suctionRadius: 13, speedReduction: 0.37, wakeTurbulence: 4.0, rotorEfficiency: 0.42 },
+  darrieus: { attractK: 40.0, suctionRadius: 10, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
+  savonius: { attractK: 30.0, suctionRadius: 9, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
+  micro: { attractK: 42.0, suctionRadius: 12, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
 };
 
 // Shared buffer for zero-copy particle data transfer to InstancedParticles
@@ -308,28 +308,25 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence;
             }
           } else {
+            // Attract from ALL directions (low pressure zone effect)
+            const closeRange = dist < gen.rotorRadius * 2;
+            const exponentialBoost = closeRange
+              ? Math.exp((gen.rotorRadius * 2 - dist) / gen.rotorRadius) * 0.8
+              : 0;
+            const force = closeRange 
+              ? gen.attractK / (dist + 0.5) * 2.0 + exponentialBoost
+              : gen.attractK / (dist * dist + 1);
+            const convergeFactor = Math.max(0.5, 1 - dist / gen.attractRadius);
+            const velocityBoost = closeRange ? 2.0 : 1.0;
+            targetSpeedX += (dx / dist) * force * convergeFactor * velocityBoost;
+            targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor * velocityBoost;
+            targetSpeedZ += (dz / dist) * force * convergeFactor * velocityBoost;
+
+            // Wake effect behind rotor
             const dotWind = dx * windDirection.x + dz * windDirection.z;
-            if (dotWind > 0) {
-              const closeRange = dist < gen.rotorRadius * 2;
-              // Exponential force increase at close range
-              const exponentialBoost = closeRange
-                ? Math.exp((gen.rotorRadius * 2 - dist) / gen.rotorRadius) * 0.5
-                : 0;
-              const force = closeRange 
-                ? gen.attractK / (dist + 0.5) * 1.5 + exponentialBoost
-                : gen.attractK / (dist * dist + 1);
-              const convergeFactor = Math.max(0.5, 1 - dist / gen.attractRadius);
-              // Velocity boost — particles accelerate as they approach
-              const velocityBoost = closeRange ? 1.5 : 1.0;
-              targetSpeedX += (dx / dist) * force * convergeFactor * velocityBoost;
-              targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor * velocityBoost;
-              targetSpeedZ += (dz / dist) * force * convergeFactor * velocityBoost;
-            } else {
-              targetSpeedX *= (1 - gen.speedReduction);
-              targetSpeedZ *= (1 - gen.speedReduction);
-              targetSpeedX += (Math.random() - 0.5) * gen.wakeTurbulence;
-              targetSpeedY += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
-              targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence;
+            if (dotWind < 0 && dist < gen.rotorRadius * 3) {
+              targetSpeedX += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
+              targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
             }
           }
 
@@ -354,7 +351,13 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         }
       }
 
-      const lerpFactor = 0.12;
+      // Higher lerpFactor near generators for responsive suction
+      const nearGenerator = generators.some(g => {
+        const dx = g.center.x - particle.x;
+        const dz = g.center.z - particle.z;
+        return Math.sqrt(dx*dx + dz*dz) < g.attractRadius;
+      });
+      const lerpFactor = nearGenerator ? 0.3 : 0.12;
       particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
       particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
       particle.speedZ += (targetSpeedZ - particle.speedZ) * lerpFactor;

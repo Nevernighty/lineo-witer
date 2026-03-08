@@ -183,7 +183,7 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
 };
 
 // Animated SuctionSpiral — replaces static IntakeCone
-const SPIRAL_COUNT = 16;
+const SPIRAL_COUNT = 24;
 const SuctionSpiral: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; windSpeed: number; adjustedSpeed: number; power: number }> = 
   ({ towerHeight, rotorDiameter, windAngleRad, windSpeed, adjustedSpeed, power }) => {
   const groupRef = useRef<THREE.Group>(null);
@@ -221,17 +221,16 @@ const SuctionSpiral: React.FC<{ towerHeight: number; rotorDiameter: number; wind
       child.position.set(x, y, z);
       
       // Scale: larger far, smaller near
-      const scale = (0.15 + dist * 0.35) * (0.5 + speedFactor * 0.5);
+      const scale = (0.25 + dist * 0.5) * (0.6 + speedFactor * 0.6);
       child.scale.setScalar(scale);
 
-      // Color: cyan far → yellow-green near
       const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
       if (mat) {
         const r = dist < 0.3 ? 0.5 + (1 - dist / 0.3) * 0.5 : 0.0;
         const g = 0.8 + (1 - dist) * 0.2;
         const b = dist > 0.5 ? 0.8 * (dist - 0.5) * 2 : 0;
         mat.color.setRGB(r, g, b);
-        mat.opacity = (0.15 + (1 - dist) * 0.5) * speedFactor;
+        mat.opacity = (0.25 + (1 - dist) * 0.65) * Math.max(speedFactor, 0.3);
       }
     });
 
@@ -321,6 +320,10 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const towerColor = isSelected ? '#00ff00' : '#8899aa';
   const nacelleColor = isSelected ? '#00ff00' : '#ccddee';
   const powerStr = power >= 1000000 ? `${(power / 1000000).toFixed(2)} MW` : power >= 1000 ? `${(power / 1000).toFixed(1)} kW` : `${power.toFixed(0)} W`;
+  const isCutOut = adjustedSpeed > specs.cutOut;
+  const isCutIn = adjustedSpeed < specs.cutIn;
+  const statusLabel = isCutOut ? '⛔ CUTOUT' : isCutIn ? '⏸ LOW WIND' : null;
+  const statusColor = isCutOut ? '#ff4444' : isCutIn ? '#ffaa00' : '#39ff14';
   const subtypeName = specs.nameUa;
 
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
@@ -341,24 +344,25 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
 
       <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'auto' }}>
         <div 
-          className="rounded-lg px-2 py-1 text-center border shadow-lg cursor-pointer transition-all hover:scale-105"
-          style={{ backgroundColor: 'rgba(0,0,0,0.9)', borderColor: '#39ff1460', minWidth: '70px' }}
+          className="rounded px-1.5 py-0.5 text-center border shadow-lg cursor-pointer transition-all hover:scale-105"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)', borderColor: `${statusColor}40`, minWidth: '55px' }}
           onClick={() => setShowDetails(!showDetails)}
         >
-          <div className="text-[7px] text-green-400/80 font-mono">{subtypeName}</div>
-          <div className="text-[10px] text-green-400 font-semibold">⚡ {powerStr}</div>
-          <div className="text-[7px] text-green-400/60">Cp={specs.cp} | {adjustedSpeed.toFixed(1)} m/s</div>
+          <div className="text-[6px] font-mono" style={{ color: `${statusColor}cc` }}>{subtypeName}</div>
+          {statusLabel ? (
+            <div className="text-[9px] font-bold" style={{ color: statusColor }}>{statusLabel}</div>
+          ) : (
+            <div className="text-[9px] font-semibold" style={{ color: statusColor }}>⚡ {powerStr}</div>
+          )}
+          <div className="text-[6px]" style={{ color: `${statusColor}99` }}>{adjustedSpeed.toFixed(1)} m/s</div>
           
           {showDetails && (
-            <div className="mt-1.5 pt-1.5 border-t border-green-500/20 text-left space-y-0.5">
-              <div className="text-[7px] text-cyan-400">📐 A = {detailData.sweptArea} m²</div>
-              <div className="text-[7px] text-cyan-400">🏗 H = {detailData.hubHeight} m</div>
-              <div className="text-[7px] text-yellow-400">🎯 η = {detailData.efficiency}% Betz</div>
-              <div className="text-[7px] text-lime-400">📊 CF = {detailData.capacityFactor}%</div>
-              <div className="text-[7px] text-orange-400">📈 AEP ≈ {detailData.aep}</div>
-              <div className="text-[7px] text-purple-400">🌀 Betz max: {detailData.betzPower}</div>
-              <div className="text-[6px] text-muted-foreground mt-1">
-                Cut-in: {specs.cutIn} m/s | Cut-out: {specs.cutOut} m/s
+            <div className="mt-1 pt-1 border-t text-left space-y-0.5" style={{ borderColor: `${statusColor}20` }}>
+              <div className="text-[6px] text-cyan-400">📐 {detailData.sweptArea} m² | H={detailData.hubHeight}m</div>
+              <div className="text-[6px] text-yellow-400">η={detailData.efficiency}% | CF={detailData.capacityFactor}%</div>
+              <div className="text-[6px] text-orange-400">AEP ≈ {detailData.aep}</div>
+              <div className="text-[5px] text-muted-foreground">
+                {specs.cutIn}-{specs.cutOut} m/s
               </div>
             </div>
           )}
