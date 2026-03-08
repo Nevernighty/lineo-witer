@@ -109,10 +109,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   lang
 }) => {
   const [physicsConfig, setPhysicsConfig] = useState<WindPhysicsConfig>({ ...DEFAULT_WIND_PHYSICS, windSpeed: initialWindSpeed });
-  const [particleCount, setParticleCount] = useState(250);
+  const [particleCount, setParticleCount] = useState(400);
   const [particleImpact, setParticleImpact] = useState(1.0);
   const [particleTrailLength, setParticleTrailLength] = useState(3.0);
-  const [wobbliness, setWobbliness] = useState(1.0);
+  const [wobbliness, setWobbliness] = useState(0.6);
   const [particleGlow, setParticleGlow] = useState(1.0);
   const [pulsation, setPulsation] = useState(0);
   const [particlePreset, setParticlePreset] = useState('standard');

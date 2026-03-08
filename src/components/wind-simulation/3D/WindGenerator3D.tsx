@@ -9,6 +9,7 @@ interface WindGenerator3DProps {
   obstacle: Obstacle;
   config: WindPhysicsConfig;
   isSelected?: boolean;
+  isHovered?: boolean;
 }
 
 export function calculateGeneratorPower(
@@ -181,80 +182,90 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
   );
 };
 
-// Enhanced IntakeCone with doubled spiral rings, more converging arrows, power-scaled glow
-const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; windSpeed: number }> = ({ towerHeight, rotorDiameter, windAngleRad, windSpeed }) => {
+// Animated SuctionSpiral — replaces static IntakeCone
+const SPIRAL_COUNT = 16;
+const SuctionSpiral: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; windSpeed: number; adjustedSpeed: number; power: number }> = 
+  ({ towerHeight, rotorDiameter, windAngleRad, windSpeed, adjustedSpeed, power }) => {
   const groupRef = useRef<THREE.Group>(null);
-  const spiralRef = useRef<THREE.Group>(null);
+  const particlesRef = useRef<THREE.Group>(null);
   const flashRef = useRef<THREE.Mesh>(null);
+
+  // Stable seed offsets per spiral particle
+  const seeds = useMemo(() => Array.from({ length: SPIRAL_COUNT }, (_, i) => ({
+    phase: (i / SPIRAL_COUNT) * Math.PI * 2,
+    radiusOffset: 0.8 + Math.random() * 0.4,
+    speedOffset: 0.7 + Math.random() * 0.6,
+    yOffset: (Math.random() - 0.5) * 0.6,
+  })), []);
 
   useFrame((state) => {
     const time = state.clock.elapsedTime;
-    if (spiralRef.current) {
-      spiralRef.current.rotation.z = time * windSpeed * 0.15;
-    }
+    if (!particlesRef.current) return;
+
+    const speedFactor = Math.min(adjustedSpeed / 6, 2.5);
+    const powerFactor = Math.min(power / 5000, 1.5);
+
+    particlesRef.current.children.forEach((child, i) => {
+      const seed = seeds[i];
+      // Spiral parametric: t goes from 1 (far) to 0 (rotor center)
+      const t = ((time * seed.speedOffset * speedFactor * 0.8 + seed.phase) % (Math.PI * 2)) / (Math.PI * 2);
+      const dist = t; // 0=center, 1=far
+      const maxDist = rotorDiameter * 2.5;
+      const z = dist * maxDist;
+      const spiralRadius = dist * rotorDiameter * 0.5 * seed.radiusOffset;
+      const spiralAngle = seed.phase + time * speedFactor * 2.5 + dist * 6;
+      
+      const x = Math.cos(spiralAngle) * spiralRadius;
+      const y = Math.sin(spiralAngle) * spiralRadius + seed.yOffset;
+      
+      child.position.set(x, y, z);
+      
+      // Scale: larger far, smaller near
+      const scale = (0.15 + dist * 0.35) * (0.5 + speedFactor * 0.5);
+      child.scale.setScalar(scale);
+
+      // Color: cyan far → yellow-green near
+      const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
+      if (mat) {
+        const r = dist < 0.3 ? 0.5 + (1 - dist / 0.3) * 0.5 : 0.0;
+        const g = 0.8 + (1 - dist) * 0.2;
+        const b = dist > 0.5 ? 0.8 * (dist - 0.5) * 2 : 0;
+        mat.color.setRGB(r, g, b);
+        mat.opacity = (0.15 + (1 - dist) * 0.5) * speedFactor;
+      }
+    });
+
+    // Flash at rotor center
     if (flashRef.current) {
       const mat = flashRef.current.material as THREE.MeshBasicMaterial;
-      const pulse = Math.sin(time * 8) * 0.5 + 0.5;
-      const powerScale = Math.min(windSpeed / 8, 1.5);
-      mat.opacity = 0.1 + pulse * 0.3 * powerScale;
-      const s = 1 + pulse * 0.15 * powerScale;
+      const pulse = Math.sin(time * 10) * 0.5 + 0.5;
+      mat.opacity = (0.08 + pulse * 0.25) * powerFactor;
+      const s = 1 + pulse * 0.2 * powerFactor;
       flashRef.current.scale.set(s, s, s);
     }
   });
 
-  const coneLength = rotorDiameter * 3;
-  const windIntensity = Math.min(windSpeed / 8, 1.5);
-
   return (
     <group ref={groupRef} position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
-      {/* Main intake funnel */}
-      <mesh position={[0, 0, coneLength / 2]} rotation={[Math.PI / 2, 0, 0]}>
-        <coneGeometry args={[rotorDiameter * 0.7, coneLength, 16]} />
-        <meshBasicMaterial color="#00ffaa" transparent opacity={0.10 + windIntensity * 0.10} depthWrite={false} side={THREE.DoubleSide} />
-      </mesh>
-      
-      {/* Animated spiral rings — 10 rings with faster rotation */}
-      <group ref={spiralRef}>
-        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
-          <mesh key={`spiral-${i}`} position={[0, 0, rotorDiameter * 0.25 * i]} rotation={[Math.PI / 2, i * 0.4, 0]}>
-            <ringGeometry args={[rotorDiameter * 0.06 * i, rotorDiameter * 0.06 * i + 0.18, 20]} />
-            <meshBasicMaterial color="#00ffaa" transparent opacity={0.12 + windIntensity * 0.12} side={THREE.DoubleSide} />
+      <group ref={particlesRef}>
+        {seeds.map((_, i) => (
+          <mesh key={i}>
+            <sphereGeometry args={[0.3, 6, 6]} />
+            <meshBasicMaterial color="#00ffaa" transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} />
           </mesh>
         ))}
       </group>
 
-      {/* Converging flow arrows — 6 arrows */}
-      {[-1.5, -0.8, -0.2, 0.2, 0.8, 1.5].map((i, idx) => (
-        <mesh key={idx} position={[i * rotorDiameter * 0.25, i * 0.4, rotorDiameter * 1.0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.35, 1.4, 4]} />
-          <meshBasicMaterial color="#00ffaa" transparent opacity={0.30 + windIntensity * 0.25} />
-        </mesh>
-      ))}
-
-      {/* Absorption flash at rotor center — power-scaled pulsing glow */}
-      <mesh ref={flashRef} position={[0, 0, 0]}>
-        <sphereGeometry args={[rotorDiameter * 0.4, 16, 16]} />
-        <meshBasicMaterial color="#88ffcc" transparent opacity={0.15} depthWrite={false} />
+      {/* Flash glow at rotor center */}
+      <mesh ref={flashRef}>
+        <sphereGeometry args={[rotorDiameter * 0.3, 12, 12]} />
+        <meshBasicMaterial color="#88ffcc" transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
-
-      {/* Funnel convergence lines — 6 lines */}
-      {[0, 1, 2, 3, 4, 5].map(i => {
-        const angle = (i / 6) * Math.PI * 2;
-        const r = rotorDiameter * 0.6;
-        return (
-          <mesh key={`funnel-${i}`} 
-            position={[Math.cos(angle) * r * 0.3, Math.sin(angle) * r * 0.3, coneLength * 0.3]}
-            rotation={[Math.PI / 2 + Math.sin(angle) * 0.1, 0, Math.cos(angle) * 0.1]}>
-            <cylinderGeometry args={[0.05, 0.05, coneLength * 0.5, 4]} />
-            <meshBasicMaterial color="#00ffaa" transparent opacity={0.18 + windIntensity * 0.15} />
-          </mesh>
-        );
-      })}
     </group>
   );
 };
 
-export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, config, isSelected = false }) => {
+export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, config, isSelected = false, isHovered = false }) => {
   const subtype = obstacle.generatorSubtype || 'hawt3';
   const specs = GENERATOR_SUBTYPES[subtype];
   const towerHeight = obstacle.height;
@@ -280,8 +291,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
     const betzPower = 0.5 * config.airDensity * sweptArea * Math.pow(adjustedSpeed, 3) * 0.593;
     const efficiency = betzPower > 0 ? (power / betzPower * 100) : 0;
     const capacityFactor = power > 0 ? Math.min(power / (betzPower * 1.2), 1) : 0;
-    // Rough AEP estimate: power * capacity * 8760h
-    const aep = power * capacityFactor * 8760 / 1000; // kWh
+    const aep = power * capacityFactor * 8760 / 1000;
     return {
       sweptArea: sweptArea.toFixed(1),
       hubHeight: (towerHeight + obstacle.y).toFixed(0),
@@ -327,7 +337,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       </group>
 
-      <IntakeCone towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} windSpeed={config.windSpeed} />
+      <SuctionSpiral towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} windSpeed={config.windSpeed} adjustedSpeed={adjustedSpeed} power={power} />
 
       <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'auto' }}>
         <div 
@@ -355,10 +365,17 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         </div>
       </Html>
 
+      {/* Neomorphic glow selection */}
       {isSelected && (
         <mesh position={[0, towerHeight / 2, 0]}>
-          <cylinderGeometry args={[rotorDiameter * 0.55, rotorDiameter * 0.55, towerHeight + 4, 16]} />
-          <meshBasicMaterial color="#00ff00" transparent opacity={0.1} wireframe />
+          <sphereGeometry args={[rotorDiameter * 0.7, 16, 16]} />
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.08} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </mesh>
+      )}
+      {isHovered && !isSelected && (
+        <mesh position={[0, towerHeight / 2, 0]}>
+          <sphereGeometry args={[rotorDiameter * 0.65, 16, 16]} />
+          <meshBasicMaterial color="#ffff00" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} />
         </mesh>
       )}
     </group>

@@ -1,6 +1,7 @@
 import React, { useMemo, useRef } from 'react';
 import { Box, Cylinder, Sphere } from '@react-three/drei';
 import { useFrame } from '@react-three/fiber';
+import { AdditiveBlending } from 'three';
 import * as THREE from 'three';
 import { Obstacle } from '../types';
 

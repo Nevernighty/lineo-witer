@@ -58,7 +58,7 @@ const GlowSlider: React.FC<{
     <div className="space-y-1.5">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-1">
-          <span className="text-xs font-medium text-primary/90 uppercase tracking-wider">{label}</span>
+          <span className="text-[10px] font-medium text-primary/90 uppercase tracking-wider">{label}</span>
           {infoText && (
             <TooltipProvider delayDuration={200}>
               <Tooltip>

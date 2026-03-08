@@ -67,6 +67,8 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
 };
 
 const TRAIL_SEGMENTS = 5;
+const TRAIL_OPACITY_BASE = [0.55, 0.4, 0.28, 0.16, 0.08];
+const TRAIL_FADE = [0.65, 0.5, 0.35, 0.22, 0.12]; // saturation fade per segment
 
 export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   bufferRef,
@@ -82,26 +84,28 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const particleGeometry = useMemo(() => createParticleGeometry(), []);
   const tempColor = useMemo(() => new THREE.Color(), []);
+  const trailColor = useMemo(() => new THREE.Color(), []);
   
   const posHistoryRef = useRef<Float32Array[]>([]);
-  // Track last known count to detect resizes
   const lastCountRef = useRef(0);
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     vertexColors: true, transparent: true, opacity: 1.0
   }), []);
 
-  const trailMaterials = useMemo(() => [
-    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff88', transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff66', transparent: true, opacity: 0.28, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff44', transparent: true, opacity: 0.16, blending: THREE.AdditiveBlending, depthWrite: false }),
-    new THREE.MeshBasicMaterial({ color: '#00ff22', transparent: true, opacity: 0.08, blending: THREE.AdditiveBlending, depthWrite: false }),
-  ], []);
+  // Trail materials now use vertexColors for color inheritance
+  const trailMaterials = useMemo(() => 
+    TRAIL_OPACITY_BASE.map((_, i) => new THREE.MeshBasicMaterial({
+      vertexColors: true,
+      transparent: true,
+      opacity: TRAIL_OPACITY_BASE[i],
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+    })), []);
 
   const arrowAngleRad = (windAngle * Math.PI) / 180;
 
-  // Use a stable max count for instanced meshes to avoid re-allocation
+  // Stable max count to avoid re-allocation
   const maxCount = useRef(2000);
 
   useFrame((state) => {
@@ -110,10 +114,8 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     const count = buf.count;
     const time = state.clock.elapsedTime;
 
-    // Ensure instanced mesh has enough capacity
     if (count > maxCount.current) {
       maxCount.current = count;
-      // Mesh will be re-created on next render via key change
     }
 
     // Rebuild position history if count changed
@@ -165,6 +167,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
+      // Set main particle color
       if (meshRef.current!.instanceColor) {
         getSpeedColor(tempColor, speed, hasCollided, isAbsorbed, impactMultiplier, glowIntensity);
         meshRef.current!.instanceColor.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
@@ -174,16 +177,15 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
 
-    // Trails
+    // Trails with color inheritance
     const trailActive = trailLengthMultiplier > 0.01;
-    const trailScales = [0.65, 0.5, 0.35, 0.22, 0.12];
 
     for (let seg = 0; seg < TRAIL_SEGMENTS; seg++) {
       const trailMesh = trailRefs.current[seg];
       if (!trailMesh) continue;
 
       const baseMat = trailMaterials[seg];
-      baseMat.opacity = trailActive ? [0.55, 0.4, 0.28, 0.16, 0.08][seg] * Math.min(trailLengthMultiplier, 4) * glowIntensity : 0;
+      baseMat.opacity = trailActive ? TRAIL_OPACITY_BASE[seg] * Math.min(trailLengthMultiplier, 4) * glowIntensity : 0;
 
       for (let i = 0; i < count; i++) {
         if (!trailActive) {
@@ -196,7 +198,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
           const hz = posHistoryRef.current[seg][i3 + 2];
           dummy.position.set(hx, hy, hz);
 
-          const s = buf.sizes[i] * trailScales[seg] * trailLengthMultiplier;
+          const s = buf.sizes[i] * TRAIL_FADE[seg] * trailLengthMultiplier;
           dummy.scale.setScalar(s);
 
           const vx = buf.velocities[i3];
@@ -208,8 +210,23 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
         }
         dummy.updateMatrix();
         trailMesh.setMatrixAt(i, dummy.matrix);
+
+        // Trail color inherits particle speed color with fade
+        if (trailMesh.instanceColor) {
+          const i3 = i * 3;
+          const vx = buf.velocities[i3];
+          const vy = buf.velocities[i3 + 1];
+          const vz = buf.velocities[i3 + 2];
+          const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+          const flags = buf.flags[i];
+          const hasCollided = (flags & 1) !== 0;
+          const isAbsorbed = (flags & 2) !== 0;
+          getSpeedColor(trailColor, speed, hasCollided, isAbsorbed, impactMultiplier, glowIntensity * TRAIL_FADE[seg]);
+          trailMesh.instanceColor.setXYZ(i, trailColor.r, trailColor.g, trailColor.b);
+        }
       }
       trailMesh.instanceMatrix.needsUpdate = true;
+      if (trailMesh.instanceColor) trailMesh.instanceColor.needsUpdate = true;
     }
   });
 
@@ -232,7 +249,9 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
           ref={(el) => { trailRefs.current[seg] = el; }}
           args={[particleGeometry, mat, count]}
           frustumCulled={false}
-        />
+        >
+          <instancedBufferAttribute attach="instanceColor" args={[new Float32Array(count * 3).fill(0.1), 3]} />
+        </instancedMesh>
       ))}
 
       <instancedMesh ref={meshRef} args={[particleGeometry, particleMaterial, count]} frustumCulled={false}>

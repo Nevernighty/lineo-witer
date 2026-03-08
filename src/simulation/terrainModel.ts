@@ -10,7 +10,7 @@ export function getTerrainYOffset(
   const sxRad = (slopeXDeg * Math.PI) / 180;
   const szRad = (slopeZDeg * Math.PI) / 180;
   const raw = -Math.sin(sxRad) * x - Math.sin(szRad) * z;
-  return Math.max(-8, Math.min(8, raw));
+  return Math.max(-15, Math.min(15, raw));
 }
 
 /**
