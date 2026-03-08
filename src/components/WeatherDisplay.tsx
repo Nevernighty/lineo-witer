@@ -100,7 +100,80 @@ function generateSyntheticWeather(lat: number, lon: number): WeatherData {
   };
 }
 
+async function fetchOpenMeteoWeather(lat: number, lon: number): Promise<WeatherData | null> {
+  try {
+    const res = await fetch(
+      `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=wind_speed_10m,wind_direction_10m,temperature_2m,relative_humidity_2m,surface_pressure,cloud_cover&hourly=wind_speed_10m&forecast_days=1&timezone=auto`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const c = data.current;
+    if (!c) return null;
+
+    const windSpeed = c.wind_speed_10m / 3.6; // km/h → m/s
+    const windAngle = c.wind_direction_10m || 0;
+    const temperature = c.temperature_2m || 0;
+    const pressure = c.surface_pressure ? Math.round(c.surface_pressure) : 1013;
+    const humidity = c.relative_humidity_2m || 50;
+    const cloudCover = c.cloud_cover || 0;
+
+    const now = new Date();
+    const month = now.getMonth();
+    const hour = now.getHours();
+    const isWinter = month >= 10 || month <= 2;
+    const isSummer = month >= 5 && month <= 7;
+    const isSpring = month >= 3 && month <= 4;
+    const season = isWinter ? 'winter' : isSummer ? 'summer' : isSpring ? 'spring' : 'autumn';
+
+    const rho = 1.225;
+    const wpd = 0.5 * rho * Math.pow(windSpeed, 3);
+    const potentialClass = wpd > 500 ? 'excellent' : wpd > 300 ? 'good' : wpd > 150 ? 'moderate' : 'low';
+    const monthlyEnergy = wpd * 0.4 * 720 / 1000;
+    const windVariability = windSpeed * 0.25;
+    const windChill = temperature < 10 && windSpeed > 1.3
+      ? 13.12 + 0.6215 * temperature - 11.37 * Math.pow(windSpeed * 3.6, 0.16) + 0.3965 * temperature * Math.pow(windSpeed * 3.6, 0.16)
+      : temperature;
+    const beaufort = windSpeed < 0.3 ? 0 : windSpeed < 1.6 ? 1 : windSpeed < 3.4 ? 2
+      : windSpeed < 5.5 ? 3 : windSpeed < 8 ? 4 : windSpeed < 10.8 ? 5
+      : windSpeed < 13.9 ? 6 : windSpeed < 17.2 ? 7 : windSpeed < 20.8 ? 8
+      : windSpeed < 24.5 ? 9 : windSpeed < 28.5 ? 10 : windSpeed < 32.7 ? 11 : 12;
+
+    // Use hourly data for 24h forecast if available
+    const hourlyWind = data.hourly?.wind_speed_10m as number[] | undefined;
+    const forecast24h = hourlyWind
+      ? hourlyWind.slice(0, 24).map((s: number, i: number) => ({ hour: (hour + i) % 24, speed: Math.max(0.5, s / 3.6) }))
+      : Array.from({ length: 24 }, (_, i) => {
+          const fHour = (hour + i) % 24;
+          const fDiurnal = Math.sin((fHour - 6) * Math.PI / 12) * 1.5;
+          return { hour: fHour, speed: Math.max(0.5, windSpeed + fDiurnal + Math.sin(i * 0.5) * 0.6) };
+        });
+
+    const recommendedGen = windSpeed > 10 ? 'hawt3' : windSpeed > 6 ? 'hawt2' : windSpeed > 3 ? 'darrieus' : 'savonius';
+
+    return {
+      windSpeed: Math.round(windSpeed * 10) / 10,
+      windAngle: Math.round(windAngle),
+      temperature: Math.round(temperature * 10) / 10,
+      pressure,
+      humidity: Math.round(humidity),
+      cloudCover: Math.round(cloudCover),
+      season, wpd: Math.round(wpd), potentialClass, hour, month, monthlyEnergy: Math.round(monthlyEnergy),
+      windVariability: Math.round(windVariability * 10) / 10,
+      windChill: Math.round(windChill * 10) / 10,
+      beaufort, forecast24h, recommendedGen,
+      isLive: true,
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function fetchLiveWeather(lat: number, lon: number): Promise<WeatherData | null> {
+  // Try Open-Meteo first (free, no API key needed)
+  const openMeteo = await fetchOpenMeteoWeather(lat, lon);
+  if (openMeteo) return openMeteo;
+
+  // Fallback to OpenWeatherMap if key available
   const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
   if (!apiKey) return null;
   
