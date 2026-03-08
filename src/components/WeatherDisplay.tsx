@@ -499,11 +499,11 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       {/* Ring Gauges Row */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
         className="flex items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
-        <RingGauge value={displayWeather.windSpeed} max={25} label={lang === 'ua' ? 'Вітер' : 'Wind'} unit="m/s" color="hsl(120 100% 54%)" />
-        <WindRoseCompass angle={displayWeather.windAngle} speed={displayWeather.windSpeed} lang={lang} />
-        <RingGauge value={displayWeather.temperature} max={45} label={lang === 'ua' ? 'Темп.' : 'Temp'} unit="°C" color="hsl(25 90% 55%)" />
-        <RingGauge value={displayWeather.humidity} max={100} label={lang === 'ua' ? 'Волог.' : 'Humid'} unit="%" color="hsl(210 80% 55%)" />
-        <RingGauge value={displayWeather.pressure} max={1060} label={lang === 'ua' ? 'Тиск' : 'Press'} unit="hPa" color="hsl(270 60% 55%)" />
+        <RingGauge value={weather.windSpeed} max={25} label={lang === 'ua' ? 'Вітер' : 'Wind'} unit="m/s" color="hsl(120 100% 54%)" />
+        <WindRoseCompass angle={weather.windAngle} speed={weather.windSpeed} lang={lang} />
+        <RingGauge value={weather.temperature} max={45} label={lang === 'ua' ? 'Темп.' : 'Temp'} unit="°C" color="hsl(25 90% 55%)" />
+        <RingGauge value={weather.humidity} max={100} label={lang === 'ua' ? 'Волог.' : 'Humid'} unit="%" color="hsl(210 80% 55%)" />
+        <RingGauge value={weather.pressure} max={1060} label={lang === 'ua' ? 'Тиск' : 'Press'} unit="hPa" color="hsl(270 60% 55%)" />
       </motion.div>
 
       {/* Wind info badges */}
