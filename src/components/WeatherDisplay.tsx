@@ -1,5 +1,5 @@
-import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen, Wifi, WifiOff, Layers, MapPin, Copy, Check, Mountain, ZoomIn, BarChart3, Search } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen, Wifi, WifiOff, Layers, MapPin, Mountain, ZoomIn, BarChart3 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { t, type Lang } from '@/utils/i18n';
 import { motion, AnimatePresence } from 'framer-motion';
 
