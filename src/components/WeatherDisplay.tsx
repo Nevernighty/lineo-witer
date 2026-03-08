@@ -586,7 +586,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
           </div>
           <div className="p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
             <span className="text-[10px] text-muted-foreground">{t('monthlyEnergy', lang)}</span>
-            <p className="text-sm font-mono font-bold text-primary">~{displayWeather.monthlyEnergy} kWh/m²</p>
+            <p className="text-sm font-mono font-bold text-primary">~{weather.monthlyEnergy} kWh/m²</p>
           </div>
         </div>
       </div>
