@@ -1,94 +1,110 @@
 
-# Виправлення UI, фізики частинок та візуалізації
 
-## 1. Кнопки "Встановити/Вибрати" перекривають статистику
+## Simulation Physics Upgrade Plan
 
-**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
+### Summary
 
-**Рішення (WindSimulation3D.tsx):**
-- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
-- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
+Upgrade the simulation core with research-grade heuristic models (Jensen wake, log-law shear, exponential obstacle shadow) and dramatically enhance generator suction visibility. Add scientific disclaimer overlay.
 
-## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
+### 1. Jensen/Park Wake Model — `wakeModel.ts`
 
-**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
+Replace the current exponential wake deficit with a proper Jensen single-wake model:
 
-**Рішення:**
-- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
-- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
-- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
-- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
-- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
+```
+velocityDeficit = 1 - (1 - sqrt(1 - Ct)) / (1 + k * x / r0)²
+```
 
-## 3. "Слід" (Trail) налаштування не працює
+- Add `computeJensenWakeDeficit(downstreamDistance, rotorDiameter, thrustCoefficient, wakeDecayK)` 
+- Add `ROUGHNESS_WAKE_CONSTANTS` map: `offshore: 0.04`, `grassland: 0.075`, `forest: 0.10`, `urban: 0.12`
+- Add `computeTurbineWakeZone()` — specialized version using rotor swept area for wake width expansion
+- Keep existing `isInWakeZone` and `computeWakeDeficit` for backward compat, but have particle system use Jensen model for turbines
 
-**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
+### 2. Logarithmic Wind Shear — `windField.ts`
 
-**Рішення (InstancedParticles.tsx):**
-- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
-- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
-- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
-- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
-- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
-- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
-- Колір trail segments = колір частинки з зниженою яскравістю
+Add `computeLogWindShear()` alongside existing power-law:
 
-## 4. Реалістичніші частинки та оптимізація
+```
+U(z) = Uref * ln(z/z0) / ln(zref/z0)
+```
 
-**AdvancedParticleSystem.tsx:**
-- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
-- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
-- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
-- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
-- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
+Add `ROUGHNESS_LENGTHS` map:
+- `water: 0.0002`
+- `grassland: 0.03`  
+- `forest: 0.8`
+- `urban: 1.5`
 
-**InstancedParticles.tsx:**
-- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
-- Залишити 2 instanced meshes: particles + trails (замість 3)
+The existing power-law remains default; add a `shearModel: 'power' | 'log'` option to `SimulationParams`.
 
-## 5. Генератори всмоктують частинки — візуалізація
+### 3. Terrain Speed-Up — `terrainModel.ts`
 
-**AdvancedParticleSystem.tsx:**
-- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
-- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
-- Передати `absorbed` стан в InstancedParticles як окреме поле
+Add `computeSlopeSpeedup()`:
+```
+multiplier = 1 + slopeAngle * 0.2, capped at 1.4
+```
 
-**InstancedParticles.tsx:**
-- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
-- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
+Replace existing `computeTerrainSpeedup` which uses tan() and caps at 1.8 — the new version is simpler and more predictable.
 
-**WindGenerator3D.tsx:**
-- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
+### 4. Obstacle Shadow Model — `obstacleModel.ts`
 
-## 6. Стрілки напрямку вітру після колізії
+Add `computeObstacleShadow(distance, obstacleSize)`:
+```
+shadowFactor = exp(-distance / obstacleSize)
+```
 
-**CollisionEffect.tsx:**
-- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
-- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
-- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
+Returns wind speed reduction factor (0-1) behind buildings. Used in particle system alongside existing wake zone logic for non-generator obstacles.
 
-**AdvancedParticleSystem.tsx:**
-- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
-- Передати в `CollisionEffectsManager`
+### 5. Enhanced Generator Suction — `AdvancedParticleSystem.tsx`
 
-**WindSimulation3D.tsx:**
-- Оновити тип `collisionEffects` щоб включити `deflection`
+Make suction visually dramatic:
+- Increase `attractK` by 2× for all subtypes (hawt3: 20, hawt2: 17, etc.)
+- Increase `suctionRadius` by 50% (hawt3: 7.5, etc.)
+- Add stronger convergence: when particle is within 2× rotor radius, apply exponential force increase
+- Add velocity boost toward rotor center — particles accelerate visibly as they approach
+- Reduce absorption threshold from `rotorRadius * 1.2` to `rotorRadius * 0.8` for tighter visual
+- Increase absorption flash probability from 25% to 60%
 
-## 7. Кращі impact ефекти
+### 6. IntakeCone Enhancement — `WindGenerator3D.tsx`
 
-**CollisionEffect.tsx:**
-- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
-- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
-- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
-- Тривалість збільшити з 0.5с до 0.8с
+- Double spiral ring count (5→10) with faster rotation
+- Increase cone opacity by 2× for visibility
+- Add pulsing glow on the flash sphere that scales with power output
+- Add more converging flow arrows (3→6)
+- Scale visual effects with `windSpeed` more aggressively
 
----
+### 7. Scientific Disclaimer — `WindSimulation3D.tsx`
 
-## Технічна послідовність
+Add a disclaimer label at bottom when any analysis overlay is active:
+```
+"⚠ Visualization model — not CFD accurate"
+```
+Styled as a subtle monospace label, shown conditionally.
 
-1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
-2. `Obstacle3D.tsx` — rotation тільки по Y
-3. `GhostObstacle.tsx` — rotation тільки по Y
-4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
-5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
-6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
+### 8. Visualization Output Types — `types.ts`
+
+Add interfaces for overlay data:
+```ts
+interface VectorFieldSample { position: [x,y,z]; direction: [x,y,z]; magnitude: number; }
+interface WakeZoneData { center: [x,y,z]; length: number; width: number; deficit: number; }
+interface TurbulenceFieldSample { position: [x,y,z]; intensity: number; }
+```
+
+### Files Modified
+
+1. `src/simulation/wakeModel.ts` — Add Jensen model + roughness constants
+2. `src/simulation/windField.ts` — Add log-law shear + roughness lengths  
+3. `src/simulation/terrainModel.ts` — Add simplified slope speedup
+4. `src/simulation/obstacleModel.ts` — Add exponential shadow model
+5. `src/simulation/types.ts` — Add visualization data interfaces + shearModel param
+6. `src/components/wind-simulation/3D/AdvancedParticleSystem.tsx` — Enhanced suction forces, use Jensen wake for turbines, use shadow model for obstacles
+7. `src/components/wind-simulation/3D/WindGenerator3D.tsx` — Enhanced IntakeCone visuals
+8. `src/components/wind-simulation/3D/WindSimulation3D.tsx` — Scientific disclaimer overlay
+
+### What We Do NOT Touch
+
+- Obstacle3D wobble/rendering
+- AdvancedWindControls UI
+- InstancedParticles rendering
+- Scenarios/presets
+- Info pages
+- Sound effects
+
