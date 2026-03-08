@@ -221,7 +221,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="atmo" className="p-3 space-y-3 mt-0">
+        <TabsContent value="atmo" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.temperature} onChange={(v) => updateConfig('temperature', v)}
             min={-20} max={45} step={1} label={t('temperature', lang)} displayValue={`${config.temperature}°C`}
             infoText={t('infoTemperature', lang)} />
