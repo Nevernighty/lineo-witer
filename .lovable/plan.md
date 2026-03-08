@@ -1,36 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Remove Generator Particles, Add Energy Absorption Burst Effect
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Problem
-The `SuctionSpiral` component renders 24 individual sphere meshes per generator — these are the "particles generators emit" visible in the screenshot. They clutter the scene and conflict with the actual wind particle system. The energy transfer should be shown by wind particles being caught and absorbed, not by generators emitting their own particles.
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-### Solution
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-**1. Remove SuctionSpiral entirely from `WindGenerator3D.tsx`**
-- Delete the `SuctionSpiral` component (~80 lines) and its render call
-- Replace with a subtle **energy absorption glow ring** at the rotor hub that pulses based on power output — a single mesh, not 24 particles
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-**2. Add Rotor Catch Zone Visual — `EnergyAbsorptionEffect`**
-A new lightweight component rendered at each generator's rotor position:
-- **Glowing disc** at rotor plane that brightens when particles are absorbed (power > 0)
-- **Expanding ring burst** — when a particle hits the rotor zone, a quick ring expands outward and fades (like a ripple). Max 3 concurrent rings for performance
-- **Color shift**: ring color goes from cyan (low power) → green (medium) → yellow (high power)
-- Uses only 1-4 simple meshes total, not 24 sphere objects
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-**3. Improve particle absorption visual in `AdvancedParticleSystem.tsx`**
-- When `particle.absorbed = true`, rapidly shrink the particle size toward 0 over `absorptionTimer` frames (instead of just flagging it)
-- Add a brief velocity swirl: particles spiral inward in the last few frames before respawn, creating a visible "catch" motion
-- Write shrinking size to the shared buffer so `InstancedParticles` renders the fade-out
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-### Files Modified
+## 3. "Слід" (Trail) налаштування не працює
 
-| File | Change |
-|------|--------|
-| `WindGenerator3D.tsx` | Remove `SuctionSpiral` (lines 185-265), add `EnergyAbsorptionEffect` — pulsing disc + burst rings |
-| `AdvancedParticleSystem.tsx` | Shrink absorbed particles + spiral inward during absorption timer |
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-### Performance Impact
-- **Before**: 24 sphere meshes × N generators = 96 meshes for 4 generators, each with per-frame position updates
-- **After**: 1 disc + up to 3 ring meshes per generator = 4-16 meshes total, simpler animation
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
+## 4. Реалістичніші частинки та оптимізація
+
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
+
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
+
+## 5. Генератори всмоктують частинки — візуалізація
+
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
+
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
+
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
+
+## 6. Стрілки напрямку вітру після колізії
+
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
+
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
+
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
+
+## 7. Кращі impact ефекти
+
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
+
+---
+
+## Технічна послідовність
+
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори

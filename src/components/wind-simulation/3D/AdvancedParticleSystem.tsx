@@ -393,9 +393,38 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         particle.absorbed = false;
       }
 
+      // Absorbed particles shrink + spiral inward before respawn
       if (particle.absorptionTimer > 0) {
         particle.absorptionTimer--;
-        if (particle.absorptionTimer === 0) particle.absorbed = false;
+        const progress = 1 - particle.absorptionTimer / 25; // 0→1
+        // Shrink size toward zero
+        particle.size = Math.max(0.05, (1 - progress * progress) * 0.8);
+        // Spiral inward: add tangential + inward velocity
+        const nearGen = generators.find(g => {
+          const ddx = g.cx - particle.x;
+          const ddz = g.cz - particle.z;
+          return Math.sqrt(ddx*ddx + ddz*ddz) < g.attractRadius;
+        });
+        if (nearGen && progress > 0.3) {
+          const ddx = nearGen.cx - particle.x;
+          const ddy = nearGen.cy - particle.y;
+          const ddz = nearGen.cz - particle.z;
+          const dd = Math.sqrt(ddx*ddx + ddy*ddy + ddz*ddz) || 1;
+          // Spiral: tangent + pull inward
+          const swirlStrength = progress * 3;
+          particle.speedX += (ddx / dd * 2 + (-ddz / dd) * swirlStrength) * delta * 8;
+          particle.speedY += (ddy / dd * 1.5) * delta * 8;
+          particle.speedZ += (ddz / dd * 2 + (ddx / dd) * swirlStrength) * delta * 8;
+        }
+        if (particle.absorptionTimer === 0) {
+          particle.absorbed = false;
+          particle.size = 0.8;
+          // Respawn far away
+          particle.x = (Math.random() - 0.5) * width;
+          particle.y = height * (0.15 + Math.random() * 0.65);
+          particle.z = (Math.random() - 0.5) * depth;
+          particle.age = 0;
+        }
       }
 
       if (!particle.hasCollided) {
