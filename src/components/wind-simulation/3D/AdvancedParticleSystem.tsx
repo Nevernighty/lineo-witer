@@ -58,11 +58,11 @@ const GENERATOR_SUCTION_PHYSICS: Record<string, {
   wakeTurbulence: number;
   rotorEfficiency: number;
 }> = {
-  hawt3: { attractK: 10.0, suctionRadius: 5.0, speedReduction: 0.41, wakeTurbulence: 3.5, rotorEfficiency: 0.45 },
-  hawt2: { attractK: 8.5, suctionRadius: 4.5, speedReduction: 0.37, wakeTurbulence: 4.0, rotorEfficiency: 0.42 },
-  darrieus: { attractK: 6.5, suctionRadius: 3.5, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
-  savonius: { attractK: 5.0, suctionRadius: 3.0, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
-  micro: { attractK: 7.0, suctionRadius: 4.0, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
+  hawt3: { attractK: 20.0, suctionRadius: 7.5, speedReduction: 0.41, wakeTurbulence: 3.5, rotorEfficiency: 0.45 },
+  hawt2: { attractK: 17.0, suctionRadius: 6.75, speedReduction: 0.37, wakeTurbulence: 4.0, rotorEfficiency: 0.42 },
+  darrieus: { attractK: 13.0, suctionRadius: 5.25, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
+  savonius: { attractK: 10.0, suctionRadius: 4.5, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
+  micro: { attractK: 14.0, suctionRadius: 6.0, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
 };
 
 // Shared buffer for zero-copy particle data transfer to InstancedParticles
