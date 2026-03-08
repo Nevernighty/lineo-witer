@@ -182,84 +182,87 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
   );
 };
 
-// Animated SuctionSpiral — replaces static IntakeCone
-const SPIRAL_COUNT = 24;
-const SuctionSpiral: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; windSpeed: number; adjustedSpeed: number; power: number }> = 
-  ({ towerHeight, rotorDiameter, windAngleRad, windSpeed, adjustedSpeed, power }) => {
-  const groupRef = useRef<THREE.Group>(null);
-  const particlesRef = useRef<THREE.Group>(null);
-  const flashRef = useRef<THREE.Mesh>(null);
+// Energy absorption glow effect — lightweight replacement for SuctionSpiral
+const MAX_RINGS = 3;
+const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; power: number; adjustedSpeed: number }> = 
+  ({ towerHeight, rotorDiameter, windAngleRad, power, adjustedSpeed }) => {
+  const discRef = useRef<THREE.Mesh>(null);
+  const ringsRef = useRef<THREE.Group>(null);
+  const ringTimers = useRef<number[]>(Array(MAX_RINGS).fill(-1));
+  const spawnCooldown = useRef(0);
 
-  // Stable seed offsets per spiral particle
-  const seeds = useMemo(() => Array.from({ length: SPIRAL_COUNT }, (_, i) => ({
-    phase: (i / SPIRAL_COUNT) * Math.PI * 2,
-    radiusOffset: 0.8 + Math.random() * 0.4,
-    speedOffset: 0.7 + Math.random() * 0.6,
-    yOffset: (Math.random() - 0.5) * 0.6,
-  })), []);
-
-  useFrame((state) => {
+  useFrame((state, delta) => {
     const time = state.clock.elapsedTime;
-    if (!particlesRef.current) return;
+    const powerFactor = Math.min(power / 8000, 1);
+    const isActive = adjustedSpeed > 0.5 && power > 0;
 
-    const speedFactor = Math.min(adjustedSpeed / 6, 2.5);
-    const powerFactor = Math.min(power / 5000, 1.5);
+    // Pulsing disc
+    if (discRef.current) {
+      const mat = discRef.current.material as THREE.MeshBasicMaterial;
+      const pulse = Math.sin(time * 6) * 0.3 + 0.7;
+      mat.opacity = isActive ? (0.05 + powerFactor * 0.25) * pulse : 0.02;
+      // Color: cyan → green → yellow based on power
+      const hue = 0.5 - powerFactor * 0.35; // 0.5=cyan, 0.15=yellow
+      mat.color.setHSL(hue, 0.9, 0.6);
+      const s = 1 + Math.sin(time * 4) * 0.08 * powerFactor;
+      discRef.current.scale.set(s, s, 1);
+    }
 
-    particlesRef.current.children.forEach((child, i) => {
-      const seed = seeds[i];
-      // Spiral parametric: t goes from 1 (far) to 0 (rotor center)
-      const t = ((time * seed.speedOffset * speedFactor * 0.8 + seed.phase) % (Math.PI * 2)) / (Math.PI * 2);
-      const dist = t; // 0=center, 1=far
-      const maxDist = rotorDiameter * 2.5;
-      const z = dist * maxDist;
-      const spiralRadius = dist * rotorDiameter * 0.5 * seed.radiusOffset;
-      const spiralAngle = seed.phase + time * speedFactor * 2.5 + dist * 6;
-      
-      const x = Math.cos(spiralAngle) * spiralRadius;
-      const y = Math.sin(spiralAngle) * spiralRadius + seed.yOffset;
-      
-      child.position.set(x, y, z);
-      
-      // Scale: larger far, smaller near
-      const scale = (0.25 + dist * 0.5) * (0.6 + speedFactor * 0.6);
-      child.scale.setScalar(scale);
-
-      const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
-      if (mat) {
-        const r = dist < 0.3 ? 0.5 + (1 - dist / 0.3) * 0.5 : 0.0;
-        const g = 0.8 + (1 - dist) * 0.2;
-        const b = dist > 0.5 ? 0.8 * (dist - 0.5) * 2 : 0;
-        mat.color.setRGB(r, g, b);
-        mat.opacity = (0.25 + (1 - dist) * 0.65) * Math.max(speedFactor, 0.3);
+    // Spawn ring bursts
+    spawnCooldown.current -= delta;
+    if (isActive && spawnCooldown.current <= 0 && powerFactor > 0.05) {
+      const freeSlot = ringTimers.current.findIndex(t => t < 0);
+      if (freeSlot >= 0) {
+        ringTimers.current[freeSlot] = 0;
+        spawnCooldown.current = 0.3 + (1 - powerFactor) * 0.7; // faster at higher power
       }
-    });
+    }
 
-    // Flash at rotor center
-    if (flashRef.current) {
-      const mat = flashRef.current.material as THREE.MeshBasicMaterial;
-      const pulse = Math.sin(time * 10) * 0.5 + 0.5;
-      mat.opacity = (0.08 + pulse * 0.25) * powerFactor;
-      const s = 1 + pulse * 0.2 * powerFactor;
-      flashRef.current.scale.set(s, s, s);
+    // Animate rings
+    if (ringsRef.current) {
+      ringsRef.current.children.forEach((ring, i) => {
+        const t = ringTimers.current[i];
+        if (t < 0) {
+          ring.visible = false;
+          return;
+        }
+        ring.visible = true;
+        ringTimers.current[i] += delta * 2.5;
+        const progress = ringTimers.current[i];
+        if (progress > 1) {
+          ringTimers.current[i] = -1;
+          ring.visible = false;
+          return;
+        }
+        const scale = 0.3 + progress * 1.2;
+        ring.scale.set(scale, scale, scale);
+        const mat = (ring as THREE.Mesh).material as THREE.MeshBasicMaterial;
+        mat.opacity = (1 - progress) * 0.4 * powerFactor;
+        const hue = 0.5 - powerFactor * 0.35;
+        mat.color.setHSL(hue, 0.8, 0.65);
+      });
     }
   });
 
+  const ringRadius = rotorDiameter * 0.45;
+
   return (
-    <group ref={groupRef} position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
-      <group ref={particlesRef}>
-        {seeds.map((_, i) => (
-          <mesh key={i}>
-            <sphereGeometry args={[0.3, 6, 6]} />
-            <meshBasicMaterial color="#00ffaa" transparent opacity={0.3} blending={THREE.AdditiveBlending} depthWrite={false} />
+    <group position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
+      {/* Glowing disc at rotor plane */}
+      <mesh ref={discRef} rotation={[0, 0, 0]}>
+        <circleGeometry args={[rotorDiameter * 0.35, 16]} />
+        <meshBasicMaterial color="#00ffcc" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+
+      {/* Expanding burst rings */}
+      <group ref={ringsRef}>
+        {Array.from({ length: MAX_RINGS }).map((_, i) => (
+          <mesh key={i} rotation={[0, 0, 0]}>
+            <ringGeometry args={[ringRadius * 0.85, ringRadius, 24]} />
+            <meshBasicMaterial color="#00ffaa" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
           </mesh>
         ))}
       </group>
-
-      {/* Flash glow at rotor center */}
-      <mesh ref={flashRef}>
-        <sphereGeometry args={[rotorDiameter * 0.3, 12, 12]} />
-        <meshBasicMaterial color="#88ffcc" transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} />
-      </mesh>
     </group>
   );
 };
