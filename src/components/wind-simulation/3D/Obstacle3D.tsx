@@ -90,46 +90,49 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
       treeGroupRef.current.scale.set(squashX, stretchY, squashX);
     }
 
-    // Buildings/structures: subtle vibration in strong winds
+    // Buildings/structures: vibration aligned with wind direction
     if ((obstacle.type === 'building' || obstacle.type === 'skyscraper' || obstacle.type === 'tower') && buildingWobbleRef.current) {
       const windNorm = Math.min(windSpeed / 12, 1.2);
       const vibration = windNorm * 0.012 * wb;
       const angleRad = (windAngle * Math.PI) / 180;
-      buildingWobbleRef.current.rotation.x = Math.sin(time * 2.5 + buildingPhase.current) * vibration
-        + Math.sin(time * 4.2) * vibration * 0.3
-        + Math.cos(angleRad) * vibration * 0.4;
-      buildingWobbleRef.current.rotation.z = Math.cos(time * 1.8 + buildingPhase.current) * vibration * 0.6
-        + Math.cos(time * 3.6) * vibration * 0.2
-        + Math.sin(angleRad) * vibration * 0.4;
+      const windCos = Math.cos(angleRad);
+      const windSin = Math.sin(angleRad);
+      const osc = Math.sin(time * 2.5 + buildingPhase.current) * vibration
+        + Math.sin(time * 4.2) * vibration * 0.3;
+      buildingWobbleRef.current.rotation.x = windCos * osc;
+      buildingWobbleRef.current.rotation.z = windSin * osc;
     }
 
-    // Fences: moderate wobble with sway
+    // Fences: wobble aligned with wind
     if (obstacle.type === 'fence' && treeGroupRef.current) {
       const windNorm = Math.min(windSpeed / 8, 1.5);
       const wobbleIntensity = windNorm * 0.08 * wb;
       const angleRad = (windAngle * Math.PI) / 180;
-      treeGroupRef.current.rotation.x = Math.sin(time * 1.8 + wobblePhase.current) * wobbleIntensity
-        + Math.sin(time * 3.2) * wobbleIntensity * 0.3
-        + Math.cos(angleRad) * wobbleIntensity * 0.5;
-      treeGroupRef.current.rotation.z = Math.cos(time * 1.2 + wobblePhase.current) * wobbleIntensity * 0.5
-        + Math.cos(time * 2.6) * wobbleIntensity * 0.2;
+      const windCos = Math.cos(angleRad);
+      const windSin = Math.sin(angleRad);
+      const osc = Math.sin(time * 1.8 + wobblePhase.current) * wobbleIntensity
+        + Math.sin(time * 3.2) * wobbleIntensity * 0.3;
+      treeGroupRef.current.rotation.x = windCos * osc;
+      treeGroupRef.current.rotation.z = windSin * osc * 0.6;
     }
 
-    // Walls: very subtle vibration
+    // Walls: subtle vibration in wind direction
     if (obstacle.type === 'wall' && buildingWobbleRef.current) {
       const windNorm = Math.min(windSpeed / 18, 0.8);
       const vibration = windNorm * 0.005 * wb;
-      buildingWobbleRef.current.rotation.x = Math.sin(time * 3.0 + buildingPhase.current) * vibration;
-      buildingWobbleRef.current.rotation.z = Math.cos(time * 2.2 + buildingPhase.current) * vibration * 0.5;
+      const angleRad = (windAngle * Math.PI) / 180;
+      buildingWobbleRef.current.rotation.x = Math.cos(angleRad) * Math.sin(time * 3.0 + buildingPhase.current) * vibration;
+      buildingWobbleRef.current.rotation.z = Math.sin(angleRad) * Math.cos(time * 2.2 + buildingPhase.current) * vibration * 0.5;
     }
 
-    // Houses: slight sway
+    // Houses: sway in wind direction
     if (obstacle.type === 'house' && buildingWobbleRef.current) {
       const windNorm = Math.min(windSpeed / 15, 1);
       const vibration = windNorm * 0.006 * wb;
       const angleRad = (windAngle * Math.PI) / 180;
-      buildingWobbleRef.current.rotation.x = Math.sin(time * 2.0 + buildingPhase.current) * vibration + Math.cos(angleRad) * vibration * 0.3;
-      buildingWobbleRef.current.rotation.z = Math.cos(time * 1.5 + buildingPhase.current) * vibration * 0.5;
+      const osc = Math.sin(time * 2.0 + buildingPhase.current) * vibration;
+      buildingWobbleRef.current.rotation.x = Math.cos(angleRad) * osc;
+      buildingWobbleRef.current.rotation.z = Math.sin(angleRad) * osc * 0.5;
     }
   });
 

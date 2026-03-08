@@ -195,11 +195,11 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     transparent: true,
-    opacity: presetCfg.opacity,
+    opacity: Math.min(1, presetCfg.opacity * Math.max(glowIntensity * 1.5, 0.4)),
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     side: THREE.DoubleSide,
-  }), [presetCfg.opacity]);
+  }), [presetCfg.opacity, glowIntensity]);
 
   const maxCount = useRef(2000);
   const arrowAngleRad = (windAngle * Math.PI) / 180;
