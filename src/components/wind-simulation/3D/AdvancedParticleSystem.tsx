@@ -225,7 +225,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         cy: isVAWT ? o.y + o.height * (o.scale || 1) * 0.75 : o.y + o.height * (o.scale || 1),
         cz: o.z + o.depth / 2,
         rotorRadius: rotorDiameter / 2,
-        attractRadius: rotorDiameter * suctionPhysics.suctionRadius,
+        attractRadius: Math.min(rotorDiameter * suctionPhysics.suctionRadius, rotorDiameter * 4),
         cp: specs.cp,
         subtype,
         isVAWT,

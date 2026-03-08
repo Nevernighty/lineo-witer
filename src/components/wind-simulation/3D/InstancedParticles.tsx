@@ -143,9 +143,9 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       if (isAbsorbed) {
         baseScale *= 1.6 + Math.sin(time * 12) * 0.35;
       }
-      const speedScale = Math.min(1 + speed * 0.22, 4.0);
-      const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.04);
-      const lateralCompress = Math.max(0.4, 1 - speed * 0.04);
+      const speedScale = Math.min(1 + speed * 0.12, 2.5);
+      const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.03);
+      const lateralCompress = Math.max(0.65, 1 - speed * 0.02);
       dummy.scale.set(baseScale * speedScale * pulse, baseScale * pulse * lateralCompress, baseScale * pulse * lateralCompress);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
