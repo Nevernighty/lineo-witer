@@ -308,28 +308,25 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence;
             }
           } else {
+            // Attract from ALL directions (low pressure zone effect)
+            const closeRange = dist < gen.rotorRadius * 2;
+            const exponentialBoost = closeRange
+              ? Math.exp((gen.rotorRadius * 2 - dist) / gen.rotorRadius) * 0.8
+              : 0;
+            const force = closeRange 
+              ? gen.attractK / (dist + 0.5) * 2.0 + exponentialBoost
+              : gen.attractK / (dist * dist + 1);
+            const convergeFactor = Math.max(0.5, 1 - dist / gen.attractRadius);
+            const velocityBoost = closeRange ? 2.0 : 1.0;
+            targetSpeedX += (dx / dist) * force * convergeFactor * velocityBoost;
+            targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor * velocityBoost;
+            targetSpeedZ += (dz / dist) * force * convergeFactor * velocityBoost;
+
+            // Wake effect behind rotor
             const dotWind = dx * windDirection.x + dz * windDirection.z;
-            if (dotWind > 0) {
-              const closeRange = dist < gen.rotorRadius * 2;
-              // Exponential force increase at close range
-              const exponentialBoost = closeRange
-                ? Math.exp((gen.rotorRadius * 2 - dist) / gen.rotorRadius) * 0.5
-                : 0;
-              const force = closeRange 
-                ? gen.attractK / (dist + 0.5) * 1.5 + exponentialBoost
-                : gen.attractK / (dist * dist + 1);
-              const convergeFactor = Math.max(0.5, 1 - dist / gen.attractRadius);
-              // Velocity boost — particles accelerate as they approach
-              const velocityBoost = closeRange ? 1.5 : 1.0;
-              targetSpeedX += (dx / dist) * force * convergeFactor * velocityBoost;
-              targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor * velocityBoost;
-              targetSpeedZ += (dz / dist) * force * convergeFactor * velocityBoost;
-            } else {
-              targetSpeedX *= (1 - gen.speedReduction);
-              targetSpeedZ *= (1 - gen.speedReduction);
-              targetSpeedX += (Math.random() - 0.5) * gen.wakeTurbulence;
-              targetSpeedY += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
-              targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence;
+            if (dotWind < 0 && dist < gen.rotorRadius * 3) {
+              targetSpeedX += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
+              targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
             }
           }
 
