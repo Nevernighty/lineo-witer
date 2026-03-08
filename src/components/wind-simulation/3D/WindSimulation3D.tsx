@@ -104,7 +104,7 @@ const MouseTracker: React.FC<{
 };
 
 export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
-  windSpeed: initialWindSpeed = 8,
+  windSpeed: initialWindSpeed = 6,
   onWindSpeedChange,
   lang
 }) => {
