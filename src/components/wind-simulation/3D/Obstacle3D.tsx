@@ -52,7 +52,7 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
     const time = state.clock.elapsedTime;
     const wb = wobbliness;
 
-    // Trees: dramatic jelly wobble with rubber-band effect
+    // Trees: dramatic jelly wobble driven by wind direction
     if (obstacle.type === 'tree' && treeGroupRef.current) {
       const windNorm = Math.min(windSpeed / 5, 2.5);
       const wobbleIntensity = windNorm * 0.22 * wb;
@@ -61,22 +61,25 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
       const freq3 = 3.4 + Math.sin(time * 0.6 + wobblePhase.current * 1.5) * 0.3;
       const freq4 = 5.2 + Math.cos(time * 0.9 + wobblePhase.current * 0.7) * 0.2;
       const angleRad = (windAngle * Math.PI) / 180;
+      // Wind-direction-aligned wobble: primary axis = downwind, secondary = crosswind
+      const windCos = Math.cos(angleRad);
+      const windSin = Math.sin(angleRad);
       
-      // Multi-frequency jelly with higher harmonics for rubber-like feel
-      const wobbleX = Math.sin(time * freq1 + wobblePhase.current) * wobbleIntensity
+      // Oscillation amplitude modulated by wind direction alignment
+      const downwindOsc = Math.sin(time * freq1 + wobblePhase.current) * wobbleIntensity
                      + Math.sin(time * freq2 * 1.7) * wobbleIntensity * 0.45
-                     + Math.sin(time * freq3 * 2.3) * wobbleIntensity * 0.25
-                     + Math.sin(time * freq4 * 3.1) * wobbleIntensity * 0.12
-                     + Math.cos(angleRad) * wobbleIntensity * 0.5;
-      const wobbleZ = Math.cos(time * freq2 + wobblePhase.current * 1.3) * wobbleIntensity * 0.8
-                     + Math.cos(time * freq3 * 1.4 + 0.5) * wobbleIntensity * 0.35
-                     + Math.cos(time * freq4 * 1.8 + 1.0) * wobbleIntensity * 0.15
-                     + Math.sin(angleRad) * wobbleIntensity * 0.5;
+                     + Math.sin(time * freq3 * 2.3) * wobbleIntensity * 0.25;
+      const crosswindOsc = Math.cos(time * freq2 + wobblePhase.current * 1.3) * wobbleIntensity * 0.35
+                     + Math.cos(time * freq4 * 1.8 + 1.0) * wobbleIntensity * 0.15;
       
-      // Wind lean: strong directional bending
+      // Project oscillation onto X/Z via wind direction
+      const wobbleX = windCos * downwindOsc + (-windSin) * crosswindOsc;
+      const wobbleZ = windSin * downwindOsc + windCos * crosswindOsc;
+      
+      // Wind lean: strong directional bending aligned with wind
       const leanAmount = Math.min(windSpeed / 8, 0.8) * 0.18 * wb;
-      const leanX = Math.cos(angleRad) * leanAmount;
-      const leanZ = Math.sin(angleRad) * leanAmount;
+      const leanX = windCos * leanAmount;
+      const leanZ = windSin * leanAmount;
       
       // Rubber-band squash & stretch
       const stretchY = 1 + Math.sin(time * freq1 * 1.5) * wobbleIntensity * 0.1;
