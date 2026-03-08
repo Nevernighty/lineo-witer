@@ -1,94 +1,77 @@
 
-# Виправлення UI, фізики частинок та візуалізації
 
-## 1. Кнопки "Встановити/Вибрати" перекривають статистику
+## Deep Overhaul: Weather Layers + Knowledge Base Translation + Visual Depth
 
-**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
+### Problems Found
 
-**Рішення (WindSimulation3D.tsx):**
-- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
-- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
-
-## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
-
-**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
-
-**Рішення:**
-- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
-- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
-- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
-- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
-- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
-
-## 3. "Слід" (Trail) налаштування не працює
-
-**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
-
-**Рішення (InstancedParticles.tsx):**
-- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
-- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
-- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
-- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
-- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
-- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
-- Колір trail segments = колір частинки з зниженою яскравістю
-
-## 4. Реалістичніші частинки та оптимізація
-
-**AdvancedParticleSystem.tsx:**
-- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
-- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
-- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
-- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
-- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
-
-**InstancedParticles.tsx:**
-- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
-- Залишити 2 instanced meshes: particles + trails (замість 3)
-
-## 5. Генератори всмоктують частинки — візуалізація
-
-**AdvancedParticleSystem.tsx:**
-- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
-- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
-- Передати `absorbed` стан в InstancedParticles як окреме поле
-
-**InstancedParticles.tsx:**
-- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
-- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
-
-**WindGenerator3D.tsx:**
-- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
-
-## 6. Стрілки напрямку вітру після колізії
-
-**CollisionEffect.tsx:**
-- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
-- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
-- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
-
-**AdvancedParticleSystem.tsx:**
-- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
-- Передати в `CollisionEffectsManager`
-
-**WindSimulation3D.tsx:**
-- Оновити тип `collisionEffects` щоб включити `deflection`
-
-## 7. Кращі impact ефекти
-
-**CollisionEffect.tsx:**
-- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
-- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
-- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
-- Тривалість збільшити з 0.5с до 0.8с
+1. **Windy map too small** (280px height) — needs ~350-400px, remove duplicate Windy attribution links
+2. **No Windy layer controls** — user wants styled checkboxes/dropdowns to switch map overlays (wind/rain/clouds/temp/pressure/waves)
+3. **Knowledge Base has ZERO Ukrainian translation** — all 6 info components (`WindEnergyFundamentals`, `UkraineWindPotential`, `TurbineCategories`, `TechnicalSpecs`, `PrintableComponents`, `PrintingConsiderations`) have 100% hardcoded English text despite receiving a `lang` prop
+4. **Insufficient depth and visualization** in both weather and knowledge base pages
 
 ---
 
-## Технічна послідовність
+### 1. Weather Page — Windy Layer Controls + Visual Depth
 
-1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
-2. `Obstacle3D.tsx` — rotation тільки по Y
-3. `GhostObstacle.tsx` — rotation тільки по Y
-4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
-5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
-6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
+**`WeatherDisplay.tsx` changes:**
+- Increase Windy iframe height to `380px`
+- Remove duplicate Windy.com external link/attribution overlay
+- Add **Windy layer control panel** below the map overlay — styled dropdown and checkboxes in Line-O-Witer dark theme:
+  - Dropdown: overlay type (`wind`, `rain`, `clouds`, `temp`, `pressure`, `waves`, `gusts`) — changes the `overlay=` parameter in the Windy embed URL
+  - The Windy embed URL supports switching overlays: `&overlay=wind`, `&overlay=rain`, `&overlay=clouds`, `&overlay=temp`, `&overlay=pressure`
+- Add **air density calculation card** with formula visualization
+- Add **wind power density visual** — animated bar showing W/m² classification
+- Expand weather physics section to be visible by default with more detail
+- All text properly bilingual UA/EN
+
+**`Index.tsx` changes:**
+- Remove `max-w-4xl` constraint for weather view — use full width
+
+### 2. Knowledge Base — Full Ukrainian Translation + Deeper Content
+
+**All 6 info components** need complete UA/EN bilingual content using inline `lang === 'ua' ? 'UA text' : 'EN text'` pattern (same as weather page). This is the biggest change.
+
+**`WindEnergyFundamentals.tsx`:**
+- Translate all titles, descriptions, formula explanations, accordion content to Ukrainian
+- Add SVG visualization: animated power curve showing P vs V cubic relationship
+- Add interactive Betz limit gauge with animated fill
+
+**`UkraineWindPotential.tsx`:**
+- Translate all region names, strategy text, seasonal labels, accordion content
+- Translate region statuses (operational → діючий, developing → розвивається, planned → плановий)
+- Add wind speed map legend with color gradient
+
+**`TurbineCategories.tsx`:**
+- Translate turbine types, pros/cons, power curve descriptions
+- Add simple SVG silhouettes for each turbine type (HAWT/VAWT/Savonius)
+
+**`TechnicalSpecs.tsx`:**
+- Translate all spec labels, economic metrics, accordion content
+- Add comparative bar chart for turbine rotor sizes
+
+**`PrintableComponents.tsx`:**
+- Translate material names, properties, assembly instructions
+- Add visual stress diagram (simple SVG showing force arrows on blade)
+
+**`PrintingConsiderations.tsx`:**
+- Translate all print parameters, post-processing steps, QC checks
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `WeatherDisplay.tsx` | Bigger map, layer controls, remove extra Windy links, more detail, full UA translation |
+| `Index.tsx` | Full-width weather layout |
+| `WindEnergyFundamentals.tsx` | Full UA/EN bilingual content, power curve SVG |
+| `UkraineWindPotential.tsx` | Full UA/EN bilingual content, translated regions |
+| `TurbineCategories.tsx` | Full UA/EN bilingual content, turbine silhouettes |
+| `TechnicalSpecs.tsx` | Full UA/EN bilingual content, comparative visuals |
+| `PrintableComponents.tsx` | Full UA/EN bilingual content |
+| `PrintingConsiderations.tsx` | Full UA/EN bilingual content |
+
+### Technical Notes
+- Windy embed `overlay` parameter is changed by rebuilding the iframe URL — React state controls which overlay is active
+- All translations inline (no i18n file changes needed — content is component-specific, not reusable UI labels)
+- SVG visualizations are inline React — no new dependencies
+- This is primarily a content + translation task — no structural changes to component architecture
+
