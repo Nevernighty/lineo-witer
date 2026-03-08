@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Obstacle, GENERATOR_SUBTYPES, GeneratorSubtype } from '../types';
 import { InstancedParticles } from './InstancedParticles';
@@ -51,7 +51,6 @@ const MATERIAL_RESTITUTION: Record<string, number> = {
   wood: 0.3, concrete: 0.15, steel: 0.5, glass: 0.6, brick: 0.2,
 };
 
-// Enhanced suction — 40% stronger attractK
 const GENERATOR_SUCTION_PHYSICS: Record<string, {
   attractK: number;
   suctionRadius: number;
@@ -66,6 +65,15 @@ const GENERATOR_SUCTION_PHYSICS: Record<string, {
   micro: { attractK: 7.0, suctionRadius: 4.0, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
 };
 
+// Shared buffer for zero-copy particle data transfer to InstancedParticles
+export interface ParticleBuffer {
+  positions: Float32Array;   // [x,y,z, x,y,z, ...] length = count*3
+  velocities: Float32Array;  // [vx,vy,vz, ...] length = count*3
+  sizes: Float32Array;       // length = count
+  flags: Uint8Array;         // bit 0 = hasCollided, bit 1 = absorbed
+  count: number;
+}
+
 export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
   config, particleCount, obstacles, width, height, depth,
   onCollisionEnergyUpdate, onCollisionEvent, onObstacleEnergyUpdate,
@@ -78,7 +86,19 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
   const cumulativeEnergyRef = useRef<Map<string, { energy: number; timestamp: number }[]>>(new Map());
   const renderCountRef = useRef(0);
   const absorbSoundCooldown = useRef(0);
-  const [, forceUpdate] = useState(0);
+  
+  // Shared buffer ref — InstancedParticles reads this directly
+  const bufferRef = useRef<ParticleBuffer>({
+    positions: new Float32Array(0),
+    velocities: new Float32Array(0),
+    sizes: new Float32Array(0),
+    flags: new Uint8Array(0),
+    count: 0,
+  });
+
+  // Throttle timestamps for callbacks
+  const lastEnergyCallbackTime = useRef(0);
+  const lastObstacleEnergyCallbackTime = useRef(0);
 
   const windDirection = useMemo(() => {
     const angleRad = (config.windAngle * Math.PI) / 180;
@@ -111,9 +131,17 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       };
     });
     
+    // Allocate shared buffers
+    bufferRef.current = {
+      positions: new Float32Array(particleCount * 3),
+      velocities: new Float32Array(particleCount * 3),
+      sizes: new Float32Array(particleCount),
+      flags: new Uint8Array(particleCount),
+      count: particleCount,
+    };
+    
     obstacleEnergyRef.current.clear();
     cumulativeEnergyRef.current.clear();
-    forceUpdate(n => n + 1);
   }, [particleCount, width, height, depth]);
 
   const checkCollision = useCallback((particle: WindParticle, obstacle: Obstacle): boolean => {
@@ -184,7 +212,6 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       else cumulativeEnergyRef.current.set(id, filtered);
     });
 
-    // Cooldown for absorb sound
     if (absorbSoundCooldown.current > 0) absorbSoundCooldown.current -= delta;
 
     const generators = obstacles.filter(o => o.type === 'wind_generator').map(o => {
@@ -206,7 +233,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       };
     });
 
-    particlesRef.current.forEach((particle) => {
+    const buf = bufferRef.current;
+    const particles = particlesRef.current;
+
+    for (let i = 0; i < particles.length; i++) {
+      const particle = particles[i];
       particle.age += delta;
 
       const heightAdjustedSpeed = calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, particle.y), config.surfaceRoughness);
@@ -247,7 +278,6 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         }
       }
 
-      // Generator suction — enhanced force
       for (const gen of generators) {
         const dx = gen.cx - particle.x;
         const dy = gen.cy - particle.y;
@@ -275,7 +305,6 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
           } else {
             const dotWind = dx * windDirection.x + dz * windDirection.z;
             if (dotWind > 0) {
-              // Stronger funnel: inverse distance (not squared) at close range
               const closeRange = dist < gen.rotorRadius * 2;
               const force = closeRange 
                 ? gen.attractK / (dist + 0.5) * 1.5
@@ -293,12 +322,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             }
           }
 
-          // Absorption with sound
           if (dist < gen.rotorRadius * 1.2 && !particle.absorbed) {
             particle.absorbed = true;
             particle.absorptionTimer = 25;
             
-            // Play absorb sound (throttled)
             if (absorbSoundCooldown.current <= 0) {
               playAbsorbSound();
               absorbSoundCooldown.current = 0.3;
@@ -354,15 +381,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             );
             const energy = 0.5 * particle.mass * speed * speed * physics.dragCoefficient * config.airDensity * dotProduct;
             collisionEnergyRef.current += energy;
-            onCollisionEnergyUpdate(collisionEnergyRef.current);
             const currentObstacleEnergy = obstacleEnergyRef.current.get(obstacleId) || 0;
             obstacleEnergyRef.current.set(obstacleId, currentObstacleEnergy + energy);
             const cumEntries = cumulativeEnergyRef.current.get(obstacleId) || [];
             cumEntries.push({ energy, timestamp: time });
             cumulativeEnergyRef.current.set(obstacleId, cumEntries);
-            if (onObstacleEnergyUpdate && renderCountRef.current % 5 === 0) {
-              onObstacleEnergyUpdate(new Map(obstacleEnergyRef.current));
-            }
 
             const deflection: [number, number, number] = [nx, ny, nz];
             if (onCollisionEvent && Math.random() < 0.2) {
@@ -420,22 +443,39 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         particle.collisionTimer--;
         if (particle.collisionTimer === 0) particle.hasCollided = false;
       }
-    });
+
+      // Write to shared buffer — NO React state update
+      const i3 = i * 3;
+      buf.positions[i3] = particle.x;
+      buf.positions[i3 + 1] = particle.y;
+      buf.positions[i3 + 2] = particle.z;
+      buf.velocities[i3] = particle.speedX;
+      buf.velocities[i3 + 1] = particle.speedY;
+      buf.velocities[i3 + 2] = particle.speedZ;
+      buf.sizes[i] = particle.size;
+      buf.flags[i] = (particle.hasCollided ? 1 : 0) | (particle.absorbed ? 2 : 0);
+    }
 
     collisionEnergyRef.current *= 0.995;
     renderCountRef.current++;
     
-    if (renderCountRef.current % 2 === 0) {
-      if (renderCountRef.current % 6 === 0) {
-        onCollisionEnergyUpdate(collisionEnergyRef.current);
-      }
-      forceUpdate(n => n + 1);
+    // Throttled callbacks — fire at most every 500ms instead of every frame
+    const now = time;
+    if (now - lastEnergyCallbackTime.current > 0.5) {
+      lastEnergyCallbackTime.current = now;
+      onCollisionEnergyUpdate(collisionEnergyRef.current);
     }
+    if (onObstacleEnergyUpdate && now - lastObstacleEnergyCallbackTime.current > 0.5) {
+      lastObstacleEnergyCallbackTime.current = now;
+      onObstacleEnergyUpdate(new Map(obstacleEnergyRef.current));
+    }
+    
+    // NO forceUpdate — InstancedParticles reads from bufferRef directly
   });
 
   return (
     <InstancedParticles
-      particles={particlesRef.current}
+      bufferRef={bufferRef}
       impactMultiplier={particleImpact}
       trailLengthMultiplier={particleTrailLength}
       windAngle={config.windAngle}
