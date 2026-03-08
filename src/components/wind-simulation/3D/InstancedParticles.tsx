@@ -176,8 +176,14 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
           const hz = posHistoryRef.current[seg][i3 + 2];
           dummy.position.set(hx, hy, hz);
 
-          const s = buf.sizes[i] * TRAIL_FADE[seg] * Math.min(trailLengthMultiplier * 1.5, 3);
-          dummy.scale.setScalar(s);
+          const s = buf.sizes[i] * TRAIL_FADE[seg] * Math.min(trailLengthMultiplier * 2.0, 4);
+          // Elongate trail segments along velocity direction for streamline effect
+          const vx = buf.velocities[i3];
+          const vy = buf.velocities[i3 + 1];
+          const vz = buf.velocities[i3 + 2];
+          const spd = Math.sqrt(vx * vx + vy * vy + vz * vz);
+          const elongation = Math.min(1 + spd * 0.12 * trailLengthMultiplier, 3.0);
+          dummy.scale.set(s * elongation, s * 0.7, s * 0.7);
 
           const vx = buf.velocities[i3];
           const vy = buf.velocities[i3 + 1];
