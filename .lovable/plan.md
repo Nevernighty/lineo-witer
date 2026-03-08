@@ -1,94 +1,64 @@
 
-# Виправлення UI, фізики частинок та візуалізації
 
-## 1. Кнопки "Встановити/Вибрати" перекривають статистику
+## Fix Generator Engineering Panel — Deep Overhaul
 
-**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
+### Problems Identified
+1. **Ugly default scrollbar** — `overflow-y-auto` on DialogContent uses browser-default scrollbar. Horizontal scrollbar also visible
+2. **SVG visualizations too small and static** — blade profile is tiny (h-20), radar chart cramped (h-36), power curve small (h-40)
+3. **Lack of animated interactivity** — SVGs are static, no hover states on materials, no animated data flows
+4. **Poor spacing/layout** — content crammed, cards too small, text too tiny (8-10px everywhere)
+5. **No scroll styling** — needs the `scenario-scrollbar` class or custom scrollbar CSS
 
-**Рішення (WindSimulation3D.tsx):**
-- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
-- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
+### Changes — `GeneratorSettings.tsx`
 
-## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
+**Layout & Scrollbar:**
+- Apply `scenario-scrollbar` class to DialogContent for styled scrollbar
+- Add `overflow-x-hidden` to kill horizontal scrollbar
+- Increase dialog to `max-w-4xl`, give content more breathing room
+- Increase all text sizes (9px→11px, 10px→12px minimum)
 
-**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
+**Aero Tab — Deeper & More Interactive:**
+- Enlarge blade profile SVG to `h-32` with animated flow lines (CSS animation on stroke-dashoffset)
+- Add animated pressure distribution overlay (upper/lower surface colored zones)
+- Lift/Drag animated bar chart that reacts to profile selection with spring animation
+- Attack angle slider with animated stall turbulence vortices (CSS keyframe rotation)
+- Add TSR optimization curve (small inline SVG showing optimal TSR range)
+- Betz gauge enlarged with animated stroke transition
 
-**Рішення:**
-- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
-- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
-- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
-- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
-- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
+**Struct Tab — Interactive Material Selection:**
+- Enlarge radar chart to `h-48`
+- Make material cards clickable/selectable with animated border glow on active
+- Add animated bar comparison for each property (E, σ, ρ) with spring transitions
+- Add blade deflection visualization — simple SVG showing bent blade proportional to calculated deflection
+- Fatigue lifecycle visual — circular progress showing years consumed
 
-## 3. "Слід" (Trail) налаштування не працює
+**Elec Tab — Animated Flow Diagram:**
+- Enlarge schematic to `h-24`
+- Add animated dashed-line flow between nodes (CSS stroke-dashoffset animation)
+- Pulsing energy dots moving along connection lines
+- Efficiency bars get animated fill on tab enter
+- Add frequency waveform SVG showing 50Hz sine wave
 
-**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
+**Curve Tab — Richer Interactive Chart:**
+- Enlarge power curve to `h-56` for proper readability
+- Add animated current-point glow trail
+- Hover shows vertical crosshair + tooltip with both P(V) and f(V) values
+- Operating regions labeled (below cut-in, ramp-up, rated, cut-out) with colored zones
+- AEP shaded area with gradient fill
 
-**Рішення (InstancedParticles.tsx):**
-- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
-- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
-- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
-- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
-- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
-- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
-- Колір trail segments = колір частинки з зниженою яскравістю
+**Calc Tab — Live Dashboard:**
+- Larger cards with animated number counters (framer-motion)
+- Efficiency chain enlarged with animated energy dots flowing between stages
+- Add real-time power gauge (semicircle SVG)
+- Color-code industry comparison (green=better, red=worse than average)
 
-## 4. Реалістичніші частинки та оптимізація
+**Global CSS:**
+- Add custom scrollbar styles to `index.css` for dialog content
 
-**AdvancedParticleSystem.tsx:**
-- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
-- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
-- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
-- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
-- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
+### Files Modified
 
-**InstancedParticles.tsx:**
-- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
-- Залишити 2 instanced meshes: particles + trails (замість 3)
+| File | Change |
+|------|--------|
+| `GeneratorSettings.tsx` | Complete rewrite — larger SVGs, animated flows, better spacing, interactive elements |
+| `index.css` | Add dialog scrollbar styles |
 
-## 5. Генератори всмоктують частинки — візуалізація
-
-**AdvancedParticleSystem.tsx:**
-- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
-- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
-- Передати `absorbed` стан в InstancedParticles як окреме поле
-
-**InstancedParticles.tsx:**
-- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
-- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
-
-**WindGenerator3D.tsx:**
-- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
-
-## 6. Стрілки напрямку вітру після колізії
-
-**CollisionEffect.tsx:**
-- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
-- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
-- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
-
-**AdvancedParticleSystem.tsx:**
-- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
-- Передати в `CollisionEffectsManager`
-
-**WindSimulation3D.tsx:**
-- Оновити тип `collisionEffects` щоб включити `deflection`
-
-## 7. Кращі impact ефекти
-
-**CollisionEffect.tsx:**
-- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
-- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
-- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
-- Тривалість збільшити з 0.5с до 0.8с
-
----
-
-## Технічна послідовність
-
-1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
-2. `Obstacle3D.tsx` — rotation тільки по Y
-3. `GhostObstacle.tsx` — rotation тільки по Y
-4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
-5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
-6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
