@@ -245,7 +245,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
       // Tail length grows with speed AND trailLengthMultiplier
       const tailLength = 1 + speed * 0.12 * tailMul;
-      const cappedTail = Math.min(tailLength, 10.0);
+      const cappedTail = Math.min(tailLength, 60.0);
       const lateralSize = baseScale * 0.8;
       const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.03);
 
