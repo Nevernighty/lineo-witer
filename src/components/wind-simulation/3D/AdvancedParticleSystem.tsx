@@ -351,7 +351,13 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         }
       }
 
-      const lerpFactor = 0.12;
+      // Higher lerpFactor near generators for responsive suction
+      const nearGenerator = generators.some(g => {
+        const dx = g.center.x - particle.x;
+        const dz = g.center.z - particle.z;
+        return Math.sqrt(dx*dx + dz*dz) < g.attractRadius;
+      });
+      const lerpFactor = nearGenerator ? 0.3 : 0.12;
       particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
       particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
       particle.speedZ += (targetSpeedZ - particle.speedZ) * lerpFactor;
