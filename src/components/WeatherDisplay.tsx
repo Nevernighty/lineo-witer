@@ -1,7 +1,7 @@
-import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen, Wifi, WifiOff, Layers, MapPin, Mountain, ZoomIn, BarChart3 } from "lucide-react";
+import { Wind, Gauge, Droplets, BookOpen, Wifi, WifiOff, Layers, ZoomIn, BarChart3 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { t, type Lang } from '@/utils/i18n';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface WeatherDisplayProps {
   location: { lat: number; lon: number } | null;
