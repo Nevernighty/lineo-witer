@@ -357,25 +357,40 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         const dz = g.cz - particle.z;
         return Math.sqrt(dx*dx + dz*dz) < g.attractRadius;
       });
-      const lerpFactor = nearGenerator ? 0.3 : 0.12;
+      const lerpFactor = nearGenerator ? 0.3 : 0.18;
       particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
       particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
       particle.speedZ += (targetSpeedZ - particle.speedZ) * lerpFactor;
-      particle.speedX *= 0.998;
-      particle.speedY *= 0.998;
-      particle.speedZ *= 0.998;
-      particle.speedY -= 0.05 * delta;
+      particle.speedX *= 0.999;
+      particle.speedY *= 0.999;
+      particle.speedZ *= 0.999;
+      particle.speedY -= 0.01 * delta;
 
-      particle.x += particle.speedX * delta * 2.5;
-      particle.y += particle.speedY * delta * 2.5;
-      particle.z += particle.speedZ * delta * 2.5;
+      particle.x += particle.speedX * delta * 3.5;
+      particle.y += particle.speedY * delta * 3.5;
+      particle.z += particle.speedZ * delta * 3.5;
+
+      // Age-based respawn for fresh flow
+      particle.age = (particle.age || 0) + delta;
+      const maxAge = 15 + (Math.sin(i * 7.13) * 0.5 + 0.5) * 10;
 
       if (particle.x < -width / 2) particle.x = width / 2;
       if (particle.x > width / 2) particle.x = -width / 2;
-      if (particle.y < 0.5) { particle.y = 0.5; particle.speedY = Math.abs(particle.speedY) * 0.3; }
-      if (particle.y > height) particle.y = height * 0.5;
       if (particle.z < -depth / 2) particle.z = depth / 2;
       if (particle.z > depth / 2) particle.z = -depth / 2;
+
+      // Respawn instead of bounce — prevents ground accumulation
+      if (particle.y < 0.5 || particle.y > height || particle.age > maxAge) {
+        particle.x = (Math.random() - 0.5) * width;
+        particle.y = height * (0.15 + Math.random() * 0.65);
+        particle.z = (Math.random() - 0.5) * depth;
+        particle.speedX = targetSpeedX * 0.8;
+        particle.speedY = (Math.random() - 0.5) * 0.5;
+        particle.speedZ = targetSpeedZ * 0.8;
+        particle.age = 0;
+        particle.hasCollided = false;
+        particle.absorbed = false;
+      }
 
       if (particle.absorptionTimer > 0) {
         particle.absorptionTimer--;

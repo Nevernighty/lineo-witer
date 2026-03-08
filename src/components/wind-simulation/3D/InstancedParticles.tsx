@@ -12,10 +12,6 @@ interface InstancedParticlesProps {
   pulsation?: number;
 }
 
-const createParticleGeometry = () => {
-  return new THREE.SphereGeometry(0.3, 6, 4);
-};
-
 const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
   const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
@@ -50,9 +46,10 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
   }
 };
 
-const TRAIL_SEGMENTS = 5;
-const TRAIL_OPACITY_BASE = [0.55, 0.4, 0.28, 0.16, 0.08];
-const TRAIL_FADE = [0.65, 0.5, 0.35, 0.22, 0.12]; // saturation fade per segment
+const TRAIL_SEGMENTS = 8;
+const TRAIL_OPACITY_BASE = [0.6, 0.5, 0.42, 0.34, 0.26, 0.19, 0.12, 0.07];
+const TRAIL_FADE = [0.85, 0.72, 0.6, 0.48, 0.37, 0.27, 0.18, 0.1];
+const FRAME_SKIP = 3; // store history every Nth frame for wider spacing
 
 export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   bufferRef,
@@ -66,18 +63,18 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   const trailRefs = useRef<(THREE.InstancedMesh | null)[]>(Array(TRAIL_SEGMENTS).fill(null));
   
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const particleGeometry = useMemo(() => createParticleGeometry(), []);
+  const particleGeometry = useMemo(() => new THREE.SphereGeometry(0.3, 6, 4), []);
   const tempColor = useMemo(() => new THREE.Color(), []);
   const trailColor = useMemo(() => new THREE.Color(), []);
   
   const posHistoryRef = useRef<Float32Array[]>([]);
   const lastCountRef = useRef(0);
+  const frameCountRef = useRef(0);
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     transparent: true, opacity: 1.0
   }), []);
 
-  // Trail materials now use vertexColors for color inheritance
   const trailMaterials = useMemo(() => 
     TRAIL_OPACITY_BASE.map((_, i) => new THREE.MeshBasicMaterial({
       transparent: true,
@@ -87,8 +84,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     })), []);
 
   const arrowAngleRad = (windAngle * Math.PI) / 180;
-
-  // Stable max count to avoid re-allocation
   const maxCount = useRef(2000);
 
   useFrame((state) => {
@@ -97,9 +92,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     const count = buf.count;
     const time = state.clock.elapsedTime;
 
-    if (count > maxCount.current) {
-      maxCount.current = count;
-    }
+    if (count > maxCount.current) maxCount.current = count;
 
     // Rebuild position history if count changed
     if (lastCountRef.current !== count) {
@@ -111,11 +104,14 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       });
     }
 
-    // Shift history
-    for (let seg = TRAIL_SEGMENTS - 1; seg > 0; seg--) {
-      posHistoryRef.current[seg].set(posHistoryRef.current[seg - 1]);
+    // Only shift history every FRAME_SKIP frames for wider trail spacing
+    frameCountRef.current++;
+    if (frameCountRef.current % FRAME_SKIP === 0) {
+      for (let seg = TRAIL_SEGMENTS - 1; seg > 0; seg--) {
+        posHistoryRef.current[seg].set(posHistoryRef.current[seg - 1]);
+      }
+      posHistoryRef.current[0].set(buf.positions.subarray(0, count * 3));
     }
-    posHistoryRef.current[0].set(buf.positions.subarray(0, count * 3));
 
     const pulseMul = pulsation > 0 ? 1 + Math.sin(time * (2 + pulsation * 3)) * pulsation * 0.15 : 1;
 
@@ -143,14 +139,13 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       if (isAbsorbed) {
         baseScale *= 1.6 + Math.sin(time * 12) * 0.35;
       }
-      const speedScale = Math.min(1 + speed * 0.12, 2.5);
+      const speedScale = Math.min(1 + speed * 0.08, 2.0);
       const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.03);
-      const lateralCompress = Math.max(0.65, 1 - speed * 0.02);
+      const lateralCompress = Math.max(0.75, 1 - speed * 0.015);
       dummy.scale.set(baseScale * speedScale * pulse, baseScale * pulse * lateralCompress, baseScale * pulse * lateralCompress);
       dummy.updateMatrix();
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
-      // Set main particle color
       if (meshRef.current!.instanceColor) {
         getSpeedColor(tempColor, speed, hasCollided, isAbsorbed, impactMultiplier, glowIntensity);
         meshRef.current!.instanceColor.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
@@ -160,7 +155,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
 
-    // Trails with color inheritance
+    // Trails
     const trailActive = trailLengthMultiplier > 0.01;
 
     for (let seg = 0; seg < TRAIL_SEGMENTS; seg++) {
@@ -181,7 +176,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
           const hz = posHistoryRef.current[seg][i3 + 2];
           dummy.position.set(hx, hy, hz);
 
-          const s = buf.sizes[i] * TRAIL_FADE[seg] * trailLengthMultiplier;
+          const s = buf.sizes[i] * TRAIL_FADE[seg] * Math.min(trailLengthMultiplier * 1.5, 3);
           dummy.scale.setScalar(s);
 
           const vx = buf.velocities[i3];
@@ -194,7 +189,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
         dummy.updateMatrix();
         trailMesh.setMatrixAt(i, dummy.matrix);
 
-        // Trail color inherits particle speed color with fade
         if (trailMesh.instanceColor) {
           const i3 = i * 3;
           const vx = buf.velocities[i3];
@@ -241,7 +235,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
         <instancedBufferAttribute attach="instanceColor" args={[instanceColors, 3]} />
       </instancedMesh>
 
-      {/* Wind direction arrow indicator */}
+      {/* Wind direction arrow */}
       <group position={[-45, 1, -45]}>
         <mesh position={[Math.cos(arrowAngleRad) * 3, 0.5, Math.sin(arrowAngleRad) * 3]} rotation={[0, -arrowAngleRad + Math.PI / 2, 0]}>
           <coneGeometry args={[0.6, 1.5, 6]} />
