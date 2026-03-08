@@ -26,12 +26,7 @@ interface WindSimulation3DProps {
   lang: Lang;
 }
 
-function getTerrainYOffset(x: number, z: number, slopeXDeg: number, slopeZDeg: number): number {
-  const slopeXRad = (slopeXDeg * Math.PI) / 180;
-  const slopeZRad = (slopeZDeg * Math.PI) / 180;
-  const raw = -Math.sin(slopeXRad) * x - Math.sin(slopeZRad) * z;
-  return Math.max(-8, Math.min(8, raw));
-}
+// getTerrainYOffset now imported from @/simulation/terrainModel
 
 const HeightRuler: React.FC<{ maxHeight: number; config: WindPhysicsConfig }> = ({ maxHeight, config }) => {
   const heights = [0, 10, 30, 50, 80, 100];
