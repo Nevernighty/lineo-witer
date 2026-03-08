@@ -320,6 +320,10 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const towerColor = isSelected ? '#00ff00' : '#8899aa';
   const nacelleColor = isSelected ? '#00ff00' : '#ccddee';
   const powerStr = power >= 1000000 ? `${(power / 1000000).toFixed(2)} MW` : power >= 1000 ? `${(power / 1000).toFixed(1)} kW` : `${power.toFixed(0)} W`;
+  const isCutOut = adjustedSpeed > specs.cutOut;
+  const isCutIn = adjustedSpeed < specs.cutIn;
+  const statusLabel = isCutOut ? '⛔ CUTOUT' : isCutIn ? '⏸ LOW WIND' : null;
+  const statusColor = isCutOut ? '#ff4444' : isCutIn ? '#ffaa00' : '#39ff14';
   const subtypeName = specs.nameUa;
 
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
