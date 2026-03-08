@@ -1,4 +1,4 @@
-import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen, Wifi, WifiOff, ExternalLink } from "lucide-react";
+import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen, Wifi, WifiOff, Layers } from "lucide-react";
 import { useState, useEffect } from "react";
 import { t, type Lang } from '@/utils/i18n';
 import { motion } from 'framer-motion';
@@ -219,6 +219,16 @@ const windDirName = (angle: number, lang: 'ua' | 'en') => {
   return dirs[Math.round(angle / 45) % 8];
 };
 
+const windyOverlays = [
+  { id: 'wind', ua: 'Вітер', en: 'Wind', icon: '💨' },
+  { id: 'gust', ua: 'Пориви', en: 'Gusts', icon: '🌪️' },
+  { id: 'rain', ua: 'Опади', en: 'Rain', icon: '🌧️' },
+  { id: 'clouds', ua: 'Хмари', en: 'Clouds', icon: '☁️' },
+  { id: 'temp', ua: 'Темп.', en: 'Temp', icon: '🌡️' },
+  { id: 'pressure', ua: 'Тиск', en: 'Pressure', icon: '🔵' },
+  { id: 'waves', ua: 'Хвилі', en: 'Waves', icon: '🌊' },
+];
+
 // ─── Ring Gauge SVG ───
 const RingGauge = ({ value, max, label, unit, color }: { value: number; max: number; label: string; unit: string; color: string }) => {
   const pct = Math.min(value / max, 1);
@@ -241,8 +251,10 @@ const RingGauge = ({ value, max, label, unit, color }: { value: number; max: num
 };
 
 // ─── Wind Rose Compass SVG ───
-const WindRoseCompass = ({ angle, speed }: { angle: number; speed: number }) => {
-  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+const WindRoseCompass = ({ angle, speed, lang }: { angle: number; speed: number; lang: 'ua' | 'en' }) => {
+  const dirs = lang === 'ua'
+    ? ['Пн', 'ПнСх', 'Сх', 'ПдСх', 'Пд', 'ПдЗх', 'Зх', 'ПнЗх']
+    : ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   const r = 38;
   const cx = 50, cy = 50;
   const arrowAngle = (angle - 90) * Math.PI / 180;
@@ -251,10 +263,8 @@ const WindRoseCompass = ({ angle, speed }: { angle: number; speed: number }) => 
 
   return (
     <svg viewBox="0 0 100 100" className="w-24 h-24">
-      {/* Outer ring */}
       <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="1" opacity="0.3" />
       <circle cx={cx} cy={cy} r={r * 0.6} fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.15" />
-      {/* Cardinal directions */}
       {dirs.map((d, i) => {
         const a = (i * 45 - 90) * Math.PI / 180;
         return (
@@ -268,7 +278,6 @@ const WindRoseCompass = ({ angle, speed }: { angle: number; speed: number }) => 
           </g>
         );
       })}
-      {/* Wind arrow */}
       <line x1={cx} y1={cy} x2={arrowX} y2={arrowY}
         stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round"
         style={{ filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.6))', transition: 'all 0.5s ease' }} />
@@ -277,16 +286,50 @@ const WindRoseCompass = ({ angle, speed }: { angle: number; speed: number }) => 
         <animate attributeName="r" values="3;4.5;3" dur="2s" repeatCount="indefinite" />
       </circle>
       <circle cx={cx} cy={cy} r="3" fill="hsl(var(--primary))" opacity="0.5" />
-      {/* Speed label */}
       <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize="0" fill="transparent">{speed}</text>
     </svg>
   );
 };
 
+// ─── WPD Class Bar ───
+const WPDClassBar = ({ wpd, lang }: { wpd: number; lang: 'ua' | 'en' }) => {
+  const classes = [
+    { min: 0, max: 100, label: '1', color: 'hsl(210 30% 50%)' },
+    { min: 100, max: 200, label: '2', color: 'hsl(120 40% 45%)' },
+    { min: 200, max: 300, label: '3', color: 'hsl(60 80% 45%)' },
+    { min: 300, max: 400, label: '4', color: 'hsl(30 90% 50%)' },
+    { min: 400, max: 500, label: '5', color: 'hsl(15 90% 50%)' },
+    { min: 500, max: 800, label: '6–7', color: 'hsl(0 80% 50%)' },
+  ];
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center gap-1">
+        {classes.map((cls, i) => {
+          const isActive = wpd >= cls.min && wpd < cls.max;
+          return (
+            <div key={i} className="flex-1 relative">
+              <div className="h-3 rounded-sm transition-all" style={{
+                backgroundColor: isActive ? cls.color : `${cls.color}30`,
+                boxShadow: isActive ? `0 0 8px ${cls.color}80` : 'none',
+              }} />
+              <span className="text-[8px] text-muted-foreground text-center block mt-0.5">{cls.label}</span>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex justify-between text-[9px] text-muted-foreground">
+        <span>0 W/m²</span>
+        <span className="font-mono text-primary font-bold">{wpd} W/m²</span>
+        <span>800+ W/m²</span>
+      </div>
+    </div>
+  );
+};
+
 export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: WeatherDisplayProps) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
-  const [showPhysics, setShowPhysics] = useState(false);
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
+  const [windyOverlay, setWindyOverlay] = useState('wind');
 
   useEffect(() => {
     if (!location) { setWeather(null); return; }
@@ -306,17 +349,21 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
   const seasonLabel = seasonNames[weather.season as keyof typeof seasonNames][lang];
   const beaufortLabel = beaufortNames[weather.beaufort]?.[lang] || '';
 
-  const windyUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=m%2Fs&metricTemp=%C2%B0C&zoom=7&overlay=wind&product=ecmwf&level=surface&lat=${location.lat}&lon=${location.lon}`;
+  const windyUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=m%2Fs&metricTemp=%C2%B0C&zoom=7&overlay=${windyOverlay}&product=ecmwf&level=surface&lat=${location.lat}&lon=${location.lon}`;
+
+  // Air density calc
+  const airDensity = (weather.pressure * 100) / (287.05 * (weather.temperature + 273.15));
+  const actualWPD = 0.5 * airDensity * Math.pow(weather.windSpeed, 3);
 
   return (
     <div className="space-y-4">
-      {/* Windy.com Map */}
+      {/* Windy.com Map — larger */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-        className="relative rounded-xl overflow-hidden border border-primary/20" style={{ height: '280px' }}>
+        className="relative rounded-xl overflow-hidden border border-primary/20" style={{ height: '380px' }}>
         <iframe
           src={windyUrl}
           className="w-full h-full border-0"
-          title="Windy.com Wind Map"
+          title="Wind Map"
           loading="lazy"
           allowFullScreen
         />
@@ -344,19 +391,40 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
             </span>
           </div>
         </div>
-        {/* Windy attribution */}
-        <a href="https://www.windy.com" target="_blank" rel="noopener noreferrer"
-          className="absolute bottom-2 right-2 flex items-center gap-1 text-[9px] text-muted-foreground hover:text-primary transition-colors px-2 py-0.5 rounded-md"
-          style={{ background: 'hsl(222 28% 13% / 0.7)' }}>
-          <ExternalLink className="w-2.5 h-2.5" /> Windy.com
-        </a>
+      </motion.div>
+
+      {/* Windy Layer Controls */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.1 }}
+        className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+        <div className="flex items-center gap-2 mb-2">
+          <Layers className="w-3.5 h-3.5 text-primary" />
+          <span className="text-[11px] font-semibold text-foreground">{lang === 'ua' ? 'Шари карти' : 'Map Layers'}</span>
+        </div>
+        <div className="flex gap-1 flex-wrap">
+          {windyOverlays.map(overlay => {
+            const isActive = windyOverlay === overlay.id;
+            return (
+              <button key={overlay.id} onClick={() => setWindyOverlay(overlay.id)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all"
+                style={{
+                  background: isActive ? 'hsl(var(--primary) / 0.15)' : 'hsl(222 28% 14%)',
+                  border: `1px solid ${isActive ? 'hsl(var(--primary) / 0.5)' : 'hsl(var(--border) / 0.2)'}`,
+                  color: isActive ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))',
+                  boxShadow: isActive ? '0 0 12px hsl(var(--primary) / 0.2)' : 'none',
+                }}>
+                <span>{overlay.icon}</span>
+                {lang === 'ua' ? overlay.ua : overlay.en}
+              </button>
+            );
+          })}
+        </div>
       </motion.div>
 
       {/* Ring Gauges Row */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
         className="flex items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
         <RingGauge value={weather.windSpeed} max={25} label={lang === 'ua' ? 'Вітер' : 'Wind'} unit="m/s" color="hsl(120 100% 54%)" />
-        <WindRoseCompass angle={weather.windAngle} speed={weather.windSpeed} />
+        <WindRoseCompass angle={weather.windAngle} speed={weather.windSpeed} lang={lang} />
         <RingGauge value={weather.temperature} max={45} label={lang === 'ua' ? 'Темп.' : 'Temp'} unit="°C" color="hsl(25 90% 55%)" />
         <RingGauge value={weather.humidity} max={100} label={lang === 'ua' ? 'Волог.' : 'Humid'} unit="%" color="hsl(210 80% 55%)" />
         <RingGauge value={weather.pressure} max={1060} label={lang === 'ua' ? 'Тиск' : 'Press'} unit="hPa" color="hsl(270 60% 55%)" />
@@ -409,6 +477,30 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         </div>
       </div>
 
+      {/* Air Density + WPD */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+          <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Густина повітря' : 'Air Density'}</span>
+          <p className="text-sm font-mono font-bold text-foreground mt-0.5">{airDensity.toFixed(3)} <span className="text-[10px] text-muted-foreground">kg/m³</span></p>
+          <p className="text-[9px] text-muted-foreground mt-1 font-mono">ρ = P / (R·T)</p>
+          <p className="text-[9px] text-muted-foreground">{weather.pressure} Pa / (287 × {(weather.temperature + 273.15).toFixed(0)} K)</p>
+        </div>
+        <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+          <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Реальна WPD' : 'Actual WPD'}</span>
+          <p className="text-sm font-mono font-bold text-primary mt-0.5">{Math.round(actualWPD)} <span className="text-[10px] text-muted-foreground">W/m²</span></p>
+          <p className="text-[9px] text-muted-foreground mt-1 font-mono">WPD = ½ρV³</p>
+          <p className="text-[9px] text-muted-foreground">= 0.5 × {airDensity.toFixed(2)} × {weather.windSpeed}³</p>
+        </div>
+      </div>
+
+      {/* WPD Classification Visual */}
+      <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+        <span className="text-xs font-semibold text-foreground mb-2 block">
+          {lang === 'ua' ? 'Клас вітрового ресурсу (NREL)' : 'Wind Resource Class (NREL)'}
+        </span>
+        <WPDClassBar wpd={weather.wpd} lang={lang} />
+      </div>
+
       {/* Wind Energy Potential */}
       <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
         <div className="flex items-center justify-between mb-2">
@@ -435,26 +527,32 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         </p>
       </div>
 
-      {/* Weather Physics toggle */}
-      <button
-        onClick={() => setShowPhysics(!showPhysics)}
-        className="w-full py-2 rounded-xl border text-xs font-medium text-muted-foreground hover:text-foreground transition-colors flex items-center justify-center gap-1.5"
-        style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-        <BookOpen className="w-3.5 h-3.5" />
-        {t('weatherPhysicsTitle', lang)}
-      </button>
-
-      {showPhysics && (
-        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}
-          className="p-3 rounded-xl border space-y-2 text-[11px] text-muted-foreground"
-          style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          <p className="font-semibold text-foreground text-xs">{t('weatherPhysicsTitle', lang)}</p>
+      {/* Weather Physics — visible by default */}
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+        className="p-4 rounded-xl border space-y-2"
+        style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+        <div className="flex items-center gap-2 mb-1">
+          <BookOpen className="w-3.5 h-3.5 text-primary" />
+          <span className="text-xs font-semibold text-foreground">{t('weatherPhysicsTitle', lang)}</span>
+        </div>
+        <div className="space-y-1.5 text-[11px] text-muted-foreground">
           <p>• {t('baricGradient', lang)}</p>
           <p>• {t('geostrophicWind', lang)}</p>
           <p>• {t('pasquillStability', lang)}</p>
           <p>• {t('diurnalCycle', lang)}</p>
-        </motion.div>
-      )}
+        </div>
+        <div className="mt-2 p-2.5 rounded-lg" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.15)' }}>
+          <p className="text-[10px] font-semibold text-primary mb-1">{lang === 'ua' ? 'Профіль вітру за висотою' : 'Wind Profile Power Law'}</p>
+          <p className="text-[11px] font-mono text-center text-primary" style={{ textShadow: '0 0 8px hsl(var(--primary) / 0.3)' }}>
+            V(h) = V<sub>ref</sub> · (h / h<sub>ref</sub>)<sup>α</sup>
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-1">
+            {lang === 'ua'
+              ? 'α = 0.14 (відкрита місцевість) — 0.40 (міська забудова). Подвоєння висоти: +10–30% швидкості.'
+              : 'α = 0.14 (open terrain) — 0.40 (urban). Doubling height: +10–30% speed.'}
+          </p>
+        </div>
+      </motion.div>
 
       {/* Apply button */}
       {onApplyToSimulation && (

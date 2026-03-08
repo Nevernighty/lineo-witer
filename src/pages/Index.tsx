@@ -154,7 +154,7 @@ const Index = () => {
             </div>
           </header>
           <main className="flex-1 min-h-0 overflow-auto p-4 eng-scrollbar">
-            <div className="max-w-4xl mx-auto">
+            <div className="max-w-5xl mx-auto">
               <WeatherDisplay location={location} lang={lang} onApplyToSimulation={handleWeatherApply} />
             </div>
           </main>
