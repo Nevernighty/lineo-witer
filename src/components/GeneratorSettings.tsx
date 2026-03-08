@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { type WindGeneratorSpecs } from "@/utils/windCalculations";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -85,28 +85,13 @@ const GlowSlider: React.FC<{
   );
 };
 
-// ─── Animated Counter ───
-const AnimatedCounter: React.FC<{ value: number; format: (v: number) => string; className?: string }> = ({ value, format, className }) => {
-  const spring = useSpring(0, { stiffness: 60, damping: 20 });
-  const display = useTransform(spring, (v) => format(v));
-  const [text, setText] = useState(format(value));
-
-  useEffect(() => {
-    spring.set(value);
-    const unsub = display.on('change', (v) => setText(v));
-    return unsub;
-  }, [value]);
-
-  return <span className={className}>{text}</span>;
-};
-
 // ─── Tab config ───
 const tabItems = [
-  { value: 'aero', icon: Wind, ua: 'Аеродинаміка', en: 'Aerodynamics', color: 'hsl(210 90% 60%)' },
-  { value: 'struct', icon: Wrench, ua: 'Конструкція', en: 'Structure', color: 'hsl(25 90% 55%)' },
-  { value: 'elec', icon: Zap, ua: 'Електрика', en: 'Electrical', color: 'hsl(50 90% 55%)' },
-  { value: 'curve', icon: BarChart3, ua: 'Крива P(V)', en: 'P(V) Curve', color: 'hsl(270 70% 60%)' },
-  { value: 'calc', icon: Calculator, ua: 'Розрахунки', en: 'Calculations', color: 'hsl(120 100% 54%)' },
+  { value: 'aero', icon: Wind, ua: 'Аеро', en: 'Aero', color: 'hsl(210 90% 60%)' },
+  { value: 'struct', icon: Wrench, ua: 'Конст', en: 'Struct', color: 'hsl(25 90% 55%)' },
+  { value: 'elec', icon: Zap, ua: 'Елект', en: 'Elec', color: 'hsl(50 90% 55%)' },
+  { value: 'curve', icon: BarChart3, ua: 'Крива', en: 'Curve', color: 'hsl(270 70% 60%)' },
+  { value: 'calc', icon: Calculator, ua: 'Розр', en: 'Calc', color: 'hsl(120 100% 54%)' },
 ];
 
 // ─── Enhanced Blade Profile SVG ───
@@ -131,13 +116,12 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
 
   const allPoints = [...upperPoints, ...lowerPoints.reverse()];
   const allPath = allPoints.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ') + 'Z';
-
-  // Pressure distribution colors
   const upperPressurePath = upperPoints.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
-  const lowerPressurePath = lowerPoints.reverse().map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
+  const lowerPressureReversed = [...lowerPoints].reverse();
+  const lowerPressurePath = lowerPressureReversed.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
 
   return (
-    <svg viewBox="0 0 400 170" className="w-full h-40">
+    <svg viewBox="0 0 400 170" className="w-full h-44">
       <defs>
         <linearGradient id="pressureHigh" x1="0" x2="1" y1="0" y2="0">
           <stop offset="0%" stopColor="hsl(0 80% 55%)" stopOpacity="0.35" />
@@ -168,29 +152,25 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
 
       {/* Pressure zones */}
       <g transform={`rotate(${-attackAngle}, 190, 85)`} opacity="0.6">
-        {/* Low pressure (top - suction) */}
         <path d={`${upperPressurePath} L${upperPoints[upperPoints.length - 1].x},${85 - 40} L${upperPoints[0].x},${85 - 40} Z`}
           fill="url(#pressureLow)" />
-        {/* High pressure (bottom) */}
-        <path d={`${lowerPressurePath} L${lowerPoints[0].x},${85 + 35} L${lowerPoints[lowerPoints.length - 1].x},${85 + 35} Z`}
+        <path d={`${lowerPressurePath} L${lowerPressureReversed[lowerPressureReversed.length - 1].x},${85 + 35} L${lowerPressureReversed[0].x},${85 + 35} Z`}
           fill="url(#pressureHigh)" />
       </g>
 
       {/* Airfoil body */}
       <g transform={`rotate(${-attackAngle}, 190, 85)`} filter="url(#airfoilGlow)">
         <path d={allPath} fill="url(#airfoilBody)" stroke="hsl(210 90% 60%)" strokeWidth="1.5" />
-        {/* Chord line */}
         <line x1="50" y1="85" x2="330" y2="85" stroke="hsl(var(--muted-foreground))" strokeWidth="0.5" strokeDasharray="4,4" opacity="0.4" />
-        {/* Leading edge dot */}
         <circle cx="50" cy="85" r="2.5" fill="hsl(210 90% 60%)" />
       </g>
 
       {/* Pressure labels */}
       <g transform={`rotate(${-attackAngle}, 190, 85)`}>
-        <text x="160" y={55 - attackAngle * 0.5} fontSize="9" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
+        <text x="160" y={55 - attackAngle * 0.5} fontSize="10" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
           − {attackAngle > 10 ? 'LOW' : 'Low'} P
         </text>
-        <text x="160" y={120 + attackAngle * 0.3} fontSize="9" fill="hsl(0 80% 55%)" fontWeight="600" opacity="0.7">
+        <text x="160" y={120 + attackAngle * 0.3} fontSize="10" fill="hsl(0 80% 55%)" fontWeight="600" opacity="0.7">
           + {attackAngle > 10 ? 'HIGH' : 'High'} P
         </text>
       </g>
@@ -198,13 +178,13 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
       {/* Lift arrow */}
       <g transform={`translate(340, ${85 - Math.min(attackAngle * 2, 35)})`}>
         <line x1="0" y1="15" x2="0" y2={-Math.min(profile.lift * 15, 30)} stroke="hsl(120 100% 54%)" strokeWidth="2" markerEnd="url(#liftArrow)" />
-        <text x="8" y="0" fontSize="8" fill="hsl(120 100% 54%)" fontWeight="bold">L</text>
+        <text x="8" y="0" fontSize="10" fill="hsl(120 100% 54%)" fontWeight="bold">L</text>
       </g>
 
       {/* Drag arrow */}
       <g transform={`translate(355, 85)`}>
         <line x1="0" y1="0" x2={Math.min(profile.drag * 800, 20)} y2="0" stroke="hsl(0 60% 55%)" strokeWidth="1.5" markerEnd="url(#dragArrow)" />
-        <text x={Math.min(profile.drag * 800, 20) + 4} y="3" fontSize="8" fill="hsl(0 60% 55%)" fontWeight="bold">D</text>
+        <text x={Math.min(profile.drag * 800, 20) + 4} y="3" fontSize="10" fill="hsl(0 60% 55%)" fontWeight="bold">D</text>
       </g>
 
       <defs>
@@ -219,7 +199,7 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
       {/* Stall warning turbulence */}
       {isStall && (
         <g opacity="0.7">
-          <text x="300" y="20" fontSize="11" fill="hsl(var(--destructive))" fontWeight="bold" className="animate-pulse">⚠ STALL</text>
+          <text x="300" y="20" fontSize="12" fill="hsl(var(--destructive))" fontWeight="bold" className="animate-pulse">⚠ STALL</text>
           {[0, 1, 2, 3].map(i => (
             <circle key={i} cx={250 + i * 25} cy={50 + Math.sin(i * 1.5) * 12} r={4 + i * 1.5}
               fill="none" stroke="hsl(var(--destructive))" strokeWidth="1" opacity={0.6 - i * 0.1}
@@ -232,9 +212,54 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
 
       {/* Info bar */}
       <rect x="20" y="152" width="360" height="14" rx="4" fill="hsl(var(--background) / 0.6)" stroke="hsl(210 90% 60% / 0.15)" strokeWidth="0.5" />
-      <text x="30" y="163" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
+      <text x="30" y="163" fontSize="10" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
         {profile.value} │ Cl={profile.lift} │ Cd={profile.drag} │ Cl/Cd={profile.clcd} │ t={(profile.thickness * 100).toFixed(0)}%
       </text>
+    </svg>
+  );
+};
+
+// ─── TSR Optimization Curve SVG ───
+const TSRCurveSVG = ({ currentTSR }: { currentTSR: number }) => {
+  const optimalTSR = 7;
+  const points: string[] = [];
+  const maxCp = 0.48;
+  for (let tsr = 0; tsr <= 14; tsr += 0.3) {
+    const cp = maxCp * Math.exp(-0.5 * Math.pow((tsr - optimalTSR) / 2.2, 2));
+    const x = 25 + (tsr / 14) * 260;
+    const y = 65 - (cp / maxCp) * 50;
+    points.push(`${x},${y}`);
+  }
+
+  const currentX = 25 + (Math.min(currentTSR, 14) / 14) * 260;
+  const currentCp = maxCp * Math.exp(-0.5 * Math.pow((currentTSR - optimalTSR) / 2.2, 2));
+  const currentY = 65 - (currentCp / maxCp) * 50;
+
+  return (
+    <svg viewBox="0 0 310 80" className="w-full h-20">
+      <text x="5" y="12" fontSize="9" fill="hsl(var(--muted-foreground))" fontWeight="600">Cp vs TSR</text>
+      {/* Grid */}
+      <line x1="25" y1="65" x2="285" y2="65" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3" />
+      <line x1="25" y1="15" x2="25" y2="65" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3" />
+      {/* Optimal zone highlight */}
+      <rect x={25 + (5 / 14) * 260} y="10" width={(4 / 14) * 260} height="55" rx="3" fill="hsl(120 100% 54%)" opacity="0.04" />
+      {/* Cp curve */}
+      <polyline points={points.join(' ')} fill="none" stroke="hsl(120 100% 54%)" strokeWidth="2" strokeLinecap="round"
+        style={{ filter: 'drop-shadow(0 0 3px hsl(120 100% 54% / 0.4))' }} />
+      {/* Current point */}
+      <circle cx={currentX} cy={currentY} r="4" fill="hsl(120 100% 54%)" stroke="hsl(var(--background))" strokeWidth="2"
+        style={{ filter: 'drop-shadow(0 0 6px hsl(120 100% 54% / 0.8))' }}>
+        <animate attributeName="r" values="4;6;4" dur="2s" repeatCount="indefinite" />
+      </circle>
+      <text x={currentX + 8} y={currentY + 3} fontSize="9" fill="hsl(120 100% 54%)" fontWeight="bold" fontFamily="monospace">
+        λ={currentTSR.toFixed(1)}
+      </text>
+      {/* Optimal label */}
+      <text x={25 + (optimalTSR / 14) * 260} y="75" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">λ_opt≈{optimalTSR}</text>
+      {/* Axis labels */}
+      {[0, 4, 7, 10, 14].map(v => (
+        <text key={v} x={25 + (v / 14) * 260} y="74" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">{v}</text>
+      ))}
     </svg>
   );
 };
@@ -245,7 +270,7 @@ const RadarChartSVG = ({ materials: mats, selectedIdx, onSelect }: {
 }) => {
   const axes = ['E (GPa)', 'σ (MPa)', 'ρ (kg/m³)'];
   const maxVals = [210, 1500, 7850];
-  const cx = 150, cy = 100, r = 80;
+  const cx = 150, cy = 110, r = 90;
   const angles = axes.map((_, i) => (i * 2 * Math.PI / 3) - Math.PI / 2);
 
   const getPoint = (val: number, maxVal: number, angleIdx: number) => ({
@@ -254,7 +279,7 @@ const RadarChartSVG = ({ materials: mats, selectedIdx, onSelect }: {
   });
 
   return (
-    <svg viewBox="0 0 300 200" className="w-full h-52">
+    <svg viewBox="0 0 300 220" className="w-full h-56">
       <defs>
         <filter id="radarGlow">
           <feGaussianBlur stdDeviation="3" result="blur" />
@@ -274,17 +299,10 @@ const RadarChartSVG = ({ materials: mats, selectedIdx, onSelect }: {
         <g key={i}>
           <line x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)}
             stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.35" />
-          <text x={cx + (r + 18) * Math.cos(a)} y={cy + (r + 18) * Math.sin(a)}
-            fontSize="9" fill="hsl(var(--muted-foreground))" textAnchor="middle" dominantBaseline="middle" fontWeight="500">
+          <text x={cx + (r + 20) * Math.cos(a)} y={cy + (r + 20) * Math.sin(a)}
+            fontSize="10" fill="hsl(var(--muted-foreground))" textAnchor="middle" dominantBaseline="middle" fontWeight="500">
             {axes[i]}
           </text>
-          {/* Scale labels */}
-          {[0.5, 1].map(f => (
-            <text key={f} x={cx + (f * r + 3) * Math.cos(a)} y={cy + (f * r + 3) * Math.sin(a)}
-              fontSize="6" fill="hsl(var(--muted-foreground))" opacity="0.4" textAnchor="start">
-              {(f * maxVals[i]).toFixed(0)}
-            </text>
-          ))}
         </g>
       ))}
 
@@ -316,12 +334,10 @@ const RadarChartSVG = ({ materials: mats, selectedIdx, onSelect }: {
 
       {/* Legend */}
       {mats.map((mat, i) => (
-        <g key={i} transform={`translate(230, ${30 + i * 20})`}
+        <g key={i} transform={`translate(10, ${185 + i * 8})`}
           onClick={() => onSelect(i)} className="cursor-pointer" opacity={i === selectedIdx ? 1 : 0.6}>
-          <rect x={-2} y={-6} width="72" height="16" rx="3" fill={i === selectedIdx ? `${mat.color}22` : 'transparent'}
-            stroke={i === selectedIdx ? mat.color : 'transparent'} strokeWidth="1" style={{ transition: 'all 0.3s ease' }} />
-          <rect width="10" height="10" rx="2" fill={mat.color} opacity="0.8" />
-          <text x="14" y="8" fontSize="8" fill="hsl(var(--foreground))" fontWeight={i === selectedIdx ? '600' : '400'}>
+          <rect width="8" height="8" rx="2" fill={mat.color} opacity="0.8" />
+          <text x="12" y="7" fontSize="8" fill="hsl(var(--foreground))" fontWeight={i === selectedIdx ? '600' : '400'}>
             {mat.name.split('/')[0]}
           </text>
         </g>
@@ -330,7 +346,30 @@ const RadarChartSVG = ({ materials: mats, selectedIdx, onSelect }: {
   );
 };
 
-// ─── Enhanced Generator Schematic SVG ───
+// ─── Fatigue Lifecycle Ring SVG ───
+const FatigueRingSVG = ({ fatigueCycles }: { fatigueCycles: number }) => {
+  const designLife = 20;
+  const maxCycles = 3.15e9; // ~20yr at ~5 RPS
+  const pct = Math.min(fatigueCycles / maxCycles, 1);
+  const strokeLen = 2 * Math.PI * 28;
+  const yearsUsed = pct * designLife;
+
+  return (
+    <svg viewBox="0 0 80 80" className="w-20 h-20">
+      <circle cx="40" cy="40" r="28" fill="none" stroke="hsl(var(--border))" strokeWidth="5" opacity="0.15" />
+      <circle cx="40" cy="40" r="28" fill="none" stroke={pct > 0.8 ? 'hsl(0 60% 55%)' : 'hsl(25 90% 55%)'}
+        strokeWidth="5" strokeDasharray={`${pct * strokeLen} ${strokeLen}`}
+        strokeLinecap="round" transform="rotate(-90 40 40)"
+        style={{ filter: `drop-shadow(0 0 4px ${pct > 0.8 ? 'hsl(0 60% 55% / 0.5)' : 'hsl(25 90% 55% / 0.5)'})`, transition: 'all 0.5s ease' }} />
+      <text x="40" y="36" textAnchor="middle" fontSize="10" fontWeight="bold" fill="hsl(var(--foreground))" fontFamily="monospace">
+        {yearsUsed.toFixed(0)}yr
+      </text>
+      <text x="40" y="48" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">/ {designLife}yr</text>
+    </svg>
+  );
+};
+
+// ─── Generator Schematic SVG ───
 const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCount: number }) => {
   const syncSpeed = (60 * 50 / (poleCount / 2));
   const nodes = [
@@ -342,7 +381,7 @@ const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCo
   ];
 
   return (
-    <svg viewBox="0 0 320 100" className="w-full h-24">
+    <svg viewBox="0 0 320 100" className="w-full h-28">
       <defs>
         <marker id="flowArrow" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
           <polygon points="0 0, 6 2, 0 4" fill="hsl(var(--primary))" opacity="0.7" />
@@ -351,21 +390,18 @@ const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCo
 
       {nodes.map((node, i) => (
         <g key={i}>
-          {/* Node box */}
           <rect x={node.x - 22} y={18} width="44" height="44" rx="8"
             fill="none" stroke={node.color} strokeWidth="1.2" opacity="0.5" />
           <rect x={node.x - 22} y={18} width="44" height="44" rx="8"
             fill={node.color} opacity="0.05" />
           <text x={node.x} y={44} textAnchor="middle" fontSize="18">{node.label}</text>
-          <text x={node.x} y={76} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontWeight="500">{node.sub}</text>
+          <text x={node.x} y={76} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))" fontWeight="500">{node.sub}</text>
 
-          {/* Animated connection line */}
           {i < nodes.length - 1 && (
             <g>
               <line x1={node.x + 22} y1={40} x2={nodes[i + 1].x - 22} y2={40}
                 stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="4,3"
                 className="animate-flow-dash" opacity="0.5" markerEnd="url(#flowArrow)" />
-              {/* Energy dot */}
               <circle r="3" fill="hsl(var(--primary))" opacity="0.8">
                 <animateMotion dur={`${1.5 + i * 0.3}s`} repeatCount="indefinite"
                   path={`M${node.x + 22},40 L${nodes[i + 1].x - 22},40`} />
@@ -375,9 +411,51 @@ const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCo
         </g>
       ))}
 
-      <text x="160" y="94" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
+      <text x="160" y="94" textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
         n_sync = {syncSpeed.toFixed(0)} RPM @ 50Hz │ {poleCount} poles
       </text>
+    </svg>
+  );
+};
+
+// ─── 3-Phase AC Diagram SVG ───
+const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
+  const phases = [
+    { offset: 0, color: 'hsl(0 70% 55%)', label: 'A' },
+    { offset: 120, color: 'hsl(120 70% 50%)', label: 'B' },
+    { offset: 240, color: 'hsl(210 80% 55%)', label: 'C' },
+  ];
+
+  return (
+    <svg viewBox="0 0 280 70" className="w-full h-16 overflow-hidden">
+      <defs>
+        <clipPath id="phaseClip"><rect x="0" y="0" width="280" height="60" /></clipPath>
+      </defs>
+      <g clipPath="url(#phaseClip)">
+        {phases.map((phase, pi) => {
+          const points: string[] = [];
+          for (let x = 0; x <= 280; x += 2) {
+            const y = 30 + Math.sin((x / 70) * Math.PI * 2 + (phase.offset * Math.PI / 180)) * 20;
+            points.push(`${x},${y}`);
+          }
+          return (
+            <g key={pi} className="animate-sine-scroll">
+              <polyline points={points.join(' ')} fill="none" stroke={phase.color} strokeWidth="1.8" opacity="0.7" />
+              <polyline points={points.map(p => { const [x, y] = p.split(','); return `${Number(x) + 280},${y}`; }).join(' ')}
+                fill="none" stroke={phase.color} strokeWidth="1.8" opacity="0.7" />
+            </g>
+          );
+        })}
+      </g>
+      <g>
+        {phases.map((phase, i) => (
+          <g key={i} transform={`translate(${240 + i * 15}, 65)`}>
+            <rect width="10" height="4" rx="1" fill={phase.color} opacity="0.8" />
+            <text x="5" y="-2" textAnchor="middle" fontSize="7" fill={phase.color} fontWeight="bold">{phase.label}</text>
+          </g>
+        ))}
+      </g>
+      <text x="140" y="68" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency} Hz · 3φ AC</text>
     </svg>
   );
 };
@@ -390,13 +468,13 @@ const FrequencyWaveform = ({ frequency }: { frequency: number }) => {
     points.push(`${x},${y}`);
   }
   return (
-    <svg viewBox="0 0 200 40" className="w-full h-8 overflow-hidden">
+    <svg viewBox="0 0 200 40" className="w-full h-10 overflow-hidden">
       <g className="animate-sine-scroll">
         <polyline points={points.join(' ')} fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
         <polyline points={points.map(p => { const [x, y] = p.split(','); return `${Number(x) + 200},${y}`; }).join(' ')}
           fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
       </g>
-      <text x="100" y="38" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">{frequency} Hz</text>
+      <text x="100" y="38" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency} Hz</text>
     </svg>
   );
 };
@@ -426,7 +504,7 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
   const aepFillPoints: string[] = [];
   const maxWeibull = Math.max(...Array.from({ length: 60 }, (_, i) => getWeibull(i * 0.5 + 0.5)));
 
-  const chartLeft = 40, chartRight = 380, chartTop = 25, chartBottom = 180;
+  const chartLeft = 40, chartRight = 380, chartTop = 25, chartBottom = 200;
   const chartW = chartRight - chartLeft;
   const chartH = chartBottom - chartTop;
 
@@ -459,13 +537,12 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
     setHover({ x: svgX, v, p: getPower(v), w: getWeibull(v) });
   }, [currentSettings, ratedSpeed, weibullK, weibullC]);
 
-  // Operating regions
   const cutInX = chartLeft + (cutIn / 30) * chartW;
   const ratedX = chartLeft + (ratedSpeed / 30) * chartW;
   const cutOutX = chartLeft + (cutOut / 30) * chartW;
 
   return (
-    <svg viewBox="0 0 420 210" className="w-full h-56 cursor-crosshair" onMouseMove={handleMouseMove} onMouseLeave={() => setHover(null)}>
+    <svg viewBox="0 0 420 230" className="w-full h-64 cursor-crosshair" onMouseMove={handleMouseMove} onMouseLeave={() => setHover(null)}>
       <defs>
         <linearGradient id="aepGrad" x1="0" x2="0" y1="0" y2="1">
           <stop offset="0%" stopColor="hsl(120 100% 54%)" stopOpacity="0.2" />
@@ -482,7 +559,7 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
         <g key={f}>
           <line x1={chartLeft} y1={chartBottom - f * chartH} x2={chartRight} y2={chartBottom - f * chartH}
             stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray={f === 0 ? "" : "3,4"} opacity="0.25" />
-          <text x={chartLeft - 5} y={chartBottom - f * chartH + 3} textAnchor="end" fontSize="7" fill="hsl(var(--muted-foreground))">
+          <text x={chartLeft - 5} y={chartBottom - f * chartH + 3} textAnchor="end" fontSize="8" fill="hsl(var(--muted-foreground))">
             {formatP(f * rated)}
           </text>
         </g>
@@ -491,7 +568,7 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
         <g key={v}>
           <line x1={chartLeft + (v / 30) * chartW} y1={chartBottom} x2={chartLeft + (v / 30) * chartW} y2={chartBottom + 3}
             stroke="hsl(var(--muted-foreground))" strokeWidth="0.5" />
-          <text x={chartLeft + (v / 30) * chartW} y={chartBottom + 13} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{v}</text>
+          <text x={chartLeft + (v / 30) * chartW} y={chartBottom + 13} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))">{v}</text>
         </g>
       ))}
 
@@ -501,28 +578,17 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
       <rect x={cutInX} y={chartTop} width={ratedX - cutInX} height={chartH} fill="hsl(210 90% 60%)" opacity="0.03" />
       <rect x={ratedX} y={chartTop} width={cutOutX - ratedX} height={chartH} fill="hsl(120 100% 54%)" opacity="0.03" />
 
-      {/* Region labels */}
-      <text x={(chartLeft + cutInX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
-      <text x={(cutInX + ratedX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(210 90% 60%)" opacity="0.6">RAMP</text>
-      <text x={(ratedX + cutOutX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(120 100% 54%)" opacity="0.6">RATED</text>
-      <text x={(cutOutX + chartRight) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
+      <text x={(chartLeft + cutInX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
+      <text x={(cutInX + ratedX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(210 90% 60%)" opacity="0.6">RAMP</text>
+      <text x={(ratedX + cutOutX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(120 100% 54%)" opacity="0.6">RATED</text>
+      <text x={(cutOutX + chartRight) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
 
-      {/* Cut-in / cut-out lines */}
       <line x1={cutInX} y1={chartTop} x2={cutInX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
       <line x1={cutOutX} y1={chartTop} x2={cutOutX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
 
-      {/* AEP shaded area */}
-      <polyline points={`${chartLeft},${chartBottom} ${aepFillPoints.join(' ')} ${chartRight},${chartBottom}`}
-        fill="url(#aepGrad)" />
-
-      {/* Power fill */}
-      <polyline points={`${chartLeft},${chartBottom} ${powerPoints.join(' ')} ${chartRight},${chartBottom}`}
-        fill="url(#powerFill)" />
-
-      {/* Weibull distribution */}
+      <polyline points={`${chartLeft},${chartBottom} ${aepFillPoints.join(' ')} ${chartRight},${chartBottom}`} fill="url(#aepGrad)" />
+      <polyline points={`${chartLeft},${chartBottom} ${powerPoints.join(' ')} ${chartRight},${chartBottom}`} fill="url(#powerFill)" />
       <polyline points={weibullPoints.join(' ')} fill="none" stroke="hsl(270 70% 60%)" strokeWidth="1.5" strokeDasharray="4,3" opacity="0.7" />
-
-      {/* Power curve */}
       <polyline points={powerPoints.join(' ')} fill="none" stroke="hsl(120 100% 54%)" strokeWidth="2.5" strokeLinecap="round"
         style={{ filter: 'drop-shadow(0 0 3px hsl(120 100% 54% / 0.4))' }} />
 
@@ -533,7 +599,7 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
         <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite" />
       </circle>
       <rect x={currentX - 32} y={currentY - 22} width="64" height="16" rx="4" fill="hsl(var(--background) / 0.9)" stroke="hsl(120 100% 54% / 0.3)" strokeWidth="0.8" />
-      <text x={currentX} y={currentY - 10} textAnchor="middle" fontSize="9" fontWeight="bold" fill="hsl(120 100% 54%)" fontFamily="monospace">
+      <text x={currentX} y={currentY - 10} textAnchor="middle" fontSize="10" fontWeight="bold" fill="hsl(120 100% 54%)" fontFamily="monospace">
         {formatP(currentP)}
       </text>
 
@@ -541,24 +607,23 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
       {hover && (
         <g>
           <line x1={hover.x} y1={chartTop} x2={hover.x} y2={chartBottom} stroke="hsl(var(--foreground))" strokeWidth="0.5" opacity="0.25" />
-          <rect x={hover.x - 40} y={chartTop - 2} width="80" height="22" rx="4"
+          <rect x={hover.x - 44} y={chartTop - 2} width="88" height="24" rx="4"
             fill="hsl(var(--background) / 0.95)" stroke="hsl(var(--border))" strokeWidth="0.8" />
-          <text x={hover.x} y={chartTop + 8} textAnchor="middle" fontSize="8" fill="hsl(var(--foreground))" fontFamily="monospace">
+          <text x={hover.x} y={chartTop + 9} textAnchor="middle" fontSize="9" fill="hsl(var(--foreground))" fontFamily="monospace">
             V={hover.v.toFixed(1)} → {formatP(hover.p)}
           </text>
-          <text x={hover.x} y={chartTop + 16} textAnchor="middle" fontSize="7" fill="hsl(270 70% 60%)">
+          <text x={hover.x} y={chartTop + 18} textAnchor="middle" fontSize="8" fill="hsl(270 70% 60%)">
             f={hover.w.toFixed(3)}
           </text>
         </g>
       )}
 
-      {/* Axis labels */}
-      <text x={(chartLeft + chartRight) / 2} y={chartBottom + 25} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))">
+      <text x={(chartLeft + chartRight) / 2} y={chartBottom + 25} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))">
         {lang === 'ua' ? 'Швидкість вітру (m/s)' : 'Wind Speed (m/s)'}
       </text>
-      <text x="12" y={(chartTop + chartBottom) / 2} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))"
+      <text x="12" y={(chartTop + chartBottom) / 2} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))"
         transform={`rotate(-90 12 ${(chartTop + chartBottom) / 2})`}>P(V)</text>
-      <text x={chartRight + 8} y={chartTop + 30} fontSize="7" fill="hsl(270 70% 60%)">f(V)</text>
+      <text x={chartRight + 8} y={chartTop + 30} fontSize="8" fill="hsl(270 70% 60%)">f(V)</text>
     </svg>
   );
 };
@@ -575,7 +640,7 @@ const EfficiencyChainSVG = ({ cp, genEff, lang }: { cp: number; genEff: number; 
   ];
 
   return (
-    <svg viewBox="0 0 340 70" className="w-full h-16">
+    <svg viewBox="0 0 340 80" className="w-full h-20">
       <defs>
         <marker id="chainArrow" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
           <polygon points="0 0, 6 2, 0 4" fill="hsl(var(--primary))" opacity="0.6" />
@@ -589,16 +654,15 @@ const EfficiencyChainSVG = ({ cp, genEff, lang }: { cp: number; genEff: number; 
               fill={`${s.color}`} fillOpacity="0.08" stroke={s.color} strokeWidth="1.2"
               opacity={0.4 + s.value * 0.5} />
             <text x={x} y={32} textAnchor="middle" fontSize="16">{s.icon}</text>
-            <text x={x} y={60} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" fontWeight="500">{s.label}</text>
+            <text x={x} y={62} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontWeight="500">{s.label}</text>
             {i < stages.length - 1 && (
               <g>
                 <line x1={x + 20} y1={28} x2={x + 60} y2={28}
                   stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.4"
                   strokeDasharray="4,3" className="animate-flow-dash" markerEnd="url(#chainArrow)" />
-                <text x={x + 40} y={22} textAnchor="middle" fontSize="8" fill="hsl(var(--primary))" fontWeight="bold" opacity="0.7">
+                <text x={x + 40} y={22} textAnchor="middle" fontSize="9" fill="hsl(var(--primary))" fontWeight="bold" opacity="0.7">
                   {(stages[i + 1].value / s.value * 100).toFixed(0)}%
                 </text>
-                {/* Energy dot */}
                 <circle r="2.5" fill="hsl(var(--primary))">
                   <animateMotion dur={`${1.8 + i * 0.3}s`} repeatCount="indefinite"
                     path={`M${x + 20},28 L${x + 60},28`} />
@@ -608,8 +672,8 @@ const EfficiencyChainSVG = ({ cp, genEff, lang }: { cp: number; genEff: number; 
           </g>
         );
       })}
-      <rect x="280" y="56" width="55" height="12" rx="3" fill="hsl(var(--primary) / 0.1)" stroke="hsl(var(--primary) / 0.3)" strokeWidth="0.5" />
-      <text x="308" y="65" textAnchor="middle" fontSize="8" fontWeight="bold" fill="hsl(var(--primary))" fontFamily="monospace">
+      <rect x="280" y="58" width="55" height="14" rx="3" fill="hsl(var(--primary) / 0.1)" stroke="hsl(var(--primary) / 0.3)" strokeWidth="0.5" />
+      <text x="308" y="68" textAnchor="middle" fontSize="9" fontWeight="bold" fill="hsl(var(--primary))" fontFamily="monospace">
         Σ {(total * 100).toFixed(1)}%
       </text>
     </svg>
@@ -632,17 +696,16 @@ const PowerGaugeSVG = ({ value, max, label: gaugeLabel }: { value: number; max: 
   const largeArc = angle > 180 ? 1 : 0;
 
   return (
-    <svg viewBox="0 0 100 60" className="w-full h-16">
-      {/* Background arc */}
+    <svg viewBox="0 0 100 62" className="w-full h-16">
       <path d={`M${cx - r},${cy} A${r},${r} 0 0,1 ${cx + r},${cy}`}
         fill="none" stroke="hsl(var(--border))" strokeWidth="6" opacity="0.2" strokeLinecap="round" />
-      {/* Value arc */}
       <path d={`M${cx - r},${cy} A${r},${r} 0 ${largeArc},1 ${arcEnd.x},${arcEnd.y}`}
         fill="none" stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round"
         style={{ filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))', transition: 'all 0.5s ease' }} />
       {/* Needle */}
       <line x1={cx} y1={cy} x2={arcEnd.x} y2={arcEnd.y}
-        stroke="hsl(var(--foreground))" strokeWidth="1.5" opacity="0.7" />
+        stroke="hsl(var(--foreground))" strokeWidth="1.5" opacity="0.7"
+        style={{ transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)' }} />
       <circle cx={cx} cy={cy} r="3" fill="hsl(var(--primary))" />
       <text x={cx} y={cy + 12} textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">{gaugeLabel}</text>
     </svg>
@@ -656,25 +719,35 @@ const BladeDeflectionSVG = ({ deflection, bladeLength }: { deflection: number; b
   for (let i = 0; i <= 20; i++) {
     const t = i / 20;
     const x = 20 + t * 160;
-    const y = 40 - normalizedDefl * t * t; // quadratic deflection curve
+    const y = 40 - normalizedDefl * t * t;
     points.push(`${x},${y}`);
   }
 
   return (
-    <svg viewBox="0 0 200 55" className="w-full h-12">
-      {/* Undeflected blade */}
+    <svg viewBox="0 0 200 55" className="w-full h-14">
       <line x1="20" y1="40" x2="180" y2="40" stroke="hsl(var(--border))" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
-      {/* Deflected blade */}
       <polyline points={points.join(' ')} fill="none" stroke="hsl(25 90% 55%)" strokeWidth="2.5" strokeLinecap="round"
         style={{ filter: 'drop-shadow(0 0 3px hsl(25 90% 55% / 0.4))' }} />
-      {/* Hub */}
       <circle cx="20" cy="40" r="4" fill="hsl(25 90% 55%)" opacity="0.6" />
-      {/* Deflection arrow */}
       <line x1="180" y1="40" x2="180" y2={40 - normalizedDefl} stroke="hsl(25 90% 55%)" strokeWidth="1" strokeDasharray="2,2" opacity="0.5" />
-      <text x="185" y={40 - normalizedDefl / 2} fontSize="7" fill="hsl(25 90% 55%)" fontFamily="monospace">
+      <text x="185" y={40 - normalizedDefl / 2} fontSize="8" fill="hsl(25 90% 55%)" fontFamily="monospace">
         δ≈{(deflection * 100).toFixed(1)}cm
       </text>
-      <text x="100" y="52" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">R={bladeLength}m</text>
+      <text x="100" y="52" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">R={bladeLength}m</text>
+    </svg>
+  );
+};
+
+// ─── Sparkline SVG ───
+const SparklineSVG = ({ values, color, label: sparkLabel }: { values: number[]; color: string; label: string }) => {
+  const max = Math.max(...values, 1);
+  const points = values.map((v, i) => `${5 + (i / (values.length - 1)) * 50},${28 - (v / max) * 22}`).join(' ');
+  return (
+    <svg viewBox="0 0 60 32" className="w-14 h-8">
+      <polyline points={points} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" opacity="0.7" />
+      <circle cx={5 + 50} cy={28 - (values[values.length - 1] / max) * 22} r="2" fill={color}>
+        <animate attributeName="opacity" values="1;0.3;1" dur="1.5s" repeatCount="indefinite" />
+      </circle>
     </svg>
   );
 };
@@ -736,6 +809,20 @@ export const GeneratorSettings = ({
     return { P, omega, torque, Fc, rps, capacityFactor, aep, Re, tsr, fatigueCycles, deflection, lcoe, co2Offset };
   }, [currentSettings, windSpeed, weibullK, weibullC]);
 
+  // Generate sparkline data for various wind speeds
+  const sparkData = useMemo(() => {
+    const speeds = [2, 4, 6, 8, 10, 12, 14, 16];
+    const R = currentSettings.bladeLength;
+    const rho = 1.225;
+    const A = Math.PI * R * R;
+    const Cp = currentSettings.efficiency;
+    return {
+      torque: speeds.map(v => { const P = 0.5 * rho * A * v ** 3 * Cp; const omega = (7 * v) / R; return omega > 0 ? P / omega : 0; }),
+      rpm: speeds.map(v => (7 * v) / R / (2 * Math.PI) * 60),
+      force: speeds.map(v => { const omega = (7 * v) / R; const m = 0.5 * R * 15; return m * omega * omega * (R / 2); }),
+    };
+  }, [currentSettings]);
+
   const formatP = (w: number) => w >= 1e6 ? `${(w / 1e6).toFixed(2)} MW` : w >= 1e3 ? `${(w / 1e3).toFixed(1)} kW` : `${w.toFixed(0)} W`;
   const formatE = (wh: number) => wh >= 1e6 ? `${(wh / 1e6).toFixed(1)} GWh` : wh >= 1e3 ? `${(wh / 1e3).toFixed(0)} MWh` : `${wh.toFixed(0)} kWh`;
 
@@ -750,7 +837,29 @@ export const GeneratorSettings = ({
               </div>
               {label('Інженерна панель генератора', 'Generator Engineering Panel')}
             </DialogTitle>
+            <DialogDescription className="sr-only">
+              {label('Налаштування параметрів вітрового генератора', 'Wind generator parameter settings')}
+            </DialogDescription>
           </DialogHeader>
+
+          {/* ─── Status Bar ─── */}
+          <div className="flex items-center gap-3 mt-3 p-2.5 rounded-xl" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', border: '1px solid hsl(var(--border) / 0.2)' }}>
+            {[
+              { icon: Wind, label: 'V', value: `${windSpeed.toFixed(1)} m/s`, color: 'hsl(210 90% 60%)' },
+              { icon: Zap, label: 'P', value: formatP(liveCalc.P), color: 'hsl(120 100% 54%)' },
+              { icon: Activity, label: 'RPM', value: `${(liveCalc.rps * 60).toFixed(0)}`, color: 'hsl(50 90% 55%)' },
+              { icon: Gauge, label: 'CF', value: `${(liveCalc.capacityFactor * 100).toFixed(0)}%`, color: 'hsl(270 70% 60%)' },
+            ].map((item, i) => {
+              const Icon = item.icon;
+              return (
+                <div key={i} className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg" style={{ background: `${item.color}08`, border: `1px solid ${item.color}20` }}>
+                  <Icon className="w-3 h-3" style={{ color: item.color }} />
+                  <span className="text-[10px] text-muted-foreground font-semibold">{item.label}</span>
+                  <span className="text-xs font-mono font-bold" style={{ color: item.color }}>{item.value}</span>
+                </div>
+              );
+            })}
+          </div>
         </div>
 
         {/* ─── Custom Tabs ─── */}
@@ -781,7 +890,7 @@ export const GeneratorSettings = ({
         </div>
 
         {/* ─── Tab Content ─── */}
-        <div className="px-5 pb-5 pt-3 overflow-y-auto eng-scrollbar overflow-x-hidden" style={{ maxHeight: 'calc(92vh - 140px)' }}>
+        <div className="px-5 pb-5 pt-3 overflow-y-auto eng-scrollbar overflow-x-hidden" style={{ maxHeight: 'calc(92vh - 200px)' }}>
           <AnimatePresence mode="wait">
             <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.25 }}>
 
@@ -816,7 +925,6 @@ export const GeneratorSettings = ({
                       </p>
                     </div>
 
-                    {/* Lift/Drag animated bars */}
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between text-[11px] mb-1">
@@ -871,7 +979,7 @@ export const GeneratorSettings = ({
                       infoText={label('Ліміт Бетца: 0.593. Реальні: 0.35-0.50', 'Betz limit: 0.593. Real: 0.35-0.50')} color="hsl(120 100% 54%)" />
                   </div>
 
-                  {/* Betz + TSR + Re */}
+                  {/* Betz + Re + TSR Curve */}
                   <div className="flex items-center gap-4">
                     <div className="relative w-20 h-20 flex-shrink-0">
                       <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
@@ -901,6 +1009,17 @@ export const GeneratorSettings = ({
                       </div>
                     </div>
                   </div>
+
+                  {/* TSR Optimization Curve */}
+                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(210 20% 7%)', borderColor: 'hsl(120 100% 54% / 0.15)' }}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <TrendingUp className="w-3.5 h-3.5" style={{ color: 'hsl(120 100% 54%)' }} />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'hsl(120 100% 54%)' }}>
+                        {label('Оптимізація TSR', 'TSR Optimization')}
+                      </span>
+                    </div>
+                    <TSRCurveSVG currentTSR={liveCalc.tsr} />
+                  </div>
                 </div>
               )}
 
@@ -914,12 +1033,10 @@ export const GeneratorSettings = ({
                     </span>
                   </div>
 
-                  {/* Radar chart */}
                   <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(25 20% 7%)', borderColor: 'hsl(25 90% 55% / 0.2)' }}>
                     <RadarChartSVG materials={materials} selectedIdx={selectedMaterialIdx} onSelect={setSelectedMaterialIdx} />
                   </div>
 
-                  {/* Material cards — interactive */}
                   <div className="grid grid-cols-2 gap-3">
                     {materials.map((mat, i) => (
                       <motion.div key={i}
@@ -972,29 +1089,26 @@ export const GeneratorSettings = ({
                     infoText={label('Висота впливає на швидкість вітру за степеневим законом', 'Height affects wind speed via power law')}
                     color="hsl(25 90% 55%)" />
 
-                  {/* Blade deflection */}
-                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
-                    <span className="text-[11px] font-semibold uppercase" style={{ color: 'hsl(25 90% 55%)' }}>
-                      {label('Прогин лопаті (оцінка)', 'Blade Deflection (est.)')}
-                    </span>
-                    <BladeDeflectionSVG deflection={liveCalc.deflection} bladeLength={currentSettings.bladeLength} />
-                  </div>
-
-                  {/* Blade mass & fatigue */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
-                      <div className="text-[10px] text-muted-foreground uppercase mb-1">{label('Маса лопаті', 'Blade Mass')}</div>
-                      <p className="text-xl font-mono font-bold text-foreground">{(0.5 * currentSettings.bladeLength * 15).toFixed(0)}</p>
-                      <span className="text-[10px] text-muted-foreground">kg</span>
+                  {/* Blade deflection + Fatigue ring side by side */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="col-span-2 p-3 rounded-xl border" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
+                      <div className="flex items-center gap-2 mb-1">
+                        <ArrowRight className="w-3.5 h-3.5" style={{ color: 'hsl(25 90% 55%)' }} />
+                        <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: 'hsl(25 90% 55%)' }}>
+                          {label('Прогин лопаті', 'Blade Deflection')}
+                        </span>
+                      </div>
+                      <BladeDeflectionSVG deflection={liveCalc.deflection} bladeLength={currentSettings.bladeLength} />
                     </div>
-                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
-                      <div className="text-[10px] text-muted-foreground uppercase mb-1">{label('Цикли (20 р.)', 'Fatigue (20yr)')}</div>
-                      <p className="text-xl font-mono font-bold text-foreground">
-                        {liveCalc.fatigueCycles > 1e9 ? `${(liveCalc.fatigueCycles / 1e9).toFixed(1)}G` :
-                          liveCalc.fatigueCycles > 1e6 ? `${(liveCalc.fatigueCycles / 1e6).toFixed(0)}M` :
-                            `${(liveCalc.fatigueCycles / 1e3).toFixed(0)}k`}
-                      </p>
-                      <span className="text-[10px] text-muted-foreground">{label('обертань', 'cycles')}</span>
+
+                    <div className="p-3 rounded-xl border flex flex-col items-center justify-center" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
+                      <span className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'hsl(25 90% 55%)' }}>
+                        {label('Ресурс', 'Fatigue')}
+                      </span>
+                      <FatigueRingSVG fatigueCycles={liveCalc.fatigueCycles} />
+                      <span className="text-[8px] text-muted-foreground font-mono mt-1">
+                        {(liveCalc.fatigueCycles / 1e9).toFixed(1)}×10⁹ cyc
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -1010,43 +1124,49 @@ export const GeneratorSettings = ({
                     </span>
                   </div>
 
-                  {/* Generator schematic */}
-                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(50 20% 6%)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
+                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label('Топологія', 'Topology')}</span>
                     <GeneratorSchematicSVG genType={genType} poleCount={poleCount} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label className="text-xs font-semibold">{label('Тип генератора', 'Generator Type')}</Label>
-                      <Select value={genType} onValueChange={setGenType}>
-                        <SelectTrigger className="mt-1.5 border-border/30 bg-background/40 h-9"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {genTypes.map(g => (
-                            <SelectItem key={g.value} value={g.value}>{g.icon} {g.value}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-[11px] text-muted-foreground mt-1.5">
-                        {lang === 'ua' ? genTypeData.desc_ua : genTypeData.desc_en}
-                      </p>
-                    </div>
-
-                    {/* Frequency waveform */}
-                    <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
-                      <span className="text-[10px] text-muted-foreground uppercase">{label('Частота мережі', 'Grid Frequency')}</span>
-                      <FrequencyWaveform frequency={50} />
-                    </div>
+                  {/* 3-Phase Diagram */}
+                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 10% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('3-фазна діаграма', '3-Phase AC Diagram')}</span>
+                    <PhaseDiagramSVG frequency={50} />
                   </div>
 
-                  {/* Efficiency comparison */}
+                  {/* Generator type cards — clickable */}
                   <div className="space-y-2">
-                    <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Порівняння ККД', 'Efficiency Comparison')}</span>
+                    <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Тип генератора', 'Generator Type')}</span>
+                    <div className="grid grid-cols-3 gap-2">
+                      {genTypes.map((g, i) => (
+                        <motion.button key={g.value}
+                          onClick={() => setGenType(g.value)}
+                          whileHover={{ scale: 1.03 }}
+                          whileTap={{ scale: 0.97 }}
+                          className="p-3 rounded-xl border text-center transition-all"
+                          style={{
+                            backgroundColor: g.value === genType ? 'hsl(50 90% 55% / 0.08)' : 'hsl(var(--background) / 0.3)',
+                            borderColor: g.value === genType ? 'hsl(50 90% 55% / 0.5)' : 'hsl(var(--border) / 0.2)',
+                            boxShadow: g.value === genType ? '0 0 20px hsl(50 90% 55% / 0.1)' : 'none',
+                          }}>
+                          <span className="text-2xl">{g.icon}</span>
+                          <p className="text-xs font-mono font-bold mt-1" style={{ color: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground))' }}>{g.value}</p>
+                          <p className="text-[9px] text-muted-foreground mt-0.5">η={(g.efficiency * 100).toFixed(0)}%</p>
+                          {g.value === genType && (
+                            <motion.div layoutId="genTypeGlow" className="w-full h-0.5 rounded-full mt-1.5"
+                              style={{ backgroundColor: 'hsl(50 90% 55%)', boxShadow: '0 0 6px hsl(50 90% 55%)' }} />
+                          )}
+                        </motion.button>
+                      ))}
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">{lang === 'ua' ? genTypeData.desc_ua : genTypeData.desc_en}</p>
+                  </div>
+
+                  {/* Efficiency comparison bars */}
+                  <div className="space-y-2">
                     {genTypes.map((g, i) => (
-                      <div key={g.value} className="flex items-center gap-3 p-2 rounded-lg transition-all"
-                        style={{
-                          backgroundColor: g.value === genType ? 'hsl(50 90% 55% / 0.06)' : 'transparent',
-                          border: `1px solid ${g.value === genType ? 'hsl(50 90% 55% / 0.2)' : 'transparent'}`,
-                        }}>
+                      <div key={g.value} className="flex items-center gap-2">
                         <span className="text-sm">{g.icon}</span>
                         <span className="text-xs font-mono w-12 font-semibold" style={{ color: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground))' }}>{g.value}</span>
                         <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
@@ -1066,6 +1186,11 @@ export const GeneratorSettings = ({
                     ))}
                   </div>
 
+                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 10% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('Частотна форма хвилі', 'Frequency Waveform')}</span>
+                    <FrequencyWaveform frequency={50} />
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <GlowSlider value={poleCount} onChange={setPoleCount} min={4} max={96} step={2}
                       label={label('Кількість полюсів', 'Pole Count')} displayValue={`${poleCount}`}
@@ -1080,7 +1205,6 @@ export const GeneratorSettings = ({
                     label={label('Номінальна потужність', 'Rated Power')} displayValue={formatP(currentSettings.ratedPower)}
                     color="hsl(50 90% 55%)" />
 
-                  {/* Power factor & reactive */}
                   <div className="grid grid-cols-2 gap-3">
                     <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
                       <div className="text-[10px] text-muted-foreground uppercase mb-1">{label('Коеф. потужності', 'Power Factor')}</div>
@@ -1115,7 +1239,7 @@ export const GeneratorSettings = ({
                         { color: 'hsl(120 100% 54%)', label: 'AEP', dash: false, fill: true },
                       ].map((item, i) => (
                         <span key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-                          <span className="w-4 h-0.5 inline-block rounded" style={{
+                          <span className="w-4 inline-block rounded" style={{
                             backgroundColor: item.color,
                             opacity: item.fill ? 0.3 : 1,
                             height: item.fill ? '8px' : '2px',
@@ -1127,7 +1251,6 @@ export const GeneratorSettings = ({
                     </div>
                   </div>
 
-                  {/* Weibull params */}
                   <div className="p-4 rounded-xl border space-y-3" style={{ backgroundColor: 'hsl(270 70% 60% / 0.04)', borderColor: 'hsl(270 70% 60% / 0.2)' }}>
                     <span className="text-xs font-semibold text-foreground">{label('Параметри Вейбулла', 'Weibull Parameters')}</span>
                     <div className="grid grid-cols-2 gap-4">
@@ -1141,7 +1264,6 @@ export const GeneratorSettings = ({
                     </p>
                   </div>
 
-                  {/* Capacity factor benchmarks */}
                   <div className="p-3 rounded-xl border space-y-2" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(270 70% 60% / 0.15)' }}>
                     <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Бенчмарки CF (Україна)', 'CF Benchmarks (Ukraine)')}</span>
                     {[
@@ -1180,15 +1302,13 @@ export const GeneratorSettings = ({
                     </div>
                   </div>
 
-                  {/* Power gauge */}
                   <div className="grid grid-cols-3 gap-4">
                     <div className="col-span-1 p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
                       <PowerGaugeSVG value={liveCalc.P} max={currentSettings.ratedPower} label={label('Потужність', 'Power')} />
                       <p className="text-lg font-mono font-bold text-primary mt-1">{formatP(liveCalc.P)}</p>
-                      <p className="text-[9px] text-muted-foreground font-mono">P = ½ρAV³Cp</p>
+                      <p className="text-[10px] text-muted-foreground font-mono">P = ½ρAV³Cp</p>
                     </div>
                     <div className="col-span-2">
-                      {/* Efficiency chain */}
                       <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--primary) / 0.15)' }}>
                         <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label('Ланцюг ефективності', 'Efficiency Chain')}</span>
                         <EfficiencyChainSVG cp={currentSettings.efficiency} genEff={genTypeData.efficiency} lang={lang} />
@@ -1196,15 +1316,15 @@ export const GeneratorSettings = ({
                     </div>
                   </div>
 
-                  {/* Main calc cards */}
+                  {/* Main calc cards with sparklines */}
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { label: label('Крутний момент', 'Torque'), value: liveCalc.torque > 1000 ? `${(liveCalc.torque / 1000).toFixed(1)} kNm` : `${liveCalc.torque.toFixed(0)} Nm`, formula: 'τ = P/ω', color: 'hsl(210 90% 60%)' },
-                      { label: label('Відцентрова сила', 'Centrifugal Force'), value: liveCalc.Fc > 1000 ? `${(liveCalc.Fc / 1000).toFixed(1)} kN` : `${liveCalc.Fc.toFixed(0)} N`, formula: 'F = mω²r', color: 'hsl(25 90% 55%)' },
-                      { label: label('Обертання', 'Rotation'), value: `${(liveCalc.rps * 60).toFixed(1)} RPM`, formula: `ω = ${liveCalc.omega.toFixed(2)} rad/s`, color: 'hsl(50 90% 55%)' },
-                      { label: label('Коеф. використання', 'Capacity Factor'), value: `${(liveCalc.capacityFactor * 100).toFixed(1)}%`, formula: 'CF = P/P_rated', color: 'hsl(270 70% 60%)' },
+                      { label: label('Крутний момент', 'Torque'), value: liveCalc.torque > 1000 ? `${(liveCalc.torque / 1000).toFixed(1)} kNm` : `${liveCalc.torque.toFixed(0)} Nm`, formula: 'τ = P/ω', color: 'hsl(210 90% 60%)', spark: sparkData.torque },
+                      { label: label('Відцентрова сила', 'Centrifugal Force'), value: liveCalc.Fc > 1000 ? `${(liveCalc.Fc / 1000).toFixed(1)} kN` : `${liveCalc.Fc.toFixed(0)} N`, formula: 'F = mω²r', color: 'hsl(25 90% 55%)', spark: sparkData.force },
+                      { label: label('Обертання', 'Rotation'), value: `${(liveCalc.rps * 60).toFixed(1)} RPM`, formula: `ω = ${liveCalc.omega.toFixed(2)} rad/s`, color: 'hsl(50 90% 55%)', spark: sparkData.rpm },
+                      { label: label('Коеф. використання', 'Capacity Factor'), value: `${(liveCalc.capacityFactor * 100).toFixed(1)}%`, formula: 'CF = P/P_rated', color: 'hsl(270 70% 60%)', spark: null },
                     ].map((card, i) => (
-                      <motion.div key={i} className="p-4 rounded-xl border text-center"
+                      <motion.div key={i} className="p-4 rounded-xl border"
                         initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.08 }}
                         style={{
@@ -1213,9 +1333,12 @@ export const GeneratorSettings = ({
                           borderLeftWidth: '3px',
                           borderLeftColor: card.color,
                         }}>
-                        <div className="text-[10px] text-muted-foreground uppercase mb-1">{card.label}</div>
+                        <div className="flex items-center justify-between">
+                          <div className="text-[10px] text-muted-foreground uppercase">{card.label}</div>
+                          {card.spark && <SparklineSVG values={card.spark} color={card.color} label={card.label} />}
+                        </div>
                         <p className="text-xl font-mono font-bold text-foreground">{card.value}</p>
-                        <div className="text-[9px] text-muted-foreground font-mono mt-1">{card.formula}</div>
+                        <div className="text-[10px] text-muted-foreground font-mono mt-1">{card.formula}</div>
                       </motion.div>
                     ))}
                   </div>
@@ -1243,7 +1366,7 @@ export const GeneratorSettings = ({
                       </div>
                       <p className="text-xl font-mono font-bold text-foreground">{liveCalc.lcoe > 0 ? `${liveCalc.lcoe.toFixed(1)}` : '—'}</p>
                       <p className="text-[10px] text-muted-foreground">$/MWh</p>
-                      <div className="mt-2 text-[9px] font-mono rounded-md p-1" style={{
+                      <div className="mt-2 text-[10px] font-mono rounded-md p-1" style={{
                         color: liveCalc.lcoe < 50 ? 'hsl(120 100% 54%)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55%)' : 'hsl(0 60% 55%)',
                         background: liveCalc.lcoe < 50 ? 'hsl(120 100% 54% / 0.08)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55% / 0.08)' : 'hsl(0 60% 55% / 0.08)',
                       }}>
@@ -1258,7 +1381,7 @@ export const GeneratorSettings = ({
                         {liveCalc.co2Offset > 1000 ? `${(liveCalc.co2Offset / 1000).toFixed(1)}k` : liveCalc.co2Offset.toFixed(0)}
                       </p>
                       <p className="text-[10px] text-muted-foreground">{label('тонн/рік', 'tonnes/yr')}</p>
-                      <div className="mt-2 text-[9px] font-mono rounded-md p-1" style={{ color: 'hsl(120 100% 54%)', background: 'hsl(120 100% 54% / 0.08)' }}>
+                      <div className="mt-2 text-[10px] font-mono rounded-md p-1" style={{ color: 'hsl(120 100% 54%)', background: 'hsl(120 100% 54% / 0.08)' }}>
                         🌱 {label('Еквів.', 'Equiv.')} {(liveCalc.co2Offset * 0.05).toFixed(0)} {label('дерев', 'trees')}
                       </div>
                     </div>
@@ -1279,7 +1402,7 @@ export const GeneratorSettings = ({
                         }}>
                           <div className="text-[10px] text-muted-foreground font-semibold">{c.metric}</div>
                           <div className="text-lg font-mono font-bold" style={{ color: c.good ? 'hsl(120 100% 54%)' : 'hsl(0 60% 55%)' }}>{c.yours}</div>
-                          <div className="text-[9px] text-muted-foreground">{label('сер.', 'avg')}: {c.avg}</div>
+                          <div className="text-[10px] text-muted-foreground">{label('сер.', 'avg')}: {c.avg}</div>
                         </div>
                       ))}
                     </div>

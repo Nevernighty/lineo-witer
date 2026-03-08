@@ -1,30 +1,24 @@
 import React from 'react';
-import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Settings, Flame, Droplets, RotateCw, Shield, Zap } from 'lucide-react';
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
+  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
 } from "@/components/ui/accordion";
+import { motion } from 'framer-motion';
 
 export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   return (
     <div className="space-y-4">
-      {/* Overview */}
-      <Card className="p-4 sm:p-5">
+      <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stalker-card p-4 sm:p-5">
         <h2 className="text-base sm:text-xl font-bold mb-1">3D Printing for Wind Energy</h2>
         <p className="text-xs text-muted-foreground">
           Advanced manufacturing considerations including FEA validation, fatigue analysis, post-processing, and quality control for rotating components.
         </p>
-      </Card>
+      </motion.div>
 
-      {/* Print Settings */}
-      <Card className="p-4 sm:p-5">
+      <div className="stalker-card p-4 sm:p-5">
         <h3 className="text-sm sm:text-base font-semibold mb-3 flex items-center gap-2">
-          <Settings className="w-4 h-4 text-primary" />
-          Optimal Print Parameters
+          <Settings className="w-4 h-4 text-primary" /> Optimal Print Parameters
         </h3>
         <div className="grid grid-cols-2 gap-2">
           {[
@@ -33,7 +27,8 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
             { label: 'Wall Thickness', structural: '3–4 perimeters', nonCritical: '2 perimeters' },
             { label: 'Print Speed', structural: '30–40 mm/s', nonCritical: '50–80 mm/s' },
           ].map((p, i) => (
-            <div key={i} className="p-2.5 bg-card border border-border rounded-lg">
+            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
+              className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
               <p className="text-[10px] font-semibold text-foreground mb-1">{p.label}</p>
               <div className="space-y-0.5 text-[10px]">
                 <div className="flex justify-between">
@@ -45,140 +40,74 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
                   <span className="font-mono text-foreground">{p.nonCritical}</span>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
-      </Card>
+      </div>
 
-      {/* Advanced Topics */}
       <Accordion type="single" collapsible className="space-y-2">
-        <AccordionItem value="fea" className="border-0">
-          <Card className="overflow-hidden">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-              <div className="flex items-center gap-2">
-                <Shield className="w-4 h-4 text-primary" />
-                <span className="text-xs sm:text-sm font-semibold">Finite Element Analysis (FEA)</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4 pt-0 text-xs text-muted-foreground space-y-2">
-              <p>
-                FEA validates structural integrity before printing. For rotating blades, simulate:
-              </p>
+        {[
+          { value: 'fea', icon: Shield, title: 'Finite Element Analysis (FEA)', content: (
+            <div className="space-y-2">
+              <p>FEA validates structural integrity before printing. For rotating blades, simulate:</p>
               <div className="grid grid-cols-2 gap-2">
-                <div className="p-2 bg-card border border-border rounded">
+                <div className="p-2 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
                   <p className="text-[10px] font-semibold text-foreground">Static Analysis</p>
                   <p className="text-[10px] mt-0.5">Centrifugal + aerodynamic loads at rated speed. Safety factor ≥ 2.0 for printed parts.</p>
                 </div>
-                <div className="p-2 bg-card border border-border rounded">
+                <div className="p-2 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
                   <p className="text-[10px] font-semibold text-foreground">Modal Analysis</p>
                   <p className="text-[10px] mt-0.5">Natural frequencies must avoid 1P and 3P excitation harmonics to prevent resonance.</p>
                 </div>
               </div>
-              <p>
-                Use orthotropic material models for FDM parts — layer direction has 40–60% reduced strength. 
-                Free tools: FreeCAD FEM, Fusion 360 Simulation.
-              </p>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-
-        <AccordionItem value="fatigue" className="border-0">
-          <Card className="overflow-hidden">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-              <div className="flex items-center gap-2">
-                <RotateCw className="w-4 h-4 text-primary" />
-                <span className="text-xs sm:text-sm font-semibold">Fatigue Life Analysis</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4 pt-0 text-xs text-muted-foreground space-y-2">
-              <p>
-                Rotating parts experience cyclic loading. Each revolution = 1 fatigue cycle. 
-                At 300 RPM, that's 432,000 cycles/day or 157M cycles/year.
-              </p>
-              <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-lg">
+              <p>Use orthotropic material models for FDM parts — layer direction has 40–60% reduced strength. Free tools: FreeCAD FEM, Fusion 360 Simulation.</p>
+            </div>
+          )},
+          { value: 'fatigue', icon: RotateCw, title: 'Fatigue Life Analysis', content: (
+            <div className="space-y-2">
+              <p>Rotating parts experience cyclic loading. Each revolution = 1 fatigue cycle. At 300 RPM, that's 432,000 cycles/day or 157M cycles/year.</p>
+              <div className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
                 <p className="text-[10px] font-semibold text-primary mb-1">Design Rule</p>
-                <p className="text-[10px]">
-                  Keep maximum stress below 30–40% of material UTS for infinite fatigue life in polymers. 
-                  PETG endurance limit: ~20 MPa. Nylon: ~28 MPa.
-                </p>
+                <p className="text-[10px]">Keep maximum stress below 30–40% of material UTS for infinite fatigue life in polymers. PETG endurance limit: ~20 MPa. Nylon: ~28 MPa.</p>
               </div>
-              <p>
-                Stress concentrations at layer boundaries are primary crack initiation sites. 
-                Use generous fillets (r ≥ 2mm) at all transitions. Avoid sharp internal corners.
-              </p>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-
-        <AccordionItem value="postprocess" className="border-0">
-          <Card className="overflow-hidden">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-              <div className="flex items-center gap-2">
-                <Flame className="w-4 h-4 text-primary" />
-                <span className="text-xs sm:text-sm font-semibold">Post-Processing & Surface Treatment</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4 pt-0 text-xs text-muted-foreground space-y-2">
-              <div className="space-y-2">
+              <p>Stress concentrations at layer boundaries are primary crack initiation sites. Use generous fillets (r ≥ 2mm) at all transitions.</p>
+            </div>
+          )},
+          { value: 'postprocess', icon: Flame, title: 'Post-Processing & Surface Treatment', content: (
+            <div className="space-y-2">
+              {[
+                { step: 'Annealing', detail: 'Heat PETG to 80°C for 2h to relieve residual stress and improve crystallinity by ~15%.' },
+                { step: 'Surface Smoothing', detail: 'Sand progressively (120→400→800 grit) for aerodynamic surfaces. Target Ra < 10μm for blade surfaces.' },
+                { step: 'UV Coating', detail: 'Apply 2K polyurethane clear coat for UV and weather protection. Recoat annually.' },
+                { step: 'Epoxy Reinforcement', detail: 'Brush-apply epoxy resin to structural areas. Adds ~30% strength and seals layer interfaces.' },
+              ].map((item, i) => (
+                <div key={i} className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                  <p className="text-[10px] font-semibold text-foreground">{item.step}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{item.detail}</p>
+                </div>
+              ))}
+            </div>
+          )},
+          { value: 'balance', icon: Droplets, title: 'Rotor Balancing Procedures', content: (
+            <div className="space-y-2">
+              <p>Unbalanced rotors cause vibration, bearing wear, and noise. 3D-printed parts have inherent mass variation (±2–5%).</p>
+              <div className="space-y-1.5">
                 {[
-                  { step: 'Annealing', detail: 'Heat PETG to 80°C for 2h to relieve residual stress and improve crystallinity by ~15%. Increases heat deflection temperature.' },
-                  { step: 'Surface Smoothing', detail: 'Sand progressively (120→400→800 grit) for aerodynamic surfaces. Filler primer fills layer lines. Target Ra < 10μm for blade surfaces.' },
-                  { step: 'UV Coating', detail: 'Apply 2K polyurethane clear coat for UV and weather protection. Recoat annually for outdoor installations.' },
-                  { step: 'Epoxy Reinforcement', detail: 'Brush-apply epoxy resin to structural areas. Adds ~30% strength and seals layer interfaces against moisture ingress.' },
-                ].map((item, i) => (
-                  <div key={i} className="p-2.5 bg-card border border-border rounded-lg">
-                    <p className="text-[10px] font-semibold text-foreground">{item.step}</p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">{item.detail}</p>
+                  'Weigh all blades. Match within 0.5g for blades under 200g.',
+                  'Static balance: mount hub horizontally on knife edge. Add clay to lighter blade until level.',
+                  'Dynamic test: spin at low speed, observe vibration. Target < 0.5mm/s RMS.',
+                  'Replace clay with epoxy + steel shot for permanent balance correction.',
+                ].map((step, i) => (
+                  <div key={i} className="flex items-start gap-2">
+                    <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5 border-primary/30 bg-primary/5 text-primary">Step {i + 1}</Badge>
+                    <p className="text-[10px]">{step}</p>
                   </div>
                 ))}
               </div>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-
-        <AccordionItem value="balance" className="border-0">
-          <Card className="overflow-hidden">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-              <div className="flex items-center gap-2">
-                <Droplets className="w-4 h-4 text-primary" />
-                <span className="text-xs sm:text-sm font-semibold">Rotor Balancing Procedures</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4 pt-0 text-xs text-muted-foreground space-y-2">
-              <p>
-                Unbalanced rotors cause vibration, bearing wear, and noise. 3D-printed parts have inherent mass variation (±2–5%).
-              </p>
-              <div className="space-y-1.5">
-                <div className="flex items-start gap-2">
-                  <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5">Step 1</Badge>
-                  <p className="text-[10px]">Weigh all blades. Match within 0.5g for blades under 200g.</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5">Step 2</Badge>
-                  <p className="text-[10px]">Static balance: mount hub horizontally on knife edge. Add clay to lighter blade until level.</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5">Step 3</Badge>
-                  <p className="text-[10px]">Dynamic test: spin at low speed, observe vibration. Target &lt; 0.5mm/s RMS.</p>
-                </div>
-                <div className="flex items-start gap-2">
-                  <Badge variant="outline" className="text-[10px] shrink-0 mt-0.5">Step 4</Badge>
-                  <p className="text-[10px]">Replace clay with epoxy + steel shot for permanent balance correction.</p>
-                </div>
-              </div>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-
-        <AccordionItem value="quality" className="border-0">
-          <Card className="overflow-hidden">
-            <AccordionTrigger className="px-4 py-3 hover:no-underline">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-primary" />
-                <span className="text-xs sm:text-sm font-semibold">Quality Control Checklist</span>
-              </div>
-            </AccordionTrigger>
-            <AccordionContent className="px-4 pb-4 pt-0 text-xs text-muted-foreground space-y-1.5">
+            </div>
+          )},
+          { value: 'quality', icon: Zap, title: 'Quality Control Checklist', content: (
+            <div className="space-y-1.5">
               {[
                 'Visual inspection: no delamination, stringing, or under-extrusion',
                 'Dimensional check: critical dimensions within tolerance (calipers)',
@@ -193,9 +122,23 @@ export const PrintingConsiderations = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
                   <p className="text-[10px] sm:text-[11px]">{item}</p>
                 </div>
               ))}
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
+            </div>
+          )},
+        ].map(item => (
+          <AccordionItem key={item.value} value={item.value} className="border-0">
+            <div className="stalker-card overflow-hidden">
+              <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                <div className="flex items-center gap-2">
+                  <item.icon className="w-4 h-4 text-primary" />
+                  <span className="text-xs sm:text-sm font-semibold">{item.title}</span>
+                </div>
+              </AccordionTrigger>
+              <AccordionContent className="px-4 pb-4 pt-0 text-xs text-muted-foreground">
+                {item.content}
+              </AccordionContent>
+            </div>
+          </AccordionItem>
+        ))}
       </Accordion>
     </div>
   );
