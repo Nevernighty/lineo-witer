@@ -1,56 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Overhaul: Glow Default, Trail Paths, Performance, Weather API, Generator Settings
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Issues from Screenshots
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-1. **Glow minimum too high**: `particleGlow` slider min is `0.2`, should be `0.01`. Default should match screenshot 2 (~0.2x visual).
-2. **Trails ("Слід") don't show wind path**: Trails just store old positions — they should create visible continuous wind streamlines, not just fading dots behind particles.
-3. **Performance/lag at 1600 particles**: Trail system creates 8 extra instanced meshes × particle count = 12,800 draw instances. Need to reduce overhead.
-4. **Weather API**: Currently uses `VITE_OPENWEATHER_API_KEY` env var with fallback to synthetic. Need Open-Meteo (free, no key) as primary external API.
-5. **Generator Settings modal**: Current modal is functional but basic. Needs power curve visualization, more advanced calc, better design.
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-### Changes
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-#### 1. Glow Slider Defaults — `AdvancedWindControls.tsx` + `WindSimulation3D.tsx`
-- Change glow slider `min={0.2}` → `min={0.01}` (line 165)
-- Change default `particleGlow` from `1.0` to `0.2` in WindSimulation3D (line 116)
-- Update preset defaults to use lower glow values
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-#### 2. Wind Streamline Trails — `InstancedParticles.tsx`
-- Increase `FRAME_SKIP` from 3 to 4 for wider spacing between trail segments
-- Scale trail segment sizes proportionally to `trailLengthMultiplier` more aggressively
-- Connect trail segments visually: orient each trail segment to face the next one (directional elongation along velocity)
-- This creates a "streamline" effect — trail dots stretch into a line following the wind path
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-#### 3. Performance Optimization — `AdvancedParticleSystem.tsx` + `InstancedParticles.tsx`
-- Reduce `TRAIL_SEGMENTS` from 8 to 6 (saves 2 instanced meshes × count)
-- Only update trail meshes every 2nd frame (alternate with main particles)
-- Throttle `onCollisionEvent` callback — batch instead of per-particle
-- Cap collision effects more aggressively in useFrame
+## 3. "Слід" (Trail) налаштування не працює
 
-#### 4. Open-Meteo Weather API — `WeatherDisplay.tsx`
-- Add Open-Meteo API (free, no key needed) as primary live weather source
-- Keep OpenWeatherMap as secondary option
-- Fetch from `https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}&current=wind_speed_10m,wind_direction_10m,temperature_2m,relative_humidity_2m,surface_pressure,cloud_cover`
-- Display live/synthetic status badge
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-#### 5. Enhanced Generator Settings — `GeneratorSettings.tsx`
-- Add a simple power curve chart (SVG-based, no new deps) showing P vs V with current operating point marked
-- Add annual energy production (AEP) estimate card
-- Add capacity factor calculation
-- Add cut-in/cut-out speed indicators on a visual wind range bar
-- Improve layout: use 2-column grid for calc cards, add section headers with icons
-- Add Weibull distribution parameters (k, c) for AEP estimation
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
-### Files Modified
+## 4. Реалістичніші частинки та оптимізація
 
-| File | Changes |
-|------|---------|
-| `AdvancedWindControls.tsx` | Glow min 0.01 |
-| `WindSimulation3D.tsx` | Default glow 0.2, preset glow values |
-| `InstancedParticles.tsx` | 6 segments, directional trail elongation, frame-skip optimization |
-| `AdvancedParticleSystem.tsx` | Throttle collision callbacks |
-| `WeatherDisplay.tsx` | Open-Meteo free API integration |
-| `GeneratorSettings.tsx` | SVG power curve, AEP, capacity factor, Weibull, visual wind range bar |
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
 
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
+
+## 5. Генератори всмоктують частинки — візуалізація
+
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
+
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
+
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
+
+## 6. Стрілки напрямку вітру після колізії
+
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
+
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
+
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
+
+## 7. Кращі impact ефекти
+
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
+
+---
+
+## Технічна послідовність
+
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
