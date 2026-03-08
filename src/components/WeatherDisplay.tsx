@@ -1,7 +1,7 @@
-import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen, Wifi, WifiOff, Layers, MapPin, Copy, Check, Mountain, ZoomIn, BarChart3, Search } from "lucide-react";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { Wind, Gauge, Droplets, BookOpen, Wifi, WifiOff, Layers, ZoomIn, BarChart3 } from "lucide-react";
+import { useState, useEffect } from "react";
 import { t, type Lang } from '@/utils/i18n';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 
 interface WeatherDisplayProps {
   location: { lat: number; lon: number } | null;
@@ -348,24 +348,6 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
   const [windyOverlay, setWindyOverlay] = useState('wind');
   const [windyLevel, setWindyLevel] = useState('surface');
   const [windyZoom, setWindyZoom] = useState(7);
-  const [copied, setCopied] = useState(false);
-
-  // Selected point (editable coordinates)
-  const [selectedLat, setSelectedLat] = useState('');
-  const [selectedLon, setSelectedLon] = useState('');
-  const [selectedWeather, setSelectedWeather] = useState<WeatherData | null>(null);
-  const [isFetchingPoint, setIsFetchingPoint] = useState(false);
-  const [isCustomPoint, setIsCustomPoint] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Initialize coordinate inputs from location prop
-  useEffect(() => {
-    if (location && !isCustomPoint) {
-      setSelectedLat(location.lat.toFixed(4));
-      setSelectedLon(location.lon.toFixed(4));
-    }
-  }, [location, isCustomPoint]);
-
   // Fetch weather for the user's location
   useEffect(() => {
     if (!location) { setWeather(null); return; }
@@ -377,128 +359,21 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
     return () => { cancelled = true; };
   }, [location]);
 
-  // Fetch weather for selected point (debounced)
-  const fetchPointWeather = useCallback((lat: number, lon: number) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setIsFetchingPoint(true);
-      const data = await fetchLiveWeather(lat, lon);
-      setSelectedWeather(data || generateSyntheticWeather(lat, lon));
-      setIsFetchingPoint(false);
-    }, 300);
-  }, []);
-
-  const handleLatChange = (val: string) => {
-    setSelectedLat(val);
-    setIsCustomPoint(true);
-    const lat = parseFloat(val);
-    const lon = parseFloat(selectedLon);
-    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-      fetchPointWeather(lat, lon);
-    }
-  };
-
-  const handleLonChange = (val: string) => {
-    setSelectedLon(val);
-    setIsCustomPoint(true);
-    const lat = parseFloat(selectedLat);
-    const lon = parseFloat(val);
-    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-      fetchPointWeather(lat, lon);
-    }
-  };
-
-  const resetToUserLocation = () => {
-    if (location) {
-      setSelectedLat(location.lat.toFixed(4));
-      setSelectedLon(location.lon.toFixed(4));
-      setIsCustomPoint(false);
-      setSelectedWeather(null);
-    }
-  };
-
-  const copyCoords = () => {
-    navigator.clipboard.writeText(`${selectedLat}, ${selectedLon}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
-
   if (!location || !weather) {
     return <div className="text-muted-foreground">{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
   }
 
-  // Display weather: selectedWeather (custom point) or weather (user location)
-  const displayWeather = isCustomPoint && selectedWeather ? selectedWeather : weather;
-  const displayLat = parseFloat(selectedLat) || location.lat;
-  const displayLon = parseFloat(selectedLon) || location.lon;
+  const pot = potentialNames[weather.potentialClass as keyof typeof potentialNames];
+  const seasonLabel = seasonNames[weather.season as keyof typeof seasonNames][lang];
+  const beaufortLabel = beaufortNames[weather.beaufort]?.[lang] || '';
 
-  const pot = potentialNames[displayWeather.potentialClass as keyof typeof potentialNames];
-  const seasonLabel = seasonNames[displayWeather.season as keyof typeof seasonNames][lang];
-  const beaufortLabel = beaufortNames[displayWeather.beaufort]?.[lang] || '';
+  const windyUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=m%2Fs&metricTemp=%C2%B0C&zoom=${windyZoom}&overlay=${windyOverlay}&product=ecmwf&level=${windyLevel}&lat=${location.lat}&lon=${location.lon}`;
 
-  const windyUrl = `https://embed.windy.com/embed.html?type=map&location=coordinates&metricWind=m%2Fs&metricTemp=%C2%B0C&zoom=${windyZoom}&overlay=${windyOverlay}&product=ecmwf&level=${windyLevel}&lat=${displayLat}&lon=${displayLon}`;
-
-  const airDensity = (displayWeather.pressure * 100) / (287.05 * (displayWeather.temperature + 273.15));
-  const actualWPD = 0.5 * airDensity * Math.pow(displayWeather.windSpeed, 3);
+  const airDensity = (weather.pressure * 100) / (287.05 * (weather.temperature + 273.15));
+  const actualWPD = 0.5 * airDensity * Math.pow(weather.windSpeed, 3);
 
   return (
     <div className="space-y-4">
-      {/* ─── Coordinate Picker ─── */}
-      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-        className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <MapPin className="w-4 h-4 text-primary" />
-            <span className="text-xs font-semibold text-foreground">{lang === 'ua' ? 'Координати точки' : 'Point Coordinates'}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            {isCustomPoint && (
-              <button onClick={resetToUserLocation}
-                className="text-[10px] px-2 py-1 rounded-lg font-semibold transition-all"
-                style={{ background: 'hsl(var(--primary) / 0.1)', border: '1px solid hsl(var(--primary) / 0.3)', color: 'hsl(var(--primary))' }}>
-                {lang === 'ua' ? '↩ Моя локація' : '↩ My location'}
-              </button>
-            )}
-            <button onClick={copyCoords}
-              className="p-1.5 rounded-lg transition-all"
-              style={{ background: 'hsl(var(--background) / 0.5)', border: '1px solid hsl(var(--border) / 0.2)' }}>
-              {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5 text-muted-foreground" />}
-            </button>
-          </div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">LAT</label>
-            <input type="text" value={selectedLat} onChange={(e) => handleLatChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm font-mono text-foreground"
-              style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--border) / 0.3)', outline: 'none' }}
-              placeholder="50.4500" />
-          </div>
-          <div>
-            <label className="text-[10px] text-muted-foreground font-semibold mb-1 block">LON</label>
-            <input type="text" value={selectedLon} onChange={(e) => handleLonChange(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg text-sm font-mono text-foreground"
-              style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--border) / 0.3)', outline: 'none' }}
-              placeholder="30.5200" />
-          </div>
-        </div>
-        {isFetchingPoint && (
-          <div className="flex items-center gap-2 mt-2">
-            <Search className="w-3 h-3 text-primary animate-pulse" />
-            <span className="text-[10px] text-primary animate-pulse font-mono">
-              {lang === 'ua' ? 'Завантаження даних...' : 'Fetching point data...'}
-            </span>
-          </div>
-        )}
-        {isCustomPoint && selectedWeather && !isFetchingPoint && (
-          <div className="mt-2 flex items-center gap-1.5">
-            <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-            <span className="text-[10px] text-green-400 font-mono">
-              {lang === 'ua' ? 'Дані для обраної точки' : 'Data for selected point'}
-            </span>
-          </div>
-        )}
-      </motion.div>
 
       {/* Windy.com Map — larger */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
@@ -516,16 +391,11 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
           <div className="flex items-center gap-2">
             <Wind className="w-4 h-4 text-primary" />
             <span className="text-xs font-bold text-foreground">
-              {displayLat.toFixed(2)}°, {displayLon.toFixed(2)}°
+              {location.lat.toFixed(2)}°, {location.lon.toFixed(2)}°
             </span>
-            {isCustomPoint && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono" style={{ backgroundColor: 'hsl(30 80% 50% / 0.15)', color: 'hsl(30 80% 60%)', border: '1px solid hsl(30 80% 50% / 0.3)' }}>
-                {lang === 'ua' ? 'Інша точка' : 'Custom'}
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-2">
-            {displayWeather.isLive ? (
+            {weather.isLive ? (
               <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-mono" style={{ backgroundColor: 'hsl(120 100% 54% / 0.1)', color: 'hsl(120 80% 60%)', borderColor: 'hsl(120 100% 54% / 0.3)' }}>
                 <Wifi className="w-3 h-3" /> Live
               </span>
@@ -626,87 +496,26 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         </div>
       </motion.div>
 
-      {/* ─── Selected Point Data Card ─── */}
-      <AnimatePresence mode="wait">
-        <motion.div key={`${displayLat}-${displayLon}`}
-          initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}
-          className="p-4 rounded-xl border" style={{
-            backgroundColor: isCustomPoint ? 'hsl(30 80% 50% / 0.04)' : 'hsl(var(--primary) / 0.04)',
-            borderColor: isCustomPoint ? 'hsl(30 80% 50% / 0.25)' : 'hsl(var(--primary) / 0.2)',
-          }}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-primary" />
-              <span className="text-xs font-semibold text-foreground">
-                {lang === 'ua' ? 'Дані обраної точки' : 'Selected Point Data'}
-              </span>
-            </div>
-            {displayWeather.elevation != null && displayWeather.elevation > 0 && (
-              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-mono"
-                style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                <Mountain className="w-3 h-3 text-muted-foreground" />
-                {Math.round(displayWeather.elevation)} m
-              </span>
-            )}
-          </div>
-
-          {/* Main metrics grid */}
-          <div className="grid grid-cols-5 gap-2">
-            {[
-              { label: lang === 'ua' ? 'Вітер' : 'Wind', value: `${displayWeather.windSpeed}`, unit: 'm/s', icon: '💨', color: 'hsl(120 80% 55%)' },
-              { label: lang === 'ua' ? 'Темп.' : 'Temp', value: `${displayWeather.temperature}`, unit: '°C', icon: '🌡️', color: 'hsl(25 90% 55%)' },
-              { label: lang === 'ua' ? 'Волог.' : 'Humid', value: `${displayWeather.humidity}`, unit: '%', icon: '💧', color: 'hsl(210 80% 55%)' },
-              { label: lang === 'ua' ? 'Тиск' : 'Press', value: `${displayWeather.pressure}`, unit: 'hPa', icon: '🔵', color: 'hsl(270 60% 55%)' },
-              { label: 'WPD', value: `${Math.round(actualWPD)}`, unit: 'W/m²', icon: '⚡', color: 'hsl(var(--primary))' },
-            ].map((m, i) => (
-              <div key={i} className="p-2 rounded-lg text-center"
-                style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--border) / 0.2)' }}>
-                <span className="text-base block">{m.icon}</span>
-                <span className="text-sm font-mono font-bold block" style={{ color: m.color }}>{m.value}</span>
-                <span className="text-[8px] text-muted-foreground block">{m.unit}</span>
-                <span className="text-[8px] text-muted-foreground font-semibold block mt-0.5">{m.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Direction + Beaufort badges */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-              <Wind className="w-3 h-3 inline mr-1 text-primary" />
-              {windDirName(displayWeather.windAngle, lang)} {displayWeather.windAngle}°
-            </span>
-            <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-              {t('beaufortScale', lang)}: {displayWeather.beaufort} — {beaufortLabel}
-            </span>
-            {isCustomPoint && (
-              <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(30 80% 50% / 0.1)', borderColor: 'hsl(30 80% 50% / 0.3)', color: 'hsl(30 80% 60%)' }}>
-                Δ {Math.abs(displayWeather.windSpeed - weather.windSpeed).toFixed(1)} m/s {lang === 'ua' ? 'від локації' : 'from location'}
-              </span>
-            )}
-          </div>
-        </motion.div>
-      </AnimatePresence>
-
       {/* Ring Gauges Row */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
         className="flex items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
-        <RingGauge value={displayWeather.windSpeed} max={25} label={lang === 'ua' ? 'Вітер' : 'Wind'} unit="m/s" color="hsl(120 100% 54%)" />
-        <WindRoseCompass angle={displayWeather.windAngle} speed={displayWeather.windSpeed} lang={lang} />
-        <RingGauge value={displayWeather.temperature} max={45} label={lang === 'ua' ? 'Темп.' : 'Temp'} unit="°C" color="hsl(25 90% 55%)" />
-        <RingGauge value={displayWeather.humidity} max={100} label={lang === 'ua' ? 'Волог.' : 'Humid'} unit="%" color="hsl(210 80% 55%)" />
-        <RingGauge value={displayWeather.pressure} max={1060} label={lang === 'ua' ? 'Тиск' : 'Press'} unit="hPa" color="hsl(270 60% 55%)" />
+        <RingGauge value={weather.windSpeed} max={25} label={lang === 'ua' ? 'Вітер' : 'Wind'} unit="m/s" color="hsl(120 100% 54%)" />
+        <WindRoseCompass angle={weather.windAngle} speed={weather.windSpeed} lang={lang} />
+        <RingGauge value={weather.temperature} max={45} label={lang === 'ua' ? 'Темп.' : 'Temp'} unit="°C" color="hsl(25 90% 55%)" />
+        <RingGauge value={weather.humidity} max={100} label={lang === 'ua' ? 'Волог.' : 'Humid'} unit="%" color="hsl(210 80% 55%)" />
+        <RingGauge value={weather.pressure} max={1060} label={lang === 'ua' ? 'Тиск' : 'Press'} unit="hPa" color="hsl(270 60% 55%)" />
       </motion.div>
 
       {/* Wind info badges */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          {t('windVariability', lang)}: ±{displayWeather.windVariability} m/s
+          {t('windVariability', lang)}: ±{weather.windVariability} m/s
         </span>
         <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          {t('windChill', lang)}: {displayWeather.windChill}°C
+          {t('windChill', lang)}: {weather.windChill}°C
         </span>
         <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          {lang === 'ua' ? 'Хмарність' : 'Clouds'}: {displayWeather.cloudCover}%
+          {lang === 'ua' ? 'Хмарність' : 'Clouds'}: {weather.cloudCover}%
         </span>
       </div>
 
@@ -714,8 +523,8 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
         <span className="text-xs font-semibold text-foreground">{t('forecast24h', lang)}</span>
         <div className="flex items-end gap-[2px] mt-3 h-16 relative">
-          {displayWeather.forecast24h.map((f, i) => {
-            const maxS = Math.max(...displayWeather.forecast24h.map(ff => ff.speed));
+          {weather.forecast24h.map((f, i) => {
+            const maxS = Math.max(...weather.forecast24h.map(ff => ff.speed));
             const h = Math.max(4, (f.speed / maxS) * 60);
             const isHovered = hoveredBar === i;
             return (
@@ -746,13 +555,13 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
           <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Густина повітря' : 'Air Density'}</span>
           <p className="text-sm font-mono font-bold text-foreground mt-0.5">{airDensity.toFixed(3)} <span className="text-[10px] text-muted-foreground">kg/m³</span></p>
           <p className="text-[9px] text-muted-foreground mt-1 font-mono">ρ = P / (R·T)</p>
-          <p className="text-[9px] text-muted-foreground">{displayWeather.pressure} Pa / (287 × {(displayWeather.temperature + 273.15).toFixed(0)} K)</p>
+          <p className="text-[9px] text-muted-foreground">{weather.pressure} Pa / (287 × {(weather.temperature + 273.15).toFixed(0)} K)</p>
         </div>
         <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
           <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Реальна WPD' : 'Actual WPD'}</span>
           <p className="text-sm font-mono font-bold text-primary mt-0.5">{Math.round(actualWPD)} <span className="text-[10px] text-muted-foreground">W/m²</span></p>
           <p className="text-[9px] text-muted-foreground mt-1 font-mono">WPD = ½ρV³</p>
-          <p className="text-[9px] text-muted-foreground">= 0.5 × {airDensity.toFixed(2)} × {displayWeather.windSpeed}³</p>
+          <p className="text-[9px] text-muted-foreground">= 0.5 × {airDensity.toFixed(2)} × {weather.windSpeed}³</p>
         </div>
       </div>
 
@@ -761,7 +570,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         <span className="text-xs font-semibold text-foreground mb-2 block">
           {lang === 'ua' ? 'Клас вітрового ресурсу (NREL)' : 'Wind Resource Class (NREL)'}
         </span>
-        <WPDClassBar wpd={displayWeather.wpd} lang={lang} />
+        <WPDClassBar wpd={weather.wpd} lang={lang} />
       </div>
 
       {/* Wind Energy Potential */}
@@ -773,11 +582,11 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         <div className="grid grid-cols-2 gap-3">
           <div className="p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
             <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Густ. потужності' : 'Power Density'}</span>
-            <p className="text-sm font-mono font-bold text-primary">{displayWeather.wpd} W/m²</p>
+            <p className="text-sm font-mono font-bold text-primary">{weather.wpd} W/m²</p>
           </div>
           <div className="p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
             <span className="text-[10px] text-muted-foreground">{t('monthlyEnergy', lang)}</span>
-            <p className="text-sm font-mono font-bold text-primary">~{displayWeather.monthlyEnergy} kWh/m²</p>
+            <p className="text-sm font-mono font-bold text-primary">~{weather.monthlyEnergy} kWh/m²</p>
           </div>
         </div>
       </div>
@@ -786,7 +595,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
         <span className="text-xs font-semibold text-foreground">{t('recommendedGen', lang)}</span>
         <p className="text-[11px] text-muted-foreground mt-1">
-          {genRecommendations[displayWeather.recommendedGen]?.[lang]}
+          {genRecommendations[weather.recommendedGen]?.[lang]}
         </p>
       </div>
 
@@ -821,10 +630,10 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       {onApplyToSimulation && (
         <button
           onClick={() => onApplyToSimulation({
-            windSpeed: displayWeather.windSpeed,
-            temperature: displayWeather.temperature,
-            humidity: displayWeather.humidity,
-            windAngle: displayWeather.windAngle
+            windSpeed: weather.windSpeed,
+            temperature: weather.temperature,
+            humidity: weather.humidity,
+            windAngle: weather.windAngle
           })}
           className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
           style={{ background: 'hsl(var(--primary) / 0.15)', border: '1px solid hsl(var(--primary) / 0.4)', color: 'hsl(var(--primary))' }}>
