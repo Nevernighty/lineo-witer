@@ -3,11 +3,18 @@ import type { SimulationParams } from '@/simulation/types';
 import type { Obstacle } from '@/components/wind-simulation/types';
 import type { Lang } from '@/utils/i18n';
 
+export interface ScenarioKnowledgeCard {
+  phenomenon: Record<Lang, string>;
+  approximates: Record<Lang, string>;
+  limitations: Record<Lang, string>;
+}
+
 export interface ScenarioPreset {
   id: string;
   name: Record<Lang, string>;
   description: Record<Lang, string>;
   physicsNote?: Record<Lang, string>;
+  knowledgeCard?: ScenarioKnowledgeCard;
   config: Partial<SimulationParams>;
   obstacles: Obstacle[];
   particleCount: number;
