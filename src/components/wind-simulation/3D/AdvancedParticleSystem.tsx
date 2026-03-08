@@ -45,6 +45,7 @@ interface AdvancedParticleSystemProps {
   particleTrailLength?: number;
   glowIntensity?: number;
   pulsation?: number;
+  particlePreset?: string;
 }
 
 const MATERIAL_RESTITUTION: Record<string, number> = {
