@@ -243,6 +243,7 @@ const translations: Record<string, Record<Lang, string>> = {
   
   // Analysis panel
   analysisPanel: { ua: '📊 Аналіз', en: '📊 Analysis' },
+  vizWarning: { ua: '⚠ Візуалізаційна модель — не CFD точність', en: '⚠ Visualization model — not CFD accurate' },
   
   // Scenario physics notes
   physicsNoteValley: { ua: 'Катабатичний вітер: холодне повітря стікає по схилах вночі. Інверсія температури створює стабільний шар, що обмежує вертикальне перемішування.', en: 'Katabatic wind: cold air drains downslope at night. Temperature inversion creates stable layer limiting vertical mixing.' },
