@@ -1,39 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Fix: Remove Laggy Trail System, Replace with Streak Rendering
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Problem
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-The current trail system renders **6 extra instanced meshes**, each with `count` instances. At 400 particles that's 2,400 extra matrix updates + color updates per frame — creating the "laggy ghost" effect visible in the screenshot. This approach is fundamentally wrong for wind streamlines and destroys performance.
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-### Solution: Velocity Streaks (Zero Extra Draw Calls)
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-Remove all 6 trail instanced meshes entirely. Instead, elongate the **main particle** along its velocity vector proportional to `trailLengthMultiplier`. This creates a motion-blur streak effect that looks like streamlines — with zero extra GPU overhead.
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-At `trailLengthMultiplier = 9.0` (from screenshot), particles become long thin streaks aligned to wind direction. At `0.01`, they're nearly round dots. This is how professional wind visualizations work.
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-### Changes — `InstancedParticles.tsx`
+## 3. "Слід" (Trail) налаштування не працює
 
-1. **Delete** all trail-related code: `trailRefs`, `posHistoryRef`, `frameCountRef`, `trailMaterials`, `TRAIL_SEGMENTS`, `TRAIL_OPACITY_BASE`, `TRAIL_FADE`, `FRAME_SKIP`, the entire trail update loop, and the trail `<instancedMesh>` elements
-2. **Elongate main particles** based on `trailLengthMultiplier`:
-   - Forward stretch: `1 + speed * 0.15 * trailLengthMultiplier` (capped at 8.0)
-   - Lateral compress: `max(0.3, 1 - trailLengthMultiplier * 0.08)`
-   - Particles `lookAt` velocity direction → streaks follow wind path
-3. **Switch material** to additive blending with `depthWrite: false` for smoother glow overlap
-4. **Use PlaneGeometry** instead of SphereGeometry — a flat billboard quad is cheaper to render and with elongation looks like a proper wind streak (2 triangles vs 24)
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-### Performance Impact
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
-| Metric | Before | After |
-|--------|--------|-------|
-| Instanced meshes | 7 (1 main + 6 trail) | 1 |
-| Matrix updates/frame | 2,800 (400×7) | 400 |
-| Draw calls | 7 | 1 |
-| Visual quality | Laggy ghosts | Smooth streaks |
+## 4. Реалістичніші частинки та оптимізація
 
-### Files Modified
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
 
-| File | Change |
-|------|--------|
-| `InstancedParticles.tsx` | Remove trail system, add velocity-streak elongation, use PlaneGeometry + additive blending |
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
 
+## 5. Генератори всмоктують частинки — візуалізація
+
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
+
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
+
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
+
+## 6. Стрілки напрямку вітру після колізії
+
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
+
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
+
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
+
+## 7. Кращі impact ефекти
+
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
+
+---
+
+## Технічна послідовність
+
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
