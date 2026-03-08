@@ -1,17 +1,10 @@
 import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-
-interface Particle {
-  x: number; y: number; z: number;
-  size: number;
-  hasCollided: boolean;
-  speedX?: number; speedY?: number; speedZ?: number;
-  absorbed?: boolean;
-}
+import type { ParticleBuffer } from './AdvancedParticleSystem';
 
 interface InstancedParticlesProps {
-  particles: Particle[];
+  bufferRef: React.RefObject<ParticleBuffer>;
   impactMultiplier?: number;
   trailLengthMultiplier?: number;
   windAngle?: number;
@@ -76,7 +69,7 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
 const TRAIL_SEGMENTS = 5;
 
 export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
-  particles,
+  bufferRef,
   impactMultiplier = 1.0,
   trailLengthMultiplier = 1.0,
   windAngle = 0,
@@ -91,6 +84,8 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   const tempColor = useMemo(() => new THREE.Color(), []);
   
   const posHistoryRef = useRef<Float32Array[]>([]);
+  // Track last known count to detect resizes
+  const lastCountRef = useRef(0);
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     vertexColors: true, transparent: true, opacity: 1.0
@@ -106,57 +101,60 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
   const arrowAngleRad = (windAngle * Math.PI) / 180;
 
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    const time = state.clock.elapsedTime;
-    const count = particles.length;
+  // Use a stable max count for instanced meshes to avoid re-allocation
+  const maxCount = useRef(2000);
 
-    if (posHistoryRef.current.length !== TRAIL_SEGMENTS || 
-        (posHistoryRef.current[0] && posHistoryRef.current[0].length !== count * 3)) {
-      posHistoryRef.current = Array.from({ length: TRAIL_SEGMENTS }, () => new Float32Array(count * 3));
-      for (let seg = 0; seg < TRAIL_SEGMENTS; seg++) {
-        for (let i = 0; i < count; i++) {
-          const p = particles[i];
-          if (p) {
-            posHistoryRef.current[seg][i * 3] = p.x;
-            posHistoryRef.current[seg][i * 3 + 1] = p.y;
-            posHistoryRef.current[seg][i * 3 + 2] = p.z;
-          }
-        }
-      }
+  useFrame((state) => {
+    if (!meshRef.current || !bufferRef.current) return;
+    const buf = bufferRef.current;
+    const count = buf.count;
+    const time = state.clock.elapsedTime;
+
+    // Ensure instanced mesh has enough capacity
+    if (count > maxCount.current) {
+      maxCount.current = count;
+      // Mesh will be re-created on next render via key change
     }
 
+    // Rebuild position history if count changed
+    if (lastCountRef.current !== count) {
+      lastCountRef.current = count;
+      posHistoryRef.current = Array.from({ length: TRAIL_SEGMENTS }, () => {
+        const arr = new Float32Array(count * 3);
+        arr.set(buf.positions.subarray(0, count * 3));
+        return arr;
+      });
+    }
+
+    // Shift history
     for (let seg = TRAIL_SEGMENTS - 1; seg > 0; seg--) {
       posHistoryRef.current[seg].set(posHistoryRef.current[seg - 1]);
     }
-    for (let i = 0; i < count; i++) {
-      const p = particles[i];
-      if (p) {
-        posHistoryRef.current[0][i * 3] = p.x;
-        posHistoryRef.current[0][i * 3 + 1] = p.y;
-        posHistoryRef.current[0][i * 3 + 2] = p.z;
-      }
-    }
+    posHistoryRef.current[0].set(buf.positions.subarray(0, count * 3));
 
-    // Pulsation effect
     const pulseMul = pulsation > 0 ? 1 + Math.sin(time * (2 + pulsation * 3)) * pulsation * 0.15 : 1;
 
     for (let i = 0; i < count; i++) {
-      const particle = particles[i];
-      if (!particle) continue;
-
-      const vx = particle.speedX || 0;
-      const vy = particle.speedY || 0;
-      const vz = particle.speedZ || 0;
+      const i3 = i * 3;
+      const px = buf.positions[i3];
+      const py = buf.positions[i3 + 1];
+      const pz = buf.positions[i3 + 2];
+      const vx = buf.velocities[i3];
+      const vy = buf.velocities[i3 + 1];
+      const vz = buf.velocities[i3 + 2];
+      const size = buf.sizes[i];
+      const flags = buf.flags[i];
+      const hasCollided = (flags & 1) !== 0;
+      const isAbsorbed = (flags & 2) !== 0;
+      
       const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
       
-      dummy.position.set(particle.x, particle.y, particle.z);
+      dummy.position.set(px, py, pz);
       if (speed > 0.1) {
-        dummy.lookAt(particle.x + vx, particle.y + vy, particle.z + vz);
+        dummy.lookAt(px + vx, py + vy, pz + vz);
       }
       
-      const isAbsorbed = particle.absorbed || false;
-      let baseScale = particle.size * (particle.hasCollided ? impactMultiplier * 1.4 : 1);
+      let baseScale = size * (hasCollided ? impactMultiplier * 1.4 : 1);
       if (isAbsorbed) {
         baseScale *= 1.6 + Math.sin(time * 12) * 0.35;
       }
@@ -168,7 +166,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
       if (meshRef.current!.instanceColor) {
-        getSpeedColor(tempColor, speed, particle.hasCollided, isAbsorbed, impactMultiplier, glowIntensity);
+        getSpeedColor(tempColor, speed, hasCollided, isAbsorbed, impactMultiplier, glowIntensity);
         meshRef.current!.instanceColor.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
       }
     }
@@ -176,6 +174,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
 
+    // Trails
     const trailActive = trailLengthMultiplier > 0.01;
     const trailScales = [0.65, 0.5, 0.35, 0.22, 0.12];
 
@@ -191,22 +190,20 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
           dummy.position.set(0, -1000, 0);
           dummy.scale.setScalar(0);
         } else {
-          const hx = posHistoryRef.current[seg][i * 3];
-          const hy = posHistoryRef.current[seg][i * 3 + 1];
-          const hz = posHistoryRef.current[seg][i * 3 + 2];
+          const i3 = i * 3;
+          const hx = posHistoryRef.current[seg][i3];
+          const hy = posHistoryRef.current[seg][i3 + 1];
+          const hz = posHistoryRef.current[seg][i3 + 2];
           dummy.position.set(hx, hy, hz);
 
-          const p = particles[i];
-          const s = p ? p.size * trailScales[seg] * trailLengthMultiplier : 0;
+          const s = buf.sizes[i] * trailScales[seg] * trailLengthMultiplier;
           dummy.scale.setScalar(s);
 
-          if (p) {
-            const vx = p.speedX || 0;
-            const vy = p.speedY || 0;
-            const vz = p.speedZ || 0;
-            if (Math.abs(vx) + Math.abs(vy) + Math.abs(vz) > 0.1) {
-              dummy.lookAt(hx + vx, hy + vy, hz + vz);
-            }
+          const vx = buf.velocities[i3];
+          const vy = buf.velocities[i3 + 1];
+          const vz = buf.velocities[i3 + 2];
+          if (Math.abs(vx) + Math.abs(vy) + Math.abs(vz) > 0.1) {
+            dummy.lookAt(hx + vx, hy + vy, hz + vz);
           }
         }
         dummy.updateMatrix();
@@ -216,7 +213,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     }
   });
 
-  const count = Math.max(particles.length, 1);
+  const count = Math.max(maxCount.current, 1);
   const instanceColors = useMemo(() => {
     const colors = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {

@@ -1,138 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Architecture Stabilization Plan
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Problem Summary
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-The simulation has three critical performance and maintainability issues:
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-1. **WindSimulation3D.tsx** is a 762-line monolith with ~30 `useState` calls. Every state change re-renders the entire Canvas tree.
-2. **AdvancedParticleSystem** calls `forceUpdate()` inside `useFrame()` — triggering React reconciliation at 60fps. This is the single biggest performance killer.
-3. Physics logic (wind field, wake, turbulence, collision) is scattered across `WindPhysicsEngine.ts` and inline in `AdvancedParticleSystem.tsx` — impossible to extend without touching rendering code.
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-### Architecture Changes
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-#### 1. Simulation Core — Pure Functions (`src/simulation/`)
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-Extract physics into stateless modules. These already exist as functions in `WindPhysicsEngine.ts` — we split them into focused files and add the missing wake model.
+## 3. "Слід" (Trail) налаштування не працює
 
-```text
-src/simulation/
-  windField.ts      — base wind vector, shear, gust noise (from WindPhysicsEngine lines 116-184)
-  wakeModel.ts      — wake deficit + wake zone check (from WindPhysicsEngine lines 212-247)
-  turbulenceModel.ts — turbulence noise + intensity calc (from WindPhysicsEngine lines 140-163)
-  terrainModel.ts   — slope speedup, roughness, getTerrainYOffset (from WindPhysicsEngine + WindSimulation3D line 27-32)
-  obstacleModel.ts  — collision check, surface normal, deflection (from AdvancedParticleSystem lines 119-168)
-  types.ts          — SimulationParams, ParticleData, QualityPreset interfaces
-```
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-Each module exports pure functions. `WindPhysicsEngine.ts` becomes a re-export barrel file for backward compatibility.
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
-#### 2. Centralized Store (`src/store/useWindStore.ts`)
+## 4. Реалістичніші частинки та оптимізація
 
-Use a `useRef`-based store pattern (no new dependencies) with selective subscriptions via `useSyncExternalStore`.
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
 
-```text
-State groups:
-├── simulation: windSpeed, windAngle, windElevation, shear, turbulence, gustStrength
-├── environment: terrainSlopeX/Z, roughness, obstacles[], altitude, temperature
-├── turbines: (derived from obstacles where type='wind_generator')
-├── particles: count, impact, trailLength, glow, pulsation, preset
-├── visual: showWakeMap, showBetzOverlay, showCapacityFactor, ... (9 analysis toggles)
-└── ui: interactionMode, selectedIndex, showScenarios, showAnalysis, activeScenario
-```
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
 
-This eliminates ~30 `useState` calls from WindSimulation3D. Components subscribe only to their slice — obstacle list changes don't re-render the analysis panel.
+## 5. Генератори всмоктують частинки — візуалізація
 
-#### 3. Kill `forceUpdate` in Render Loop
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
 
-The critical fix: `AdvancedParticleSystem` currently calls `forceUpdate(n => n+1)` every 2 frames to push particle positions to `InstancedParticles`. This triggers full React reconciliation.
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
 
-**Fix**: Store particle data in a shared `useRef<Float32Array>` buffer. `InstancedParticles` reads from this ref directly inside its own `useFrame` — zero React state updates in the animation loop.
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
 
-```text
-AdvancedParticleSystem (useFrame):
-  - Updates particle positions in Float32Array ref
-  - Updates collision energy in ref
-  - NO setState, NO forceUpdate
+## 6. Стрілки напрямку вітру після колізії
 
-InstancedParticles (useFrame):
-  - Reads particle positions from shared ref
-  - Updates InstancedMesh matrices directly
-  - Already does this partially — just remove the dependency on React props
-```
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
 
-The `onCollisionEnergyUpdate` and `onObstacleEnergyUpdate` callbacks get throttled to fire at most every 500ms via a timestamp check, not on every frame.
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
 
-#### 4. Quality Presets (`src/simulation/qualityPresets.ts`)
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
 
-```text
-LOW:    2000 particles, no trails, no wake viz, simplified turbulence (scale=0.5)
-MEDIUM: 6000 particles, 3-segment trails, basic wake viz
-HIGH:   15000 particles, 5-segment trails, full wake + analysis overlays
-```
+## 7. Кращі impact ефекти
 
-Add a quality selector dropdown to `AdvancedWindControls` that sets particle count, trail segments, and enables/disables analysis overlays in one action.
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
 
-#### 5. File Structure Reorganization
+---
 
-```text
-src/
-  simulation/          ← NEW: pure physics
-    windField.ts
-    wakeModel.ts
-    turbulenceModel.ts
-    terrainModel.ts
-    obstacleModel.ts
-    qualityPresets.ts
-    types.ts
-  store/               ← NEW: state management
-    useWindStore.ts
-  components/
-    scene/             ← 3D components (moved from wind-simulation/3D/)
-      WindSimulation3D.tsx  (slimmed down — delegates to store)
-      AdvancedParticleSystem.tsx
-      InstancedParticles.tsx
-      Obstacle3D.tsx
-      WindGenerator3D.tsx
-      CollisionEffect.tsx
-      ...
-    ui/                ← existing UI components
-    wind-simulation/   ← legacy 2D (keep as-is)
-  overlays/            ← NEW: analysis overlay components extracted from WindSimulation3D
-    HeightRuler.tsx
-    WindProfile.tsx
-    PressureMap.tsx
-    EnergyDensity.tsx
-    TurbulenceField.tsx
-    WindShearLayer.tsx
-  data/                ← NEW: scenario presets extracted
-    scenarios.ts
-  utils/               ← existing
-```
+## Технічна послідовність
 
-### Implementation Order
-
-1. **Create `src/simulation/` modules** — extract pure functions from `WindPhysicsEngine.ts` and `AdvancedParticleSystem.tsx`. Keep `WindPhysicsEngine.ts` as barrel re-export.
-2. **Create `src/store/useWindStore.ts`** — migrate all 30 `useState` calls from `WindSimulation3D.tsx`.
-3. **Fix render loop** — replace `forceUpdate` with shared `Float32Array` ref between particle system and instanced renderer.
-4. **Extract overlays** to `src/overlays/` — the 6 inline JSX blocks (lines 582-687) become standalone components subscribing to store.
-5. **Extract scenarios** to `src/data/scenarios.ts`.
-6. **Add quality presets** — dropdown in controls, wired to store.
-7. **Update imports** across consuming files.
-
-### What We Do NOT Touch
-
-- `Obstacle3D.tsx` wobble/rendering logic
-- `WindGenerator3D.tsx` visual components
-- `AdvancedWindControls.tsx` UI layout
-- Any 2D simulation code (`ParticleSystem.ts`, `ParticlePhysics.ts`, etc.)
-- UI components (`src/components/ui/`)
-- Pages (`Index.tsx`, `InfoPage.tsx`)
-
-### Risk Mitigation
-
-- `WindPhysicsEngine.ts` kept as re-export barrel — no import breakage
-- Store migration is mechanical (useState → store.get/set) — behavior unchanged
-- The `forceUpdate` removal is the highest-risk change — we add a fallback: if shared ref is null, fall back to props (graceful degradation)
-
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
