@@ -168,7 +168,7 @@ const NACAAirfoilSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
       
       {/* Smooth surface ideal */}
       <path d="M180 42 L340 84" stroke="hsl(120 70% 50%)" strokeWidth="0.8" strokeDasharray="2 2" opacity="0.5" />
-      <text x="260" y="55" textAnchor="middle" fontSize="9" fill="hsl(120 70% 50%)">Ra < 5μm ({L('ідеал', 'ideal')})</text>
+      <text x="260" y="55" textAnchor="middle" fontSize="9" fill="hsl(120 70% 50%)">{'Ra < 5μm'} ({L('ідеал', 'ideal')})</text>
       
       {/* Airflow arrows */}
       {[60, 90, 130, 180, 240].map((x, i) => (
