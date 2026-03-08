@@ -96,7 +96,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
   // Trail materials now use vertexColors for color inheritance
   const trailMaterials = useMemo(() => 
     TRAIL_OPACITY_BASE.map((_, i) => new THREE.MeshBasicMaterial({
-      vertexColors: true,
       transparent: true,
       opacity: TRAIL_OPACITY_BASE[i],
       blending: THREE.AdditiveBlending,
