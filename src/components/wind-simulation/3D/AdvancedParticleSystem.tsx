@@ -306,13 +306,19 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             const dotWind = dx * windDirection.x + dz * windDirection.z;
             if (dotWind > 0) {
               const closeRange = dist < gen.rotorRadius * 2;
+              // Exponential force increase at close range
+              const exponentialBoost = closeRange
+                ? Math.exp((gen.rotorRadius * 2 - dist) / gen.rotorRadius) * 0.5
+                : 0;
               const force = closeRange 
-                ? gen.attractK / (dist + 0.5) * 1.5
+                ? gen.attractK / (dist + 0.5) * 1.5 + exponentialBoost
                 : gen.attractK / (dist * dist + 1);
               const convergeFactor = Math.max(0.5, 1 - dist / gen.attractRadius);
-              targetSpeedX += (dx / dist) * force * convergeFactor;
-              targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor;
-              targetSpeedZ += (dz / dist) * force * convergeFactor;
+              // Velocity boost — particles accelerate as they approach
+              const velocityBoost = closeRange ? 1.5 : 1.0;
+              targetSpeedX += (dx / dist) * force * convergeFactor * velocityBoost;
+              targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor * velocityBoost;
+              targetSpeedZ += (dz / dist) * force * convergeFactor * velocityBoost;
             } else {
               targetSpeedX *= (1 - gen.speedReduction);
               targetSpeedZ *= (1 - gen.speedReduction);
