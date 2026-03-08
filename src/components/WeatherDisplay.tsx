@@ -348,24 +348,6 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
   const [windyOverlay, setWindyOverlay] = useState('wind');
   const [windyLevel, setWindyLevel] = useState('surface');
   const [windyZoom, setWindyZoom] = useState(7);
-  const [copied, setCopied] = useState(false);
-
-  // Selected point (editable coordinates)
-  const [selectedLat, setSelectedLat] = useState('');
-  const [selectedLon, setSelectedLon] = useState('');
-  const [selectedWeather, setSelectedWeather] = useState<WeatherData | null>(null);
-  const [isFetchingPoint, setIsFetchingPoint] = useState(false);
-  const [isCustomPoint, setIsCustomPoint] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Initialize coordinate inputs from location prop
-  useEffect(() => {
-    if (location && !isCustomPoint) {
-      setSelectedLat(location.lat.toFixed(4));
-      setSelectedLon(location.lon.toFixed(4));
-    }
-  }, [location, isCustomPoint]);
-
   // Fetch weather for the user's location
   useEffect(() => {
     if (!location) { setWeather(null); return; }
@@ -376,52 +358,6 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
     })();
     return () => { cancelled = true; };
   }, [location]);
-
-  // Fetch weather for selected point (debounced)
-  const fetchPointWeather = useCallback((lat: number, lon: number) => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(async () => {
-      setIsFetchingPoint(true);
-      const data = await fetchLiveWeather(lat, lon);
-      setSelectedWeather(data || generateSyntheticWeather(lat, lon));
-      setIsFetchingPoint(false);
-    }, 300);
-  }, []);
-
-  const handleLatChange = (val: string) => {
-    setSelectedLat(val);
-    setIsCustomPoint(true);
-    const lat = parseFloat(val);
-    const lon = parseFloat(selectedLon);
-    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-      fetchPointWeather(lat, lon);
-    }
-  };
-
-  const handleLonChange = (val: string) => {
-    setSelectedLon(val);
-    setIsCustomPoint(true);
-    const lat = parseFloat(selectedLat);
-    const lon = parseFloat(val);
-    if (!isNaN(lat) && !isNaN(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180) {
-      fetchPointWeather(lat, lon);
-    }
-  };
-
-  const resetToUserLocation = () => {
-    if (location) {
-      setSelectedLat(location.lat.toFixed(4));
-      setSelectedLon(location.lon.toFixed(4));
-      setIsCustomPoint(false);
-      setSelectedWeather(null);
-    }
-  };
-
-  const copyCoords = () => {
-    navigator.clipboard.writeText(`${selectedLat}, ${selectedLon}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
-  };
 
   if (!location || !weather) {
     return <div className="text-muted-foreground">{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
