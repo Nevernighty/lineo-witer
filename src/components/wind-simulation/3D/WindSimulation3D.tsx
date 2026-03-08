@@ -13,6 +13,8 @@ import { LocalHitManager } from './LocalHitPopup';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateWindShear } from './WindPhysicsEngine';
 import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '../types';
 import { t, type Lang } from '@/utils/i18n';
+import { getTerrainYOffset } from '@/simulation/terrainModel';
+import { SCENARIO_PRESETS, type ScenarioPreset } from '@/data/scenarios';
 import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
 import { Crosshair, MousePointer, Map as MapIcon, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
