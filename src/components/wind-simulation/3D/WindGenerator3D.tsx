@@ -344,24 +344,25 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
 
       <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'auto' }}>
         <div 
-          className="rounded-lg px-2 py-1 text-center border shadow-lg cursor-pointer transition-all hover:scale-105"
-          style={{ backgroundColor: 'rgba(0,0,0,0.9)', borderColor: '#39ff1460', minWidth: '70px' }}
+          className="rounded px-1.5 py-0.5 text-center border shadow-lg cursor-pointer transition-all hover:scale-105"
+          style={{ backgroundColor: 'rgba(0,0,0,0.85)', borderColor: `${statusColor}40`, minWidth: '55px' }}
           onClick={() => setShowDetails(!showDetails)}
         >
-          <div className="text-[7px] text-green-400/80 font-mono">{subtypeName}</div>
-          <div className="text-[10px] text-green-400 font-semibold">⚡ {powerStr}</div>
-          <div className="text-[7px] text-green-400/60">Cp={specs.cp} | {adjustedSpeed.toFixed(1)} m/s</div>
+          <div className="text-[6px] font-mono" style={{ color: `${statusColor}cc` }}>{subtypeName}</div>
+          {statusLabel ? (
+            <div className="text-[9px] font-bold" style={{ color: statusColor }}>{statusLabel}</div>
+          ) : (
+            <div className="text-[9px] font-semibold" style={{ color: statusColor }}>⚡ {powerStr}</div>
+          )}
+          <div className="text-[6px]" style={{ color: `${statusColor}99` }}>{adjustedSpeed.toFixed(1)} m/s</div>
           
           {showDetails && (
-            <div className="mt-1.5 pt-1.5 border-t border-green-500/20 text-left space-y-0.5">
-              <div className="text-[7px] text-cyan-400">📐 A = {detailData.sweptArea} m²</div>
-              <div className="text-[7px] text-cyan-400">🏗 H = {detailData.hubHeight} m</div>
-              <div className="text-[7px] text-yellow-400">🎯 η = {detailData.efficiency}% Betz</div>
-              <div className="text-[7px] text-lime-400">📊 CF = {detailData.capacityFactor}%</div>
-              <div className="text-[7px] text-orange-400">📈 AEP ≈ {detailData.aep}</div>
-              <div className="text-[7px] text-purple-400">🌀 Betz max: {detailData.betzPower}</div>
-              <div className="text-[6px] text-muted-foreground mt-1">
-                Cut-in: {specs.cutIn} m/s | Cut-out: {specs.cutOut} m/s
+            <div className="mt-1 pt-1 border-t text-left space-y-0.5" style={{ borderColor: `${statusColor}20` }}>
+              <div className="text-[6px] text-cyan-400">📐 {detailData.sweptArea} m² | H={detailData.hubHeight}m</div>
+              <div className="text-[6px] text-yellow-400">η={detailData.efficiency}% | CF={detailData.capacityFactor}%</div>
+              <div className="text-[6px] text-orange-400">AEP ≈ {detailData.aep}</div>
+              <div className="text-[5px] text-muted-foreground">
+                {specs.cutIn}-{specs.cutOut} m/s
               </div>
             </div>
           )}
