@@ -181,7 +181,7 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
   );
 };
 
-// Enhanced IntakeCone with animated spiral rings and converging funnel
+// Enhanced IntakeCone with doubled spiral rings, more converging arrows, power-scaled glow
 const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; windSpeed: number }> = ({ towerHeight, rotorDiameter, windAngleRad, windSpeed }) => {
   const groupRef = useRef<THREE.Group>(null);
   const spiralRef = useRef<THREE.Group>(null);
@@ -190,60 +190,63 @@ const IntakeCone: React.FC<{ towerHeight: number; rotorDiameter: number; windAng
   useFrame((state) => {
     const time = state.clock.elapsedTime;
     if (spiralRef.current) {
-      spiralRef.current.rotation.z = time * windSpeed * 0.1;
+      spiralRef.current.rotation.z = time * windSpeed * 0.15;
     }
     if (flashRef.current) {
       const mat = flashRef.current.material as THREE.MeshBasicMaterial;
-      const pulse = Math.sin(time * 6) * 0.5 + 0.5;
-      mat.opacity = 0.05 + pulse * 0.15 * Math.min(windSpeed / 10, 1);
+      const pulse = Math.sin(time * 8) * 0.5 + 0.5;
+      const powerScale = Math.min(windSpeed / 8, 1.5);
+      mat.opacity = 0.1 + pulse * 0.3 * powerScale;
+      const s = 1 + pulse * 0.15 * powerScale;
+      flashRef.current.scale.set(s, s, s);
     }
   });
 
   const coneLength = rotorDiameter * 3;
-  const windIntensity = Math.min(windSpeed / 12, 1);
+  const windIntensity = Math.min(windSpeed / 8, 1.5);
 
   return (
     <group ref={groupRef} position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
       {/* Main intake funnel */}
       <mesh position={[0, 0, coneLength / 2]} rotation={[Math.PI / 2, 0, 0]}>
         <coneGeometry args={[rotorDiameter * 0.7, coneLength, 16]} />
-        <meshBasicMaterial color="#00ffaa" transparent opacity={0.06 + windIntensity * 0.06} depthWrite={false} side={THREE.DoubleSide} />
+        <meshBasicMaterial color="#00ffaa" transparent opacity={0.10 + windIntensity * 0.10} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       
-      {/* Animated spiral rings */}
+      {/* Animated spiral rings — 10 rings with faster rotation */}
       <group ref={spiralRef}>
-        {[1, 2, 3, 4, 5].map(i => (
-          <mesh key={`spiral-${i}`} position={[0, 0, rotorDiameter * 0.4 * i]} rotation={[Math.PI / 2, i * 0.5, 0]}>
-            <ringGeometry args={[rotorDiameter * 0.1 * i, rotorDiameter * 0.1 * i + 0.15, 20]} />
-            <meshBasicMaterial color="#00ffaa" transparent opacity={0.08 + windIntensity * 0.08} side={THREE.DoubleSide} />
+        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => (
+          <mesh key={`spiral-${i}`} position={[0, 0, rotorDiameter * 0.25 * i]} rotation={[Math.PI / 2, i * 0.4, 0]}>
+            <ringGeometry args={[rotorDiameter * 0.06 * i, rotorDiameter * 0.06 * i + 0.18, 20]} />
+            <meshBasicMaterial color="#00ffaa" transparent opacity={0.12 + windIntensity * 0.12} side={THREE.DoubleSide} />
           </mesh>
         ))}
       </group>
 
-      {/* Converging flow arrows */}
-      {[-1, 0, 1].map(i => (
-        <mesh key={i} position={[i * rotorDiameter * 0.35, i * 0.5, rotorDiameter * 1.0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <coneGeometry args={[0.3, 1.2, 4]} />
-          <meshBasicMaterial color="#00ffaa" transparent opacity={0.25 + windIntensity * 0.2} />
+      {/* Converging flow arrows — 6 arrows */}
+      {[-1.5, -0.8, -0.2, 0.2, 0.8, 1.5].map((i, idx) => (
+        <mesh key={idx} position={[i * rotorDiameter * 0.25, i * 0.4, rotorDiameter * 1.0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <coneGeometry args={[0.35, 1.4, 4]} />
+          <meshBasicMaterial color="#00ffaa" transparent opacity={0.30 + windIntensity * 0.25} />
         </mesh>
       ))}
 
-      {/* Absorption flash at rotor center */}
+      {/* Absorption flash at rotor center — power-scaled pulsing glow */}
       <mesh ref={flashRef} position={[0, 0, 0]}>
-        <sphereGeometry args={[rotorDiameter * 0.35, 12, 12]} />
-        <meshBasicMaterial color="#88ffcc" transparent opacity={0.1} depthWrite={false} />
+        <sphereGeometry args={[rotorDiameter * 0.4, 16, 16]} />
+        <meshBasicMaterial color="#88ffcc" transparent opacity={0.15} depthWrite={false} />
       </mesh>
 
-      {/* Funnel convergence lines */}
-      {[0, 1, 2, 3].map(i => {
-        const angle = (i / 4) * Math.PI * 2;
+      {/* Funnel convergence lines — 6 lines */}
+      {[0, 1, 2, 3, 4, 5].map(i => {
+        const angle = (i / 6) * Math.PI * 2;
         const r = rotorDiameter * 0.6;
         return (
           <mesh key={`funnel-${i}`} 
             position={[Math.cos(angle) * r * 0.3, Math.sin(angle) * r * 0.3, coneLength * 0.3]}
             rotation={[Math.PI / 2 + Math.sin(angle) * 0.1, 0, Math.cos(angle) * 0.1]}>
-            <cylinderGeometry args={[0.04, 0.04, coneLength * 0.5, 4]} />
-            <meshBasicMaterial color="#00ffaa" transparent opacity={0.12 + windIntensity * 0.1} />
+            <cylinderGeometry args={[0.05, 0.05, coneLength * 0.5, 4]} />
+            <meshBasicMaterial color="#00ffaa" transparent opacity={0.18 + windIntensity * 0.15} />
           </mesh>
         );
       })}
