@@ -496,67 +496,6 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         </div>
       </motion.div>
 
-      {/* ─── Selected Point Data Card ─── */}
-      <AnimatePresence mode="wait">
-        <motion.div key={`${displayLat}-${displayLon}`}
-          initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}
-          className="p-4 rounded-xl border" style={{
-            backgroundColor: isCustomPoint ? 'hsl(30 80% 50% / 0.04)' : 'hsl(var(--primary) / 0.04)',
-            borderColor: isCustomPoint ? 'hsl(30 80% 50% / 0.25)' : 'hsl(var(--primary) / 0.2)',
-          }}>
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <MapPin className="w-4 h-4 text-primary" />
-              <span className="text-xs font-semibold text-foreground">
-                {lang === 'ua' ? 'Дані обраної точки' : 'Selected Point Data'}
-              </span>
-            </div>
-            {displayWeather.elevation != null && displayWeather.elevation > 0 && (
-              <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full border font-mono"
-                style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                <Mountain className="w-3 h-3 text-muted-foreground" />
-                {Math.round(displayWeather.elevation)} m
-              </span>
-            )}
-          </div>
-
-          {/* Main metrics grid */}
-          <div className="grid grid-cols-5 gap-2">
-            {[
-              { label: lang === 'ua' ? 'Вітер' : 'Wind', value: `${displayWeather.windSpeed}`, unit: 'm/s', icon: '💨', color: 'hsl(120 80% 55%)' },
-              { label: lang === 'ua' ? 'Темп.' : 'Temp', value: `${displayWeather.temperature}`, unit: '°C', icon: '🌡️', color: 'hsl(25 90% 55%)' },
-              { label: lang === 'ua' ? 'Волог.' : 'Humid', value: `${displayWeather.humidity}`, unit: '%', icon: '💧', color: 'hsl(210 80% 55%)' },
-              { label: lang === 'ua' ? 'Тиск' : 'Press', value: `${displayWeather.pressure}`, unit: 'hPa', icon: '🔵', color: 'hsl(270 60% 55%)' },
-              { label: 'WPD', value: `${Math.round(actualWPD)}`, unit: 'W/m²', icon: '⚡', color: 'hsl(var(--primary))' },
-            ].map((m, i) => (
-              <div key={i} className="p-2 rounded-lg text-center"
-                style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--border) / 0.2)' }}>
-                <span className="text-base block">{m.icon}</span>
-                <span className="text-sm font-mono font-bold block" style={{ color: m.color }}>{m.value}</span>
-                <span className="text-[8px] text-muted-foreground block">{m.unit}</span>
-                <span className="text-[8px] text-muted-foreground font-semibold block mt-0.5">{m.label}</span>
-              </div>
-            ))}
-          </div>
-
-          {/* Direction + Beaufort badges */}
-          <div className="flex items-center gap-2 mt-3 flex-wrap">
-            <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-              <Wind className="w-3 h-3 inline mr-1 text-primary" />
-              {windDirName(displayWeather.windAngle, lang)} {displayWeather.windAngle}°
-            </span>
-            <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-              {t('beaufortScale', lang)}: {displayWeather.beaufort} — {beaufortLabel}
-            </span>
-            {isCustomPoint && (
-              <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(30 80% 50% / 0.1)', borderColor: 'hsl(30 80% 50% / 0.3)', color: 'hsl(30 80% 60%)' }}>
-                Δ {Math.abs(displayWeather.windSpeed - weather.windSpeed).toFixed(1)} m/s {lang === 'ua' ? 'від локації' : 'from location'}
-              </span>
-            )}
-          </div>
-        </motion.div>
-      </AnimatePresence>
-
       {/* Ring Gauges Row */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
         className="flex items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
