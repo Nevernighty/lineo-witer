@@ -555,7 +555,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
           <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Густина повітря' : 'Air Density'}</span>
           <p className="text-sm font-mono font-bold text-foreground mt-0.5">{airDensity.toFixed(3)} <span className="text-[10px] text-muted-foreground">kg/m³</span></p>
           <p className="text-[9px] text-muted-foreground mt-1 font-mono">ρ = P / (R·T)</p>
-          <p className="text-[9px] text-muted-foreground">{displayWeather.pressure} Pa / (287 × {(displayWeather.temperature + 273.15).toFixed(0)} K)</p>
+          <p className="text-[9px] text-muted-foreground">{weather.pressure} Pa / (287 × {(weather.temperature + 273.15).toFixed(0)} K)</p>
         </div>
         <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
           <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Реальна WPD' : 'Actual WPD'}</span>
