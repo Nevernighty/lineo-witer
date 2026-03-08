@@ -582,7 +582,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
         <div className="grid grid-cols-2 gap-3">
           <div className="p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
             <span className="text-[10px] text-muted-foreground">{lang === 'ua' ? 'Густ. потужності' : 'Power Density'}</span>
-            <p className="text-sm font-mono font-bold text-primary">{displayWeather.wpd} W/m²</p>
+            <p className="text-sm font-mono font-bold text-primary">{weather.wpd} W/m²</p>
           </div>
           <div className="p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
             <span className="text-[10px] text-muted-foreground">{t('monthlyEnergy', lang)}</span>
