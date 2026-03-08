@@ -1,24 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from "@/components/ui/badge";
-import { Wind, Zap, Volume2 } from 'lucide-react';
-import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/components/ui/accordion";
-import { motion } from 'framer-motion';
+import { Wind, Zap, Volume2, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const turbineData = [
-  { id: 'hawt3', type_ua: 'Горизонтальна вісь', type_en: 'Horizontal Axis', category_ua: '3-лопатевий HAWT', category_en: 'Three-Blade HAWT', power: '5–10 kW', parts_ua: 'Лопаті, корпус, зʼєднувачі', parts_en: 'Blades, housing, connectors', efficiency: '55–60%', cp: 0.48, useCase_ua: 'Сільські відкриті простори', useCase_en: 'Rural open spaces', cost: '€1,500–€6,000', tsr: '6–8', noise: '35–45 dB(A)', setback_ua: '≥ 500м від жител', setback_en: '≥ 500m from dwellings', pros_ua: ['Найвища ефективність', 'Зріла технологія', 'Самозапуск при слабкому вітрі'], pros_en: ['Highest efficiency', 'Mature technology', 'Self-starting at low speed'], cons_ua: ['Потребує курсовий механізм', 'Чутливий до турбулентності', 'Візуальний вплив'], cons_en: ['Requires yaw mechanism', 'Sensitive to turbulence', 'Visual impact'], powerCurve_ua: 'Пуск ~3 м/с, номінал ~12 м/с, зупинка ~25 м/с. Регулювання кутом підтримує номінальну потужність.', powerCurve_en: 'Cut-in ~3 m/s, rated ~12 m/s, cut-out ~25 m/s. Pitch regulation maintains rated power.' },
-  { id: 'savonius', type_ua: 'Вертикальна вісь', type_en: 'Vertical Axis', category_ua: 'Савоніус VAWT', category_en: 'Savonius VAWT', power: '1–5 kW', parts_ua: 'Ротор, опори, вал', parts_en: 'Rotor, supports, shaft', efficiency: '40–45%', cp: 0.18, useCase_ua: 'Міські дахи', useCase_en: 'Urban rooftops', cost: '€800–€2,500', tsr: '0.8–1.2', noise: '20–30 dB(A)', setback_ua: 'Мінімальна — низький шум', setback_en: 'Minimal — low noise', pros_ua: ['Всенаправлений', 'Дуже низький шум', 'Самозапуск', 'Проста конструкція'], pros_en: ['Omnidirectional', 'Very low noise', 'Self-starting', 'Simple construction'], cons_ua: ['Низька ефективність', 'Обмежена масштабованість', 'Важкий для своєї потужності'], cons_en: ['Low efficiency', 'Limited scalability', 'Heavy for power output'], powerCurve_ua: 'Пуск ~2 м/с, працює при турбулентному вітрі. Приводиться опором — потужність обмежена λ.', powerCurve_en: 'Cut-in ~2 m/s, operates in turbulent conditions. Drag-driven — power limited by TSR.' },
-  { id: 'darrieus', type_ua: 'Вертикальна вісь', type_en: 'Vertical Axis', category_ua: "Дар'є VAWT", category_en: 'Darrieus VAWT', power: '1–5 kW', parts_ua: 'Лопаті, вертикальний корпус', parts_en: 'Blades, vertical housing', efficiency: '45–50%', cp: 0.35, useCase_ua: 'Змішані середовища', useCase_en: 'Mixed environments', cost: '€1,000–€3,000', tsr: '4–6', noise: '25–35 dB(A)', setback_ua: '≥ 100м рекомендовано', setback_en: '≥ 100m recommended', pros_ua: ['Вища ефективність ніж Савоніус', 'Компактна площа', 'Приймає вітер з будь-якого напрямку'], pros_en: ['Higher efficiency than Savonius', 'Compact footprint', 'Accepts wind from any direction'], cons_ua: ['Не самозапуск', 'Циклічні навантаження втоми', 'Проблеми вібрації при резонансі'], cons_en: ['Not self-starting', 'Cyclic fatigue stresses', 'Vibration issues at resonance'], powerCurve_ua: 'Потребує зовнішній запуск. Приводиться підйомною силою. Пік Cp при λ ≈ 5.', powerCurve_en: 'Requires external start. Lift-driven. Peak Cp at λ ≈ 5.' },
-  { id: 'micro', type_ua: 'Мікро турбіна', type_en: 'Micro Turbine', category_ua: 'Дахова мікро HAWT', category_en: 'Rooftop Micro HAWT', power: '0.2–1 kW', parts_ua: 'Лопаті, кріплення', parts_en: 'Blades, mounts', efficiency: '30–40%', cp: 0.25, useCase_ua: 'Балкони, автодоми, човни', useCase_en: 'Balconies, RVs, boats', cost: '€100–€500', tsr: '5–7', noise: '25–35 dB(A)', setback_ua: 'Не потрібна', setback_en: 'None — personal use', pros_ua: ['Портативна', 'Низька вартість', 'Легка установка', 'Для автономних систем'], pros_en: ['Portable', 'Low cost', 'Easy installation', 'Ideal for off-grid'], cons_ua: ['Дуже низька потужність', 'Вплив міської турбулентності', 'Короткий термін служби'], cons_en: ['Very low power', 'Affected by urban turbulence', 'Short lifespan'], powerCurve_ua: 'Пуск ~2.5 м/с. Малий ротор обмежує захоплення. Найкраще з ламінарним потоком.', powerCurve_en: 'Cut-in ~2.5 m/s. Small rotor limits capture. Best with laminar flow.' },
-  { id: 'hybrid', type_ua: 'Гібридна система', type_en: 'Hybrid System', category_ua: 'Вітро-сонячний гібрид', category_en: 'Wind-Solar Hybrid', power: '5–15 kW', parts_ua: 'Корпус інтеграції, інвертор', parts_en: 'Integration housing, inverter', efficiency: '50–60%', cp: 0.40, useCase_ua: 'Автономні будинки, ферми', useCase_en: 'Off-grid homes, farms', cost: '€2,500–€8,000', tsr: 'N/A', noise: '30–40 dB(A)', setback_ua: 'Залежить від типу турбіни', setback_en: 'Depends on turbine component', pros_ua: ['Взаємодоповнююча генерація', 'Вищий КВПП', 'Менше потреби в накопиченні'], pros_en: ['Complementary generation', 'Higher capacity factor', 'Reduced storage needs'], cons_ua: ['Складна інтеграція', 'Вищі початкові витрати', 'Подвійне обслуговування'], cons_en: ['Complex integration', 'Higher upfront cost', 'Dual maintenance'], powerCurve_ua: 'Комбінована віддача згладжує мінливість. Вітер вночі/взимку доповнює сонце вдень/влітку.', powerCurve_en: 'Combined output smooths variability. Wind at night/winter complements solar at day/summer.' },
+  { id: 'hawt3', type_ua: 'Горизонтальна вісь', type_en: 'Horizontal Axis', category_ua: '3-лопатевий HAWT', category_en: 'Three-Blade HAWT', power: '5–10 kW', parts_ua: 'Лопаті, корпус, зʼєднувачі', parts_en: 'Blades, housing, connectors', efficiency: '55–60%', cp: 0.48, useCase_ua: 'Сільські відкриті простори', useCase_en: 'Rural open spaces', cost: '€1,500–€6,000', tsr: '6–8', noise: '35–45 dB(A)', setback_ua: '≥ 500м від жител', setback_en: '≥ 500m from dwellings', pros_ua: ['Найвища ефективність', 'Зріла технологія', 'Самозапуск при слабкому вітрі'], pros_en: ['Highest efficiency', 'Mature technology', 'Self-starting at low speed'], cons_ua: ['Потребує курсовий механізм', 'Чутливий до турбулентності', 'Візуальний вплив'], cons_en: ['Requires yaw mechanism', 'Sensitive to turbulence', 'Visual impact'], powerCurve_ua: 'Пуск ~3 м/с, номінал ~12 м/с, зупинка ~25 м/с. Регулювання кутом підтримує номінальну потужність.', powerCurve_en: 'Cut-in ~3 m/s, rated ~12 m/s, cut-out ~25 m/s. Pitch regulation maintains rated power.', color: 'hsl(120 100% 54%)' },
+  { id: 'savonius', type_ua: 'Вертикальна вісь', type_en: 'Vertical Axis', category_ua: 'Савоніус VAWT', category_en: 'Savonius VAWT', power: '1–5 kW', parts_ua: 'Ротор, опори, вал', parts_en: 'Rotor, supports, shaft', efficiency: '40–45%', cp: 0.18, useCase_ua: 'Міські дахи', useCase_en: 'Urban rooftops', cost: '€800–€2,500', tsr: '0.8–1.2', noise: '20–30 dB(A)', setback_ua: 'Мінімальна — низький шум', setback_en: 'Minimal — low noise', pros_ua: ['Всенаправлений', 'Дуже низький шум', 'Самозапуск', 'Проста конструкція'], pros_en: ['Omnidirectional', 'Very low noise', 'Self-starting', 'Simple construction'], cons_ua: ['Низька ефективність', 'Обмежена масштабованість', 'Важкий для своєї потужності'], cons_en: ['Low efficiency', 'Limited scalability', 'Heavy for power output'], powerCurve_ua: 'Пуск ~2 м/с, працює при турбулентному вітрі. Приводиться опором — потужність обмежена λ.', powerCurve_en: 'Cut-in ~2 m/s, operates in turbulent conditions. Drag-driven — power limited by TSR.', color: 'hsl(210 90% 60%)' },
+  { id: 'darrieus', type_ua: 'Вертикальна вісь', type_en: 'Vertical Axis', category_ua: "Дар'є VAWT", category_en: 'Darrieus VAWT', power: '1–5 kW', parts_ua: 'Лопаті, вертикальний корпус', parts_en: 'Blades, vertical housing', efficiency: '45–50%', cp: 0.35, useCase_ua: 'Змішані середовища', useCase_en: 'Mixed environments', cost: '€1,000–€3,000', tsr: '4–6', noise: '25–35 dB(A)', setback_ua: '≥ 100м рекомендовано', setback_en: '≥ 100m recommended', pros_ua: ['Вища ефективність ніж Савоніус', 'Компактна площа', 'Приймає вітер з будь-якого напрямку'], pros_en: ['Higher efficiency than Savonius', 'Compact footprint', 'Accepts wind from any direction'], cons_ua: ['Не самозапуск', 'Циклічні навантаження втоми', 'Проблеми вібрації при резонансі'], cons_en: ['Not self-starting', 'Cyclic fatigue stresses', 'Vibration issues at resonance'], powerCurve_ua: 'Потребує зовнішній запуск. Приводиться підйомною силою. Пік Cp при λ ≈ 5.', powerCurve_en: 'Requires external start. Lift-driven. Peak Cp at λ ≈ 5.', color: 'hsl(25 90% 55%)' },
+  { id: 'micro', type_ua: 'Мікро турбіна', type_en: 'Micro Turbine', category_ua: 'Дахова мікро HAWT', category_en: 'Rooftop Micro HAWT', power: '0.2–1 kW', parts_ua: 'Лопаті, кріплення', parts_en: 'Blades, mounts', efficiency: '30–40%', cp: 0.25, useCase_ua: 'Балкони, автодоми, човни', useCase_en: 'Balconies, RVs, boats', cost: '€100–€500', tsr: '5–7', noise: '25–35 dB(A)', setback_ua: 'Не потрібна', setback_en: 'None — personal use', pros_ua: ['Портативна', 'Низька вартість', 'Легка установка', 'Для автономних систем'], pros_en: ['Portable', 'Low cost', 'Easy installation', 'Ideal for off-grid'], cons_ua: ['Дуже низька потужність', 'Вплив міської турбулентності', 'Короткий термін служби'], cons_en: ['Very low power', 'Affected by urban turbulence', 'Short lifespan'], powerCurve_ua: 'Пуск ~2.5 м/с. Малий ротор обмежує захоплення. Найкраще з ламінарним потоком.', powerCurve_en: 'Cut-in ~2.5 m/s. Small rotor limits capture. Best with laminar flow.', color: 'hsl(270 70% 60%)' },
+  { id: 'hybrid', type_ua: 'Гібридна система', type_en: 'Hybrid System', category_ua: 'Вітро-сонячний гібрид', category_en: 'Wind-Solar Hybrid', power: '5–15 kW', parts_ua: 'Корпус інтеграції, інвертор', parts_en: 'Integration housing, inverter', efficiency: '50–60%', cp: 0.40, useCase_ua: 'Автономні будинки, ферми', useCase_en: 'Off-grid homes, farms', cost: '€2,500–€8,000', tsr: 'N/A', noise: '30–40 dB(A)', setback_ua: 'Залежить від типу турбіни', setback_en: 'Depends on turbine component', pros_ua: ['Взаємодоповнююча генерація', 'Вищий КВПП', 'Менше потреби в накопиченні'], pros_en: ['Complementary generation', 'Higher capacity factor', 'Reduced storage needs'], cons_ua: ['Складна інтеграція', 'Вищі початкові витрати', 'Подвійне обслуговування'], cons_en: ['Complex integration', 'Higher upfront cost', 'Dual maintenance'], powerCurve_ua: 'Комбінована віддача згладжує мінливість. Вітер вночі/взимку доповнює сонце вдень/влітку.', powerCurve_en: 'Combined output smooths variability. Wind at night/winter complements solar at day/summer.', color: 'hsl(50 90% 55%)' },
 ];
 
-// Larger turbine silhouettes with animated HAWT blades
+// Larger turbine silhouettes
 const TurbineSilhouette = ({ type }: { type: string }) => {
   if (type === 'hawt3' || type === 'micro') {
     return (
-      <svg viewBox="0 0 60 70" className="w-14 h-16 shrink-0" fill="none">
+      <svg viewBox="0 0 60 70" className="w-16 h-20 shrink-0" fill="none">
         <line x1="30" y1="32" x2="30" y2="66" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" opacity="0.4" />
         <g style={{ transformOrigin: '30px 30px', animation: 'spin 4s linear infinite' }}>
           <line x1="30" y1="30" x2="30" y2="8" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" />
@@ -31,7 +28,7 @@ const TurbineSilhouette = ({ type }: { type: string }) => {
   }
   if (type === 'savonius') {
     return (
-      <svg viewBox="0 0 60 70" className="w-14 h-16 shrink-0" fill="none">
+      <svg viewBox="0 0 60 70" className="w-16 h-20 shrink-0" fill="none">
         <line x1="30" y1="8" x2="30" y2="66" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" opacity="0.4" />
         <path d="M30 14 Q44 22 30 36" stroke="hsl(var(--primary))" strokeWidth="2" fill="hsl(var(--primary) / 0.1)" />
         <path d="M30 36 Q16 44 30 56" stroke="hsl(var(--primary))" strokeWidth="2" fill="hsl(var(--primary) / 0.1)" />
@@ -40,15 +37,14 @@ const TurbineSilhouette = ({ type }: { type: string }) => {
   }
   if (type === 'darrieus') {
     return (
-      <svg viewBox="0 0 60 70" className="w-14 h-16 shrink-0" fill="none">
+      <svg viewBox="0 0 60 70" className="w-16 h-20 shrink-0" fill="none">
         <line x1="30" y1="8" x2="30" y2="66" stroke="hsl(var(--muted-foreground))" strokeWidth="2.5" opacity="0.4" />
         <ellipse cx="30" cy="37" rx="16" ry="24" stroke="hsl(var(--primary))" strokeWidth="2" fill="none" />
       </svg>
     );
   }
-  // hybrid
   return (
-    <svg viewBox="0 0 60 70" className="w-14 h-16 shrink-0" fill="none">
+    <svg viewBox="0 0 60 70" className="w-16 h-20 shrink-0" fill="none">
       <line x1="22" y1="30" x2="22" y2="66" stroke="hsl(var(--muted-foreground))" strokeWidth="2" opacity="0.4" />
       <line x1="22" y1="30" x2="22" y2="14" stroke="hsl(var(--primary))" strokeWidth="1.5" />
       <line x1="22" y1="30" x2="12" y2="38" stroke="hsl(var(--primary))" strokeWidth="1.5" />
@@ -62,7 +58,7 @@ const TurbineSilhouette = ({ type }: { type: string }) => {
   );
 };
 
-// Efficiency (Cp) comparison bar chart
+// Efficiency (Cp) comparison bar chart — fixed viewBox
 const EfficiencyComparisonSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
   const items = [
@@ -72,26 +68,26 @@ const EfficiencyComparisonSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
     { label: L('Мікро', 'Micro'), cp: 0.25, color: 'hsl(25 80% 55%)' },
     { label: "Savonius", cp: 0.18, color: 'hsl(0 60% 50%)' },
   ];
-  const W = 400, H = 160;
+  const W = 440, H = 170;
   const barH = 20, gap = 8;
-  const maxCp = 0.593; // Betz limit
+  const maxCp = 0.593;
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-36 sm:h-40">
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-36 sm:h-44">
       {/* Betz limit line */}
-      <line x1={80 + (0.593 / maxCp) * 260} y1={0} x2={80 + (0.593 / maxCp) * 260} y2={H} stroke="hsl(210 90% 60%)" strokeWidth="1" strokeDasharray="4 3" opacity="0.4" />
-      <text x={80 + (0.593 / maxCp) * 260 - 4} y={H - 4} textAnchor="end" fontSize="9" fill="hsl(210 90% 60%)" fontFamily="monospace">{L('Ліміт Бетца', 'Betz')} 59.3%</text>
+      <line x1={90 + (0.593 / maxCp) * 250} y1={0} x2={90 + (0.593 / maxCp) * 250} y2={H - 20} stroke="hsl(210 90% 60%)" strokeWidth="1" strokeDasharray="4 3" opacity="0.4" />
+      <text x={90 + (0.593 / maxCp) * 250} y={H - 4} textAnchor="middle" fontSize="9" fill="hsl(210 90% 60%)" fontFamily="monospace">{L('Ліміт Бетца', 'Betz')} 59.3%</text>
 
       {items.map((item, i) => {
         const y = 8 + i * (barH + gap);
-        const w = (item.cp / maxCp) * 260;
+        const w = (item.cp / maxCp) * 250;
         return (
           <g key={i}>
-            <text x={76} y={y + 14} textAnchor="end" fontSize="10" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{item.label}</text>
-            <motion.rect x={80} y={y} width={w} height={barH} rx="3" fill={item.color} opacity="0.75"
+            <text x={86} y={y + 14} textAnchor="end" fontSize="10" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{item.label}</text>
+            <motion.rect x={90} y={y} width={w} height={barH} rx="3" fill={item.color} opacity="0.75"
               initial={{ width: 0 }} animate={{ width: w }} transition={{ delay: i * 0.1, duration: 0.5 }}
               style={{ filter: `drop-shadow(0 0 4px ${item.color}40)` }} />
-            <text x={84 + w} y={y + 14} fontSize="11" fontWeight="600" fill="hsl(var(--foreground))" fontFamily="monospace">Cp={item.cp.toFixed(2)}</text>
+            <text x={94 + w} y={y + 14} fontSize="11" fontWeight="600" fill="hsl(var(--foreground))" fontFamily="monospace">Cp={item.cp.toFixed(2)}</text>
           </g>
         );
       })}
@@ -101,9 +97,10 @@ const EfficiencyComparisonSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
 
 export const TurbineCategories = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
+  const [openTurbine, setOpenTurbine] = useState<string | null>(null);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 eng-scrollbar">
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
       <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="stalker-card p-4 sm:p-5">
@@ -150,67 +147,85 @@ export const TurbineCategories = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) => {
         </div>
       </motion.div>
 
-      <Accordion type="single" collapsible className="space-y-2">
-        {turbineData.map((turbine, idx) => (
-          <AccordionItem key={turbine.id} value={turbine.id} className="border-0">
-            <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.06 }}
-              className="stalker-card overflow-hidden">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                <div className="flex items-center gap-3 text-left w-full">
-                  <TurbineSilhouette type={turbine.id} />
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-xs sm:text-sm font-semibold">{lang === 'ua' ? turbine.category_ua : turbine.category_en}</span>
-                      <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{lang === 'ua' ? turbine.type_ua : turbine.type_en}</Badge>
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                      <span className="flex items-center gap-1"><Zap className="w-3 h-3" />{turbine.power}</span>
-                      <span className="flex items-center gap-1"><Wind className="w-3 h-3" />Cp {turbine.cp}</span>
-                      <span className="flex items-center gap-1"><Volume2 className="w-3 h-3" />{turbine.noise}</span>
-                    </div>
+      {/* Turbine cards with custom expandable */}
+      <div className="space-y-2">
+        {turbineData.map((turbine, idx) => {
+          const isOpen = openTurbine === turbine.id;
+          return (
+            <motion.div key={turbine.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.06 }}
+              className="rounded-lg overflow-hidden transition-all duration-300"
+              style={{
+                backgroundColor: 'hsl(222 28% 12%)',
+                border: `1px solid ${isOpen ? (turbine.color || 'hsl(var(--primary))') + '40' : 'hsl(var(--border) / 0.2)'}`,
+                borderLeftWidth: '3px',
+                borderLeftColor: turbine.color || 'hsl(var(--primary))',
+                boxShadow: isOpen ? `0 0 20px ${turbine.color || 'hsl(var(--primary))'}15` : 'none',
+              }}>
+              <button onClick={() => setOpenTurbine(isOpen ? null : turbine.id)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <TurbineSilhouette type={turbine.id} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs sm:text-sm font-semibold text-foreground">{lang === 'ua' ? turbine.category_ua : turbine.category_en}</span>
+                    <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{lang === 'ua' ? turbine.type_ua : turbine.type_en}</Badge>
                   </div>
-                  <span className="text-xs font-mono text-primary shrink-0">{turbine.cost}</span>
+                  <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1"><Zap className="w-3 h-3" />{turbine.power}</span>
+                    <span className="flex items-center gap-1"><Wind className="w-3 h-3" />Cp {turbine.cp}</span>
+                    <span className="flex items-center gap-1"><Volume2 className="w-3 h-3" />{turbine.noise}</span>
+                  </div>
                 </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 pt-0">
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
-                    {[
-                      { label: L('λ (TSR)', 'TSR (λ)'), value: turbine.tsr },
-                      { label: L('Відступ', 'Setback'), value: lang === 'ua' ? turbine.setback_ua : turbine.setback_en },
-                      { label: L('3D-друк деталі', '3D Printed Parts'), value: lang === 'ua' ? turbine.parts_ua : turbine.parts_en },
-                      { label: L('Оптимальне використання', 'Best Use'), value: lang === 'ua' ? turbine.useCase_ua : turbine.useCase_en },
-                    ].map((spec, i) => (
-                      <div key={i} className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                        <span className="text-muted-foreground text-xs">{spec.label}</span>
-                        <p className="text-foreground">{spec.value}</p>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-xs font-mono text-primary">{turbine.cost}</span>
+                  <motion.div animate={{ rotate: isOpen ? 180 : 0 }} transition={{ duration: 0.2 }}>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                  </motion.div>
+                </div>
+              </button>
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.25 }} className="overflow-hidden">
+                    <div className="px-4 pb-4 space-y-3">
+                      <div className="grid grid-cols-2 gap-2 text-xs sm:text-sm">
+                        {[
+                          { label: L('λ (TSR)', 'TSR (λ)'), value: turbine.tsr },
+                          { label: L('Відступ', 'Setback'), value: lang === 'ua' ? turbine.setback_ua : turbine.setback_en },
+                          { label: L('3D-друк деталі', '3D Printed Parts'), value: lang === 'ua' ? turbine.parts_ua : turbine.parts_en },
+                          { label: L('Оптимальне використання', 'Best Use'), value: lang === 'ua' ? turbine.useCase_ua : turbine.useCase_en },
+                        ].map((spec, i) => (
+                          <div key={i} className="p-2.5 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                            <span className="text-muted-foreground text-xs">{spec.label}</span>
+                            <p className="text-foreground">{spec.value}</p>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
-                    <p className="text-xs font-semibold text-primary mb-1">{L('Поведінка кривої потужності', 'Power Curve Behavior')}</p>
-                    <p className="text-xs sm:text-sm text-muted-foreground">{lang === 'ua' ? turbine.powerCurve_ua : turbine.powerCurve_en}</p>
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <p className="text-xs font-semibold text-primary mb-1">{L('Переваги', 'Advantages')}</p>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        {(lang === 'ua' ? turbine.pros_ua : turbine.pros_en).map((p, i) => <li key={i}>+ {p}</li>)}
-                      </ul>
+                      <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
+                        <p className="text-xs font-semibold text-primary mb-1">{L('Поведінка кривої потужності', 'Power Curve Behavior')}</p>
+                        <p className="text-xs sm:text-sm text-muted-foreground">{lang === 'ua' ? turbine.powerCurve_ua : turbine.powerCurve_en}</p>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <p className="text-xs font-semibold text-primary mb-1">{L('Переваги', 'Advantages')}</p>
+                          <ul className="text-xs text-muted-foreground space-y-0.5">
+                            {(lang === 'ua' ? turbine.pros_ua : turbine.pros_en).map((p, i) => <li key={i}>+ {p}</li>)}
+                          </ul>
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(0 60% 55%)' }}>{L('Обмеження', 'Limitations')}</p>
+                          <ul className="text-xs text-muted-foreground space-y-0.5">
+                            {(lang === 'ua' ? turbine.cons_ua : turbine.cons_en).map((c, i) => <li key={i}>− {c}</li>)}
+                          </ul>
+                        </div>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-xs font-semibold mb-1" style={{ color: 'hsl(0 60% 55%)' }}>{L('Обмеження', 'Limitations')}</p>
-                      <ul className="text-xs text-muted-foreground space-y-0.5">
-                        {(lang === 'ua' ? turbine.cons_ua : turbine.cons_en).map((c, i) => <li key={i}>− {c}</li>)}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              </AccordionContent>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
-          </AccordionItem>
-        ))}
-      </Accordion>
+          );
+        })}
+      </div>
     </div>
   );
 };

@@ -1,13 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { 
   Globe, Wind, Zap, TrendingUp, 
-  MapPin, Factory, Leaf, Target, Calendar
+  MapPin, Factory, Leaf, Target, Calendar, ChevronDown
 } from 'lucide-react';
-import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/components/ui/accordion";
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const regions = [
   { name_ua: 'Запорізька область', name_en: 'Zaporizhzhia Oblast', potential_ua: 'Дуже високий', potential_en: 'Very High', speed: '7.5–8.5', capacity: '2,500 MW', status: 'operational' },
@@ -33,7 +30,7 @@ const statusLabels: Record<string, { ua: string; en: string }> = {
   planned: { ua: 'Плановий', en: 'Planned' },
 };
 
-// Animated seasonal bar chart SVG
+// Seasonal bar chart
 const SeasonalBarChart = ({ lang }: { lang: 'ua' | 'en' }) => {
   const W = 420, H = 200, pad = { l: 40, r: 10, t: 15, b: 35 };
   const plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
@@ -42,7 +39,6 @@ const SeasonalBarChart = ({ lang }: { lang: 'ua' | 'en' }) => {
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-44 sm:h-52">
-      {/* Grid */}
       {[4, 5, 6, 7, 8].map(v => (
         <g key={v}>
           <line x1={pad.l} y1={pad.t + plotH - ((v) / maxSpeed) * plotH} x2={W - pad.r} y2={pad.t + plotH - ((v) / maxSpeed) * plotH} stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.12" />
@@ -50,7 +46,6 @@ const SeasonalBarChart = ({ lang }: { lang: 'ua' | 'en' }) => {
         </g>
       ))}
       <line x1={pad.l} y1={pad.t + plotH} x2={W - pad.r} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.3" />
-
       {seasonalData.map((m, i) => {
         const x = pad.l + i * (plotW / 12) + 2;
         const barH = (m.speed / maxSpeed) * plotH;
@@ -68,9 +63,94 @@ const SeasonalBarChart = ({ lang }: { lang: 'ua' | 'en' }) => {
           </g>
         );
       })}
-
       <text x={12} y={(pad.t + pad.t + plotH) / 2} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))" transform={`rotate(-90 12 ${(pad.t + pad.t + plotH) / 2})`}>{lang === 'ua' ? 'м/с' : 'm/s'}</text>
     </svg>
+  );
+};
+
+// Wind Rose SVG
+const WindRoseSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
+  const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
+  const cx = 100, cy = 100, R = 80;
+  const directions = [
+    { label: L('Пн', 'N'), angle: 0, winter: 0.15, summer: 0.08 },
+    { label: L('ПнСх', 'NE'), angle: 45, winter: 0.08, summer: 0.06 },
+    { label: L('Сх', 'E'), angle: 90, winter: 0.06, summer: 0.10 },
+    { label: L('ПдСх', 'SE'), angle: 135, winter: 0.05, summer: 0.12 },
+    { label: L('Пд', 'S'), angle: 180, winter: 0.04, summer: 0.10 },
+    { label: L('ПдЗх', 'SW'), angle: 225, winter: 0.10, summer: 0.25 },
+    { label: L('Зх', 'W'), angle: 270, winter: 0.15, summer: 0.18 },
+    { label: L('ПнЗх', 'NW'), angle: 315, winter: 0.37, summer: 0.11 },
+  ];
+
+  const polarToXY = (angle: number, r: number) => {
+    const rad = (angle - 90) * Math.PI / 180;
+    return [cx + Math.cos(rad) * r, cy + Math.sin(rad) * r];
+  };
+
+  const makePolygon = (key: 'winter' | 'summer') => {
+    return directions.map(d => {
+      const [x, y] = polarToXY(d.angle, d[key] * R * 2.2);
+      return `${x},${y}`;
+    }).join(' ');
+  };
+
+  return (
+    <svg viewBox="0 0 200 210" className="w-full h-48 sm:h-56">
+      {/* Grid circles */}
+      {[0.25, 0.5, 0.75, 1].map(f => (
+        <circle key={f} cx={cx} cy={cy} r={R * f} fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.15" />
+      ))}
+      {/* Axis lines */}
+      {directions.map(d => {
+        const [x, y] = polarToXY(d.angle, R);
+        return <line key={d.angle} x1={cx} y1={cy} x2={x} y2={y} stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.1" />;
+      })}
+      {/* Winter polygon */}
+      <polygon points={makePolygon('winter')} fill="hsl(210 90% 60%)" opacity="0.15" stroke="hsl(210 90% 60%)" strokeWidth="1.5" />
+      {/* Summer polygon */}
+      <polygon points={makePolygon('summer')} fill="hsl(25 90% 55%)" opacity="0.12" stroke="hsl(25 90% 55%)" strokeWidth="1.5" strokeDasharray="4 3" />
+      {/* Direction labels */}
+      {directions.map(d => {
+        const [x, y] = polarToXY(d.angle, R + 12);
+        return <text key={d.angle} x={x} y={y + 3} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{d.label}</text>;
+      })}
+      {/* Legend */}
+      <rect x={10} y={195} width="10" height="3" rx="1" fill="hsl(210 90% 60%)" opacity="0.7" />
+      <text x={24} y={199} fontSize="8" fill="hsl(210 90% 60%)">{L('Зима', 'Winter')}</text>
+      <rect x={70} y={195} width="10" height="3" rx="1" fill="hsl(25 90% 55%)" opacity="0.7" />
+      <text x={84} y={199} fontSize="8" fill="hsl(25 90% 55%)">{L('Літо', 'Summer')}</text>
+    </svg>
+  );
+};
+
+// Expandable section
+const ExpandableSection = ({ title, icon: Icon, children, color = 'hsl(var(--primary))' }: { title: string; icon: any; children: React.ReactNode; color?: string }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg overflow-hidden transition-all duration-300" style={{
+      backgroundColor: 'hsl(222 28% 12%)',
+      border: `1px solid ${open ? color + '40' : 'hsl(var(--border) / 0.2)'}`,
+      boxShadow: open ? `0 0 20px ${color}15` : 'none',
+    }}>
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left">
+        <div className="flex items-center gap-2">
+          <Icon className="w-4 h-4" style={{ color }} />
+          <span className="text-xs sm:text-sm font-semibold text-foreground">{title}</span>
+        </div>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }} className="overflow-hidden">
+            <div className="px-4 pb-4 text-xs sm:text-sm text-muted-foreground">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 };
 
@@ -78,7 +158,7 @@ export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) =>
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 eng-scrollbar">
       {/* Key Stats */}
       <div className="grid grid-cols-2 gap-3">
         {[
@@ -87,12 +167,12 @@ export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) =>
           { icon: Target, title: L('Ціль 2030', '2030 Target'), value: '10 GW', sub: L('Національний план', 'National energy plan'), color: 'hsl(25 90% 55%)' },
           { icon: Leaf, title: L('Ціль CO₂', 'CO₂ Target'), value: '−65%', sub: L('відн. 1990 до 2030 (NDC2)', 'vs 1990 by 2030 (NDC2)'), color: 'hsl(270 70% 60%)' },
         ].map((card, i) => {
-          const Icon = card.icon;
+          const CardIcon = card.icon;
           return (
             <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
               className="stalker-card p-3 sm:p-4" style={{ borderLeftWidth: '3px', borderLeftColor: card.color }}>
               <div className="flex items-center gap-1.5 mb-1">
-                <Icon className="w-3.5 h-3.5" style={{ color: card.color }} />
+                <CardIcon className="w-3.5 h-3.5" style={{ color: card.color }} />
                 <span className="text-[10px] sm:text-xs text-muted-foreground uppercase">{card.title}</span>
               </div>
               <p className="text-lg sm:text-2xl font-bold text-foreground">{card.value}</p>
@@ -132,6 +212,20 @@ export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) =>
               <span className="text-xs text-muted-foreground w-8 text-right">{item.percent}%</span>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Wind Rose */}
+      <div className="stalker-card p-4 sm:p-5">
+        <h3 className="text-sm sm:text-base font-semibold mb-2 flex items-center gap-2">
+          <Wind className="w-4 h-4 text-primary" /> {L('Вітрова роза — сезонні напрямки', 'Wind Rose — Seasonal Directions')}
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          {L('Зима: домінування ПнЗх вітрів від континентальних антициклонів. Літо: ПдЗх морські бризи.', 
+             'Winter: dominant NW winds from continental highs. Summer: SW sea breezes.')}
+        </p>
+        <div className="rounded-lg p-3 flex justify-center" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.15)' }}>
+          <WindRoseSVG lang={lang} />
         </div>
       </div>
 
@@ -214,39 +308,36 @@ export const UkraineWindPotential = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) =>
         </div>
       </div>
 
-      {/* Accordions */}
-      {[
-        { value: 'grid', icon: Zap, title: L('Інтеграція в мережу та регулювання частоти', 'Grid Integration & Frequency Regulation'), items: [
-          { title: L('Регулювання частоти', 'Frequency Regulation'), text: L('Українська мережа працює на 50 Гц ±0.2 Гц. Сучасні вітротурбіни забезпечують синтетичну інерцію протягом 200мс.', 'Ukrainian grid operates at 50 Hz ±0.2 Hz. Modern turbines provide synthetic inertia within 200ms.') },
-          { title: L('Балансуючі ринки', 'Balancing Markets'), text: L('ВЕС беруть участь у ринках на добу наперед та балансуючих. Штрафи стимулюють точне прогнозування.', 'Wind plants participate in day-ahead and balancing markets. Imbalance penalties incentivize forecasting.') },
-          { title: L('Обмеження та накопичення', 'Curtailment & Storage'), text: L('Перевантаження мережі на півдні — 5–10% обмеження. Зʼявляються проєкти батарей.', 'Grid congestion in south causes 5–10% curtailment. Battery projects emerging.') },
-        ]},
-        { value: 'windrose', icon: Wind, title: L('Розуміння діаграм вітрової рози', 'Understanding Wind Rose Diagrams'), items: [
-          { title: L('Зима (ПнЗх домінування)', 'Winter (NW dominant)'), text: L('Сильні ПнЗх вітри від континентальних антициклонів. 35–40% річної енергії.', 'Strong NW winds from continental highs. 35–40% of annual energy.') },
-          { title: L('Літо (Змінні)', 'Summer (Variable)'), text: L('Термічна конвекція створює ПдЗх морські бризи. Нижчі швидкості, але добре для VAWT.', 'Thermal convection creates SW sea breezes. Lower speeds but good for VAWT.') },
-        ]},
-      ].map(section => (
-        <Accordion key={section.value} type="single" collapsible>
-          <AccordionItem value={section.value} className="border-0">
-            <div className="stalker-card overflow-hidden">
-              <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                <div className="flex items-center gap-2">
-                  <section.icon className="w-4 h-4 text-primary" />
-                  <span className="text-xs sm:text-sm font-semibold">{section.title}</span>
-                </div>
-              </AccordionTrigger>
-              <AccordionContent className="px-4 pb-4 pt-0 text-xs sm:text-sm text-muted-foreground space-y-2">
-                {section.items.map((item, i) => (
-                  <div key={i} className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-                    <p className="text-xs font-semibold text-foreground">{item.title}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{item.text}</p>
-                  </div>
-                ))}
-              </AccordionContent>
+      {/* Expandable sections instead of accordions */}
+      <div className="space-y-2">
+        <ExpandableSection title={L('Інтеграція в мережу та регулювання частоти', 'Grid Integration & Frequency Regulation')} icon={Zap} color="hsl(120 70% 50%)">
+          <div className="space-y-2">
+            {[
+              { title: L('Регулювання частоти', 'Frequency Regulation'), text: L('Українська мережа працює на 50 Гц ±0.2 Гц. Сучасні вітротурбіни забезпечують синтетичну інерцію протягом 200мс.', 'Ukrainian grid operates at 50 Hz ±0.2 Hz. Modern turbines provide synthetic inertia within 200ms.') },
+              { title: L('Балансуючі ринки', 'Balancing Markets'), text: L('ВЕС беруть участь у ринках на добу наперед та балансуючих. Штрафи стимулюють точне прогнозування.', 'Wind plants participate in day-ahead and balancing markets. Imbalance penalties incentivize forecasting.') },
+              { title: L('Обмеження та накопичення', 'Curtailment & Storage'), text: L('Перевантаження мережі на півдні — 5–10% обмеження. Зʼявляються проєкти батарей.', 'Grid congestion in south causes 5–10% curtailment. Battery projects emerging.') },
+            ].map((item, i) => (
+              <div key={i} className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(var(--border) / 0.2)' }}>
+                <p className="text-xs font-semibold text-foreground">{item.title}</p>
+                <p className="text-xs text-muted-foreground mt-1">{item.text}</p>
+              </div>
+            ))}
+          </div>
+        </ExpandableSection>
+
+        <ExpandableSection title={L('Сезонні вітрові патерни', 'Seasonal Wind Patterns')} icon={Wind} color="hsl(210 90% 60%)">
+          <div className="space-y-2">
+            <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(210 90% 60% / 0.2)' }}>
+              <p className="text-xs font-semibold" style={{ color: 'hsl(210 90% 60%)' }}>{L('Зима (ПнЗх домінування)', 'Winter (NW dominant)')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{L('Сильні ПнЗх вітри від континентальних антициклонів. 35–40% річної енергії. Середня швидкість 7.5–8.5 м/с.', 'Strong NW winds from continental highs. 35–40% of annual energy. Mean speed 7.5–8.5 m/s.')}</p>
             </div>
-          </AccordionItem>
-        </Accordion>
-      ))}
+            <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(222 28% 15%)', borderColor: 'hsl(25 90% 55% / 0.2)' }}>
+              <p className="text-xs font-semibold" style={{ color: 'hsl(25 90% 55%)' }}>{L('Літо (Змінні)', 'Summer (Variable)')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{L('Термічна конвекція створює ПдЗх морські бризи. Нижчі швидкості 4.5–5.5 м/с. Добре для VAWT.', 'Thermal convection creates SW sea breezes. Lower speeds 4.5–5.5 m/s. Good for VAWT.')}</p>
+            </div>
+          </div>
+        </ExpandableSection>
+      </div>
     </div>
   );
 };

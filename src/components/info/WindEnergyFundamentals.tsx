@@ -2,12 +2,9 @@ import React, { useState, useMemo } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { 
   Wind, Zap, TrendingUp, Gauge, 
-  ArrowRight, AlertCircle, CheckCircle, Info, Layers
+  ArrowRight, AlertCircle, CheckCircle, Info, Layers, ChevronDown
 } from 'lucide-react';
-import {
-  Accordion, AccordionContent, AccordionItem, AccordionTrigger,
-} from "@/components/ui/accordion";
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Slider } from '@/components/ui/slider';
 
 const cardVariants = {
@@ -15,12 +12,42 @@ const cardVariants = {
   visible: (i: number) => ({ opacity: 1, y: 0, transition: { delay: i * 0.08, duration: 0.3 } }),
 };
 
-// Interactive Power Curve SVG — large, with zones, crosshair, hover tooltip
+// Reusable expandable section component
+const ExpandableCard = ({ title, icon: Icon, children, color = 'hsl(var(--primary))' }: { title: string; icon?: any; children: React.ReactNode; color?: string }) => {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="rounded-lg overflow-hidden transition-all duration-300" style={{
+      backgroundColor: 'hsl(222 28% 12%)',
+      border: `1px solid ${open ? color + '40' : 'hsl(var(--border) / 0.2)'}`,
+      boxShadow: open ? `0 0 20px ${color}15` : 'none',
+    }}>
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left group">
+        <div className="flex items-center gap-2">
+          {Icon && <Icon className="w-4 h-4" style={{ color }} />}
+          <span className="text-xs sm:text-sm font-semibold text-foreground">{title}</span>
+        </div>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        </motion.div>
+      </button>
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25 }} className="overflow-hidden">
+            <div className="px-4 pb-4 text-xs sm:text-sm text-muted-foreground">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// Interactive Power Curve SVG
 const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   const [hoverV, setHoverV] = useState<number | null>(null);
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
 
-  const W = 420, H = 260, pad = { l: 50, r: 20, t: 20, b: 50 };
+  const W = 440, H = 280, pad = { l: 52, r: 30, t: 25, b: 55 };
   const plotW = W - pad.l - pad.r, plotH = H - pad.t - pad.b;
   const vMax = 28;
   const cutIn = 3, rated = 14, cutOut = 25;
@@ -37,6 +64,9 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   const hoverP = hoverV !== null
     ? hoverV < cutIn ? 0 : hoverV >= cutOut ? 0 : hoverV >= rated ? 100 : Math.min(100, ((hoverV - cutIn) / (rated - cutIn)) ** 3 * 100)
     : null;
+
+  // Clamp tooltip position
+  const tooltipX = hoverV !== null ? Math.max(pad.l + 44, Math.min(W - pad.r - 44, vToX(hoverV))) : 0;
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-56 sm:h-64"
@@ -73,7 +103,7 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
       <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.5" />
 
       {/* Axis labels */}
-      <text x={(pad.l + W - pad.r) / 2} y={H - 6} textAnchor="middle" fontSize="12" fill="hsl(var(--muted-foreground))">{L('Швидкість вітру (м/с)', 'Wind Speed (m/s)')}</text>
+      <text x={(pad.l + W - pad.r) / 2} y={H - 8} textAnchor="middle" fontSize="12" fill="hsl(var(--muted-foreground))">{L('Швидкість вітру (м/с)', 'Wind Speed (m/s)')}</text>
       <text x={14} y={(pad.t + pad.t + plotH) / 2} textAnchor="middle" fontSize="12" fill="hsl(var(--muted-foreground))" transform={`rotate(-90 14 ${(pad.t + pad.t + plotH) / 2})`}>{L('Потужність (%)', 'Power (%)')}</text>
 
       {/* Cut-in / rated / cut-out dashed lines */}
@@ -100,8 +130,8 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
           <line x1={vToX(hoverV)} y1={pad.t} x2={vToX(hoverV)} y2={pad.t + plotH} stroke="hsl(var(--primary))" strokeWidth="1" opacity="0.5" strokeDasharray="2 2" />
           <line x1={pad.l} y1={pToY(hoverP)} x2={W - pad.r} y2={pToY(hoverP)} stroke="hsl(var(--primary))" strokeWidth="0.5" opacity="0.3" strokeDasharray="2 2" />
           <circle cx={vToX(hoverV)} cy={pToY(hoverP)} r="5" fill="hsl(var(--primary))" opacity="0.9" style={{ filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))' }} />
-          <rect x={vToX(hoverV) - 40} y={pToY(hoverP) - 30} width="80" height="22" rx="4" fill="hsl(222 28% 10%)" stroke="hsl(var(--primary))" strokeWidth="0.5" opacity="0.95" />
-          <text x={vToX(hoverV)} y={pToY(hoverP) - 15} textAnchor="middle" fontSize="10" fontFamily="monospace" fill="hsl(var(--primary))">
+          <rect x={tooltipX - 44} y={Math.max(pad.t + 2, pToY(hoverP) - 30)} width="88" height="22" rx="4" fill="hsl(222 28% 10%)" stroke="hsl(var(--primary))" strokeWidth="0.5" opacity="0.95" />
+          <text x={tooltipX} y={Math.max(pad.t + 17, pToY(hoverP) - 15)} textAnchor="middle" fontSize="10" fontFamily="monospace" fill="hsl(var(--primary))">
             {hoverV.toFixed(1)} {L('м/с', 'm/s')} → {hoverP.toFixed(0)}%
           </text>
         </>
@@ -110,28 +140,29 @@ const PowerCurveSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   );
 };
 
-// Betz Limit Gauge — larger with animated fill
+// Betz Limit Gauge — fixed viewBox to prevent clipping
 const BetzGauge = ({ lang }: { lang: 'ua' | 'en' }) => {
   const betzPct = 59.3;
   const practicalPct = 47;
-  const r = 52;
-  const rInner = 40;
+  const r = 48;
+  const rInner = 36;
+  const cx = 65, cy = 60;
   const circ = 2 * Math.PI * r;
   const circInner = 2 * Math.PI * rInner;
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
   return (
-    <svg viewBox="0 0 130 130" className="w-40 h-40">
-      <circle cx="65" cy="65" r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="9" opacity="0.08" />
-      <circle cx="65" cy="65" r={r} fill="none" stroke="hsl(210 90% 60%)" strokeWidth="9"
-        strokeDasharray={`${(betzPct / 100) * circ} ${circ}`} strokeLinecap="round" transform="rotate(-90 65 65)"
+    <svg viewBox="0 0 130 120" className="w-40 h-36">
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(var(--border))" strokeWidth="8" opacity="0.08" />
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="hsl(210 90% 60%)" strokeWidth="8"
+        strokeDasharray={`${(betzPct / 100) * circ} ${circ}`} strokeLinecap="round" transform={`rotate(-90 ${cx} ${cy})`}
         style={{ filter: 'drop-shadow(0 0 6px hsl(210 90% 60% / 0.4))', animation: 'betzFill 1.5s ease-out forwards' }} />
-      <circle cx="65" cy="65" r={rInner} fill="none" stroke="hsl(var(--border))" strokeWidth="6" opacity="0.05" />
-      <circle cx="65" cy="65" r={rInner} fill="none" stroke="hsl(var(--primary))" strokeWidth="6"
-        strokeDasharray={`${(practicalPct / 100) * circInner} ${circInner}`} strokeLinecap="round" transform="rotate(-90 65 65)"
+      <circle cx={cx} cy={cy} r={rInner} fill="none" stroke="hsl(var(--border))" strokeWidth="5" opacity="0.05" />
+      <circle cx={cx} cy={cy} r={rInner} fill="none" stroke="hsl(var(--primary))" strokeWidth="5"
+        strokeDasharray={`${(practicalPct / 100) * circInner} ${circInner}`} strokeLinecap="round" transform={`rotate(-90 ${cx} ${cy})`}
         style={{ filter: 'drop-shadow(0 0 5px hsl(var(--primary) / 0.4))', animation: 'betzFill 1.8s ease-out forwards' }} />
-      <text x="65" y="58" textAnchor="middle" fontSize="16" fontWeight="bold" fill="hsl(var(--foreground))" fontFamily="monospace">59.3%</text>
-      <text x="65" y="74" textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))">{L('Ліміт Бетца', 'Betz Limit')}</text>
-      <text x="65" y="88" textAnchor="middle" fontSize="9" fill="hsl(var(--primary))">~47% {L('практ.', 'pract.')}</text>
+      <text x={cx} y={cy - 4} textAnchor="middle" fontSize="16" fontWeight="bold" fill="hsl(var(--foreground))" fontFamily="monospace">59.3%</text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fontSize="10" fill="hsl(var(--muted-foreground))">{L('Ліміт Бетца', 'Betz Limit')}</text>
+      <text x={cx} y={cy + 26} textAnchor="middle" fontSize="9" fill="hsl(var(--primary))">~47% {L('практ.', 'pract.')}</text>
     </svg>
   );
 };
@@ -177,7 +208,6 @@ const WeibullSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
         <span className="text-xs text-muted-foreground ml-1">c = {c} {L('м/с', 'm/s')}</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-44 sm:h-48">
-        {/* Grid */}
         {[0, 0.05, 0.10, 0.15].map(f => (
           <g key={f}>
             <line x1={pad.l} y1={pad.t + plotH - (f / fMax) * plotH} x2={W - pad.r} y2={pad.t + plotH - (f / fMax) * plotH} stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.15" />
@@ -188,21 +218,17 @@ const WeibullSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
           <text key={v} x={pad.l + (v / vMax) * plotW} y={H - pad.b + 16} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">{v}</text>
         ))}
 
-        {/* Axes */}
         <line x1={pad.l} y1={pad.t + plotH} x2={W - pad.r} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.4" />
         <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.4" />
 
-        {/* Ghost curves for other k values */}
         {kValues.filter(k => k !== kVal).map(k => (
           <polyline key={k} points={makePath(k)} fill="none" stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.15" />
         ))}
 
-        {/* Active curve fill + line */}
         <polygon points={`${pad.l},${pad.t + plotH} ${makePath(kVal)} ${W - pad.r},${pad.t + plotH}`} fill="hsl(var(--primary))" opacity="0.08" />
         <polyline points={makePath(kVal)} fill="none" stroke="hsl(var(--primary))" strokeWidth="2.5"
           style={{ filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.4))' }} />
 
-        {/* Labels */}
         <text x={(pad.l + W - pad.r) / 2} y={H - 4} textAnchor="middle" fontSize="11" fill="hsl(var(--muted-foreground))">{L('Швидкість вітру (м/с)', 'Wind Speed (m/s)')}</text>
         <text x={12} y={(pad.t + pad.t + plotH) / 2} textAnchor="middle" fontSize="11" fill="hsl(var(--muted-foreground))" transform={`rotate(-90 12 ${(pad.t + pad.t + plotH) / 2})`}>f(V)</text>
       </svg>
@@ -210,7 +236,7 @@ const WeibullSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   );
 };
 
-// Wind Shear Profile SVG — vertical height vs speed
+// Wind Shear Profile SVG
 const WindShearSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
   const W = 380, H = 240, pad = { l: 55, r: 30, t: 15, b: 40 };
@@ -228,7 +254,6 @@ const WindShearSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
 
   return (
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-48 sm:h-56">
-      {/* Grid */}
       {[0, 50, 100, 150, 200].map(h => (
         <g key={h}>
           <line x1={pad.l} y1={pad.t + plotH - (h / hMax) * plotH} x2={W - pad.r} y2={pad.t + plotH - (h / hMax) * plotH} stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.12" />
@@ -239,7 +264,6 @@ const WindShearSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
       <line x1={pad.l} y1={pad.t + plotH} x2={W - pad.r} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.4" />
       <line x1={pad.l} y1={pad.t} x2={pad.l} y2={pad.t + plotH} stroke="hsl(var(--muted-foreground))" strokeWidth="1" opacity="0.4" />
 
-      {/* Terrain profiles */}
       {terrains.map((t, idx) => {
         const pts: string[] = [];
         for (let h = 1; h <= hMax; h += 2) {
@@ -256,7 +280,6 @@ const WindShearSVG = ({ lang }: { lang: 'ua' | 'en' }) => {
         );
       })}
 
-      {/* Hub height reference */}
       <line x1={pad.l} y1={pad.t + plotH - (100 / hMax) * plotH} x2={W - pad.r} y2={pad.t + plotH - (100 / hMax) * plotH} stroke="hsl(var(--primary))" strokeWidth="1" strokeDasharray="4 4" opacity="0.4" />
       <text x={pad.l + 4} y={pad.t + plotH - (100 / hMax) * plotH - 4} fontSize="9" fill="hsl(var(--primary))">Hub 100m</text>
 
@@ -270,7 +293,7 @@ export const WindEnergyFundamentals = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
   const L = (ua: string, en: string) => lang === 'ua' ? ua : en;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 eng-scrollbar">
       <style>{`
         @keyframes drawCurve { to { stroke-dashoffset: 0; } }
         @keyframes betzFill { from { stroke-dasharray: 0 999; } }
@@ -382,7 +405,7 @@ export const WindEnergyFundamentals = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
         })}
       </div>
 
-      {/* Weibull Distribution — Interactive */}
+      {/* Weibull Distribution */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }}
         className="stalker-card p-4 sm:p-5">
         <h3 className="text-base sm:text-lg font-semibold mb-2 flex items-center gap-2">
@@ -488,81 +511,76 @@ export const WindEnergyFundamentals = ({ lang = 'en' }: { lang?: 'ua' | 'en' }) 
         </div>
       </div>
 
-      {/* Key Concepts Accordion */}
+      {/* Advanced Concepts — Custom expandable cards */}
       <div className="stalker-card p-4 sm:p-5">
         <h3 className="text-base sm:text-lg font-semibold mb-3">{L('Поглиблені концепції', 'Advanced Concepts')}</h3>
-        <Accordion type="single" collapsible className="space-y-2">
-          {[
-            { value: 'betz', title: L('Ліміт Бетца — максимальне вилучення енергії', 'Betz Limit — Maximum Energy Extraction'), content: (
-              <div className="space-y-2">
-                <p>{L('Ліміт Бетца (59.3%) — максимальна теоретична ефективність вітротурбіни. Відкритий Альбертом Бетцом у 1919 р.', 'The Betz limit (59.3%) represents the maximum theoretical efficiency of a wind turbine. Discovered by Albert Betz in 1919.')}</p>
-                <p>{L('Якщо всю кінетичну енергію вилучити, повітря зупиниться за ротором, блокуючи вхідний потік. Оптимум — швидкість за ротором = ⅓ від вхідної.', 'If all kinetic energy were extracted, air would stop behind the rotor. Optimal: downstream speed = ⅓ of upstream.')}</p>
-                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                  <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Теорія', 'Theory')}: 59.3%</Badge>
-                  <ArrowRight className="w-3 h-3" />
-                  <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">{L('Практика', 'Practice')}: 45–50%</Badge>
-                </div>
+        <div className="space-y-2">
+          <ExpandableCard title={L('Ліміт Бетца — максимальне вилучення енергії', 'Betz Limit — Maximum Energy Extraction')} color="hsl(210 90% 60%)">
+            <div className="space-y-2">
+              <p>{L('Ліміт Бетца (59.3%) — максимальна теоретична ефективність вітротурбіни. Відкритий Альбертом Бетцом у 1919 р.', 'The Betz limit (59.3%) represents the maximum theoretical efficiency of a wind turbine. Discovered by Albert Betz in 1919.')}</p>
+              <p>{L('Якщо всю кінетичну енергію вилучити, повітря зупиниться за ротором, блокуючи вхідний потік. Оптимум — швидкість за ротором = ⅓ від вхідної.', 'If all kinetic energy were extracted, air would stop behind the rotor. Optimal: downstream speed = ⅓ of upstream.')}</p>
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Теорія', 'Theory')}: 59.3%</Badge>
+                <ArrowRight className="w-3 h-3" />
+                <Badge variant="outline" className="text-xs bg-primary/10 border-primary/30 text-primary">{L('Практика', 'Practice')}: 45–50%</Badge>
               </div>
-            )},
-            { value: 'reynolds', title: L('Число Рейнольдса — аеродинаміка лопаті', 'Reynolds Number — Blade Aerodynamics'), content: (
-              <div className="space-y-2">
-                <p>{L('Визначає ламінарний чи турбулентний потік над лопаттю. Впливає на підйомну силу та опір.', 'Determines laminar vs turbulent flow over the blade. Affects lift and drag.')}</p>
-                <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
-                  Re = ρVL / μ
-                </div>
-                <p>{L('Лопаті працюють при Re = 10⁶–10⁷. При низькому Re ламінарні пузирі відриву знижують ефективність.', 'Blades operate at Re = 10⁶–10⁷. At low Re, laminar separation bubbles reduce efficiency.')}</p>
+            </div>
+          </ExpandableCard>
+
+          <ExpandableCard title={L('Число Рейнольдса — аеродинаміка лопаті', 'Reynolds Number — Blade Aerodynamics')} color="hsl(120 70% 50%)">
+            <div className="space-y-2">
+              <p>{L('Визначає ламінарний чи турбулентний потік над лопаттю. Впливає на підйомну силу та опір.', 'Determines laminar vs turbulent flow over the blade. Affects lift and drag.')}</p>
+              <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+                Re = ρVL / μ
               </div>
-            )},
-            { value: 'tsr', title: L('Коефіцієнт швидкохідності (λ)', 'Tip-Speed Ratio (λ)'), content: (
-              <div className="space-y-2">
-                <p>{L('λ — відношення швидкості кінця лопаті до швидкості вітру. Кожна конструкція має оптимальний λ для макс. Cp.', 'TSR is blade tip speed to wind speed ratio. Each design has optimal TSR for max Cp.')}</p>
-                <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
-                  λ = ωR / V
-                </div>
-                <div className="space-y-1.5 mt-2">
-                  {[
-                    { type: L('3-лопатевий HAWT', '3-blade HAWT'), tsr: 'λ = 6–8' },
-                    { type: L('2-лопатевий HAWT', '2-blade HAWT'), tsr: 'λ = 8–10' },
-                    { type: L("Дар'є VAWT", 'Darrieus VAWT'), tsr: 'λ = 4–6' },
-                    { type: L('Савоніус VAWT', 'Savonius VAWT'), tsr: 'λ = 0.8–1.2' },
-                  ].map((item, i) => (
-                    <div key={i} className="flex justify-between p-2 border-b last:border-0" style={{ borderColor: 'hsl(var(--border) / 0.2)' }}>
-                      <span>{item.type}</span>
-                      <span className="font-mono text-primary">{item.tsr}</span>
-                    </div>
-                  ))}
-                </div>
+              <p>{L('Лопаті працюють при Re = 10⁶–10⁷. При низькому Re ламінарні пузирі відриву знижують ефективність.', 'Blades operate at Re = 10⁶–10⁷. At low Re, laminar separation bubbles reduce efficiency.')}</p>
+            </div>
+          </ExpandableCard>
+
+          <ExpandableCard title={L('Коефіцієнт швидкохідності (λ)', 'Tip-Speed Ratio (λ)')} color="hsl(25 90% 55%)">
+            <div className="space-y-2">
+              <p>{L('λ — відношення швидкості кінця лопаті до швидкості вітру. Кожна конструкція має оптимальний λ для макс. Cp.', 'TSR is blade tip speed to wind speed ratio. Each design has optimal TSR for max Cp.')}</p>
+              <div className="p-3 rounded-lg font-mono text-center text-primary text-base" style={{ backgroundColor: 'hsl(222 28% 8%)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+                λ = ωR / V
               </div>
-            )},
-            { value: 'capacity', title: L('Коефіцієнт використання потужності', 'Capacity Factor'), content: (
-              <div className="space-y-2">
-                <p>{L('Вимірює фактичну віддачу vs теоретичний максимум. Враховує мінливість вітру, ТО, обмеження мережі.', 'Measures actual output vs theoretical max. Accounts for wind variability, maintenance, curtailment.')}</p>
-                <div className="flex gap-2 mt-2 flex-wrap">
-                  <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Наземні', 'Onshore')}: 25–35%</Badge>
-                  <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Морські', 'Offshore')}: 40–55%</Badge>
-                </div>
+              <div className="space-y-1.5 mt-2">
+                {[
+                  { type: L('3-лопатевий HAWT', '3-blade HAWT'), tsr: 'λ = 6–8' },
+                  { type: L('2-лопатевий HAWT', '2-blade HAWT'), tsr: 'λ = 8–10' },
+                  { type: L("Дар'є VAWT", 'Darrieus VAWT'), tsr: 'λ = 4–6' },
+                  { type: L('Савоніус VAWT', 'Savonius VAWT'), tsr: 'λ = 0.8–1.2' },
+                ].map((item, i) => (
+                  <div key={i} className="flex justify-between p-2 border-b last:border-0" style={{ borderColor: 'hsl(var(--border) / 0.2)' }}>
+                    <span>{item.type}</span>
+                    <span className="font-mono text-primary">{item.tsr}</span>
+                  </div>
+                ))}
               </div>
-            )},
-            { value: 'lcoe', title: L('LCOE — Нівельована вартість енергії', 'LCOE — Levelized Cost of Energy'), content: (
-              <div className="space-y-2">
-                <p>{L('Середня вартість одиниці електроенергії за весь термін експлуатації проєкту.', 'Average cost per unit of electricity over project lifetime.')}</p>
-                <div className="p-3 rounded-lg" style={{ backgroundColor: 'hsl(var(--primary) / 0.05)', border: '1px solid hsl(var(--primary) / 0.15)' }}>
-                  <p className="font-mono text-sm text-center text-primary">
-                    LCOE = ({L('Капітал + ОМ + Демонтаж', 'Capital + O&M + Decom.')}) / Σ(E × (1+r)<sup>-t</sup>)
-                  </p>
-                </div>
-                <p className="mt-1">{L('Наземна ВЕС: €25–45/МВт·год. Морська: €50–80/МВт·год. Конкурентні без субсидій.', 'Onshore: €25–45/MWh. Offshore: €50–80/MWh. Competitive without subsidies.')}</p>
+            </div>
+          </ExpandableCard>
+
+          <ExpandableCard title={L('Коефіцієнт використання потужності', 'Capacity Factor')} color="hsl(270 70% 60%)">
+            <div className="space-y-2">
+              <p>{L('Вимірює фактичну віддачу vs теоретичний максимум. Враховує мінливість вітру, ТО, обмеження мережі.', 'Measures actual output vs theoretical max. Accounts for wind variability, maintenance, curtailment.')}</p>
+              <div className="flex gap-2 mt-2 flex-wrap">
+                <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Наземні', 'Onshore')}: 25–35%</Badge>
+                <Badge variant="outline" className="text-xs border-primary/30 bg-primary/5 text-primary">{L('Морські', 'Offshore')}: 40–55%</Badge>
               </div>
-            )},
-          ].map(item => (
-            <AccordionItem key={item.value} value={item.value} className="rounded-lg border px-3" style={{ backgroundColor: 'hsl(222 28% 12%)', borderColor: 'hsl(var(--primary) / 0.1)' }}>
-              <AccordionTrigger className="text-xs sm:text-sm py-3 hover:no-underline hover:text-primary">{item.title}</AccordionTrigger>
-              <AccordionContent className="text-xs sm:text-sm text-muted-foreground pb-3">
-                {item.content}
-              </AccordionContent>
-            </AccordionItem>
-          ))}
-        </Accordion>
+            </div>
+          </ExpandableCard>
+
+          <ExpandableCard title={L('LCOE — Нівельована вартість енергії', 'LCOE — Levelized Cost of Energy')} color="hsl(0 60% 55%)">
+            <div className="space-y-2">
+              <p>{L('Середня вартість одиниці електроенергії за весь термін експлуатації проєкту.', 'Average cost per unit of electricity over project lifetime.')}</p>
+              <div className="p-3 rounded-lg" style={{ backgroundColor: 'hsl(var(--primary) / 0.05)', border: '1px solid hsl(var(--primary) / 0.15)' }}>
+                <p className="font-mono text-sm text-center text-primary">
+                  LCOE = ({L('Капітал + ОМ + Демонтаж', 'Capital + O&M + Decom.')}) / Σ(E × (1+r)<sup>-t</sup>)
+                </p>
+              </div>
+              <p className="mt-1">{L('Наземна ВЕС: €25–45/МВт·год. Морська: €50–80/МВт·год. Конкурентні без субсидій.', 'Onshore: €25–45/MWh. Offshore: €50–80/MWh. Competitive without subsidies.')}</p>
+            </div>
+          </ExpandableCard>
+        </div>
       </div>
     </div>
   );

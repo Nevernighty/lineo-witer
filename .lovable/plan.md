@@ -1,72 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Knowledge Base Full Overhaul
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Problems Identified
-- Text clipping on Betz limit gauge and other SVGs (viewBox too tight, text overflows)
-- Default Radix accordions look like ugly dropdowns - need custom styled expandable sections
-- No custom scrollbar on info page content areas
-- PrintingConsiderations content is generic/primitive - not specific enough to wind energy manufacturing
-- BladeStressSVG is too small (h-28) with poor interactivity - needs to be the centerpiece
-- UkraineWindPotential accordion sections at bottom are basic
-- Inconsistent card styling across sections
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-### Plan (6 files modified)
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-**1. `src/components/info/WindEnergyFundamentals.tsx`**
-- Fix BetzGauge SVG: increase viewBox to prevent text clipping, add padding
-- Replace all `<Accordion>` with custom styled expandable cards (animated chevron, glow border on open, no default underline hover)
-- Add `eng-scrollbar` class to any overflow containers
-- Fix PowerCurveSVG tooltip clipping at edges (clamp tooltip position)
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-**2. `src/components/info/TurbineCategories.tsx`**
-- Replace Accordion with custom collapsible cards styled with colored left borders per turbine type
-- Bigger TurbineSilhouette SVGs
-- Fix Betz limit label clipping in EfficiencyComparisonSVG
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-**3. `src/components/info/UkraineWindPotential.tsx`**
-- Replace bottom accordions with always-visible styled cards with expandable details
-- Add wind rose simplified SVG visualization (directional arrows showing NW winter / SW summer)
-- Better timeline visualization with connecting glow lines
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-**4. `src/components/info/PrintingConsiderations.tsx` — Major content overhaul**
-- Replace generic content with wind-energy-specific 3D printing engineering data:
-  - **Blade aerodynamic profile printing**: NACA airfoil preservation, surface roughness impact on Cl/Cd, layer line orientation relative to airflow
-  - **Structural FDM analysis for rotating parts**: centrifugal stress calculations, creep under sustained load at temperature
-  - **Material selection matrix**: specific to outdoor rotating components (UV, fatigue cycles at RPM, moisture absorption)
-- Add interactive infill vs strength visualization (SVG with slider showing infill % → estimated tensile strength curve)
-- Bigger LayerOrientationSVG with animated load arrows
-- Replace accordion sections with custom expandable cards
+## 3. "Слід" (Trail) налаштування не працює
 
-**5. `src/components/info/PrintableComponents.tsx` — Blade stress visualization overhaul**
-- **BladeStressSVG**: Make 2-3x bigger (h-48+), add:
-  - Interactive hover: show stress magnitude at hover position along blade span
-  - Animated bending moment curve with gradient fill showing stress concentration
-  - Shear force diagram below (second SVG)
-  - Color-coded stress heatmap on blade surface (green at tip → red at root)
-  - Tooltip showing F = mω²r calculation at hovered radial position
-- MaterialStrengthChart: add interactive hover showing full material properties
-- Replace Accordion with custom styled expandable sections
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-**6. `src/pages/InfoPage.tsx`**
-- Add `eng-scrollbar` class to main content area and tab scroll container
-- Ensure all overflow areas use custom scrollbar
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
-### Custom Accordion Replacement Pattern
-Instead of Radix Accordion, use a custom component pattern throughout:
-```tsx
-const [openSection, setOpenSection] = useState<string | null>(null);
-// Render as clickable cards with AnimatePresence for content
-// Styled with glow border when open, smooth height animation via framer-motion
-```
+## 4. Реалістичніші частинки та оптимізація
 
-### Files Modified
-| File | Changes |
-|------|---------|
-| `WindEnergyFundamentals.tsx` | Fix SVG clipping, replace accordions with custom expandables |
-| `TurbineCategories.tsx` | Custom expandables, fix chart clipping |
-| `UkraineWindPotential.tsx` | Replace accordions, add wind rose SVG |
-| `PrintingConsiderations.tsx` | Major content rewrite with wind-energy-specific 3D print engineering |
-| `PrintableComponents.tsx` | Interactive blade stress visualization overhaul, hover tooltips |
-| `InfoPage.tsx` | Add eng-scrollbar to content areas |
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
 
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
+
+## 5. Генератори всмоктують частинки — візуалізація
+
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
+
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
+
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
+
+## 6. Стрілки напрямку вітру після колізії
+
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
+
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
+
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
+
+## 7. Кращі impact ефекти
+
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
+
+---
+
+## Технічна послідовність
+
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори

@@ -73,7 +73,7 @@ const InfoPage = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 eng-scrollbar">
         {/* Custom dark tabs */}
         <div className="mb-6 overflow-x-auto eng-scrollbar">
           <div className="flex gap-1 p-1.5 rounded-xl min-w-max" style={{ backgroundColor: 'hsl(222 28% 10% / 0.8)', border: '1px solid hsl(var(--border) / 0.3)' }}>
