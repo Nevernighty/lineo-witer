@@ -79,7 +79,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
   config, particleCount, obstacles, width, height, depth,
   onCollisionEnergyUpdate, onCollisionEvent, onObstacleEnergyUpdate,
   particleImpact = 1.0, particleTrailLength = 1.0, glowIntensity = 1.0,
-  pulsation = 0
+  pulsation = 0, particlePreset = 'standard'
 }) => {
   const particlesRef = useRef<WindParticle[]>([]);
   const collisionEnergyRef = useRef(0);
