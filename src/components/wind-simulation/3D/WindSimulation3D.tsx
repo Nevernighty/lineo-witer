@@ -552,7 +552,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
               width={simulationSize.width} height={simulationSize.height} depth={simulationSize.depth}
               onCollisionEnergyUpdate={setCollisionEnergy} onCollisionEvent={handleCollisionEvent}
               onObstacleEnergyUpdate={handleObstacleEnergyUpdate} particleImpact={particleImpact}
-              particleTrailLength={particleTrailLength} glowIntensity={particleGlow} pulsation={pulsation} />
+              particleTrailLength={particleTrailLength} glowIntensity={particleGlow} pulsation={pulsation}
+              particlePreset={particlePreset} />
 
             <CollisionEffectsManager collisions={collisionEffects} onRemoveCollision={handleRemoveCollision} />
             <CollisionHotspotManager obstacles={obstacles} obstacleEnergies={obstacleEnergies}

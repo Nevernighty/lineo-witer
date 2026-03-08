@@ -45,6 +45,7 @@ interface AdvancedParticleSystemProps {
   particleTrailLength?: number;
   glowIntensity?: number;
   pulsation?: number;
+  particlePreset?: string;
 }
 
 const MATERIAL_RESTITUTION: Record<string, number> = {
@@ -78,7 +79,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
   config, particleCount, obstacles, width, height, depth,
   onCollisionEnergyUpdate, onCollisionEvent, onObstacleEnergyUpdate,
   particleImpact = 1.0, particleTrailLength = 1.0, glowIntensity = 1.0,
-  pulsation = 0
+  pulsation = 0, particlePreset = 'standard'
 }) => {
   const particlesRef = useRef<WindParticle[]>([]);
   const collisionEnergyRef = useRef(0);
@@ -510,6 +511,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       windAngle={config.windAngle}
       glowIntensity={glowIntensity}
       pulsation={pulsation}
+      preset={particlePreset}
     />
   );
 };
