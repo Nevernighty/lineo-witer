@@ -509,13 +509,13 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       {/* Wind info badges */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          {t('windVariability', lang)}: ±{displayWeather.windVariability} m/s
+          {t('windVariability', lang)}: ±{weather.windVariability} m/s
         </span>
         <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          {t('windChill', lang)}: {displayWeather.windChill}°C
+          {t('windChill', lang)}: {weather.windChill}°C
         </span>
         <span className="text-[10px] px-2 py-1 rounded-lg font-mono border" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', borderColor: 'hsl(var(--border) / 0.2)' }}>
-          {lang === 'ua' ? 'Хмарність' : 'Clouds'}: {displayWeather.cloudCover}%
+          {lang === 'ua' ? 'Хмарність' : 'Clouds'}: {weather.cloudCover}%
         </span>
       </div>
 
