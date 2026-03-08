@@ -1,12 +1,12 @@
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { type WindGeneratorSpecs } from "@/utils/windCalculations";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Wind, Zap, Wrench, Calculator, BarChart3, TrendingUp, Info, AlertTriangle, Leaf, DollarSign, Activity } from "lucide-react";
+import { Wind, Zap, Wrench, Calculator, BarChart3, TrendingUp, Info, AlertTriangle, Leaf, DollarSign, Activity, Gauge, ArrowRight } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useSpring, useTransform } from "framer-motion";
 
 interface GeneratorSettingsProps {
   open: boolean;
@@ -18,10 +18,10 @@ interface GeneratorSettingsProps {
 }
 
 const bladeProfiles = [
-  { value: 'NACA 4412', lift: 1.2, drag: 0.012, clcd: 100, desc_ua: 'Класичний профіль для малих турбін', desc_en: 'Classic profile for small turbines' },
-  { value: 'NACA 63-215', lift: 1.4, drag: 0.008, clcd: 175, desc_ua: 'Ламінарний профіль, висока ефективність', desc_en: 'Laminar profile, high efficiency' },
-  { value: 'S809', lift: 1.0, drag: 0.010, clcd: 100, desc_ua: 'Спеціально для вітрових турбін (NREL)', desc_en: 'Designed specifically for wind turbines (NREL)' },
-  { value: 'DU 93-W-210', lift: 1.3, drag: 0.009, clcd: 144, desc_ua: 'Профіль Делфтського університету', desc_en: 'Delft University profile' },
+  { value: 'NACA 4412', lift: 1.2, drag: 0.012, clcd: 100, thickness: 0.12, camber: 0.04, camberPos: 0.4, desc_ua: 'Класичний профіль для малих турбін', desc_en: 'Classic profile for small turbines' },
+  { value: 'NACA 63-215', lift: 1.4, drag: 0.008, clcd: 175, thickness: 0.15, camber: 0.03, camberPos: 0.35, desc_ua: 'Ламінарний профіль, висока ефективність', desc_en: 'Laminar profile, high efficiency' },
+  { value: 'S809', lift: 1.0, drag: 0.010, clcd: 100, thickness: 0.21, camber: 0.01, camberPos: 0.45, desc_ua: 'Спеціально для вітрових турбін (NREL)', desc_en: 'Designed specifically for wind turbines (NREL)' },
+  { value: 'DU 93-W-210', lift: 1.3, drag: 0.009, clcd: 144, thickness: 0.21, camber: 0.035, camberPos: 0.38, desc_ua: 'Профіль Делфтського університету', desc_en: 'Delft University profile' },
 ];
 
 const genTypes = [
@@ -31,7 +31,7 @@ const genTypes = [
 ];
 
 const materials = [
-  { name: 'E-Glass/Epoxy', E: 40, sigma: 1000, rho: 2100, color: 'hsl(var(--primary))', desc_ua: 'Стандарт для лопатей', desc_en: 'Standard for blades' },
+  { name: 'E-Glass/Epoxy', E: 40, sigma: 1000, rho: 2100, color: 'hsl(120 100% 54%)', desc_ua: 'Стандарт для лопатей', desc_en: 'Standard for blades' },
   { name: 'Carbon/Epoxy', E: 135, sigma: 1500, rho: 1600, color: 'hsl(200 80% 60%)', desc_ua: 'Преміум, легший, дорожчий', desc_en: 'Premium, lighter, costlier' },
   { name: 'Balsa/GF Sandwich', E: 8, sigma: 200, rho: 250, color: 'hsl(40 80% 60%)', desc_ua: 'Легкий сандвіч для обшивки', desc_en: 'Lightweight sandwich for skins' },
   { name: 'Steel (Tower)', E: 210, sigma: 355, rho: 7850, color: 'hsl(0 60% 55%)', desc_ua: 'Конструкційна сталь S355', desc_en: 'Structural steel S355' },
@@ -53,31 +53,31 @@ const GlowSlider: React.FC<{
   const glowColor = color || 'hsl(var(--primary))';
 
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex justify-between items-center">
-        <div className="flex items-center gap-1">
-          <span className="text-[10px] font-medium uppercase tracking-wider" style={{ color: `${glowColor}` }}>{label}</span>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px] font-semibold uppercase tracking-wider" style={{ color: glowColor }}>{label}</span>
           {infoText && (
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Info className="w-3 h-3 opacity-40 hover:opacity-100 cursor-help transition-colors" style={{ color: glowColor }} />
+                  <Info className="w-3.5 h-3.5 opacity-40 hover:opacity-100 cursor-help transition-colors" style={{ color: glowColor }} />
                 </TooltipTrigger>
-                <TooltipContent side="left" className="max-w-[280px] bg-[#0d1117] border-primary/40 text-xs leading-relaxed z-[100]">
+                <TooltipContent side="left" className="max-w-[300px] bg-[#0d1117] border-primary/40 text-xs leading-relaxed z-[100]">
                   <p>{infoText}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           )}
         </div>
-        <span className="text-xs font-mono font-semibold" style={{ color: glowColor }}>{displayValue}</span>
+        <span className="text-sm font-mono font-bold" style={{ color: glowColor }}>{displayValue}</span>
       </div>
-      <div className="relative h-2">
+      <div className="relative h-2.5">
         <div className="absolute inset-0 rounded-full border" style={{ backgroundColor: 'hsl(var(--background) / 0.6)', borderColor: `${glowColor}33` }} />
-        <div className="absolute inset-y-0 left-0 rounded-full"
-          style={{ width: `${percentage}%`, background: `linear-gradient(90deg, ${glowColor}cc, ${glowColor})`, boxShadow: `0 0 10px ${glowColor}80` }} />
-        <div className="absolute top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2"
-          style={{ left: `calc(${percentage}% - 6px)`, backgroundColor: glowColor, borderColor: 'hsl(var(--background))', boxShadow: `0 0 12px ${glowColor}cc` }} />
+        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-150"
+          style={{ width: `${percentage}%`, background: `linear-gradient(90deg, ${glowColor}99, ${glowColor})`, boxShadow: `0 0 14px ${glowColor}80, 0 0 4px ${glowColor}40` }} />
+        <div className="absolute top-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-2 transition-all duration-150"
+          style={{ left: `calc(${percentage}% - 8px)`, backgroundColor: glowColor, borderColor: 'hsl(var(--background))', boxShadow: `0 0 16px ${glowColor}cc, 0 0 4px ${glowColor}` }} />
         <Slider value={[value]} onValueChange={(v) => onChange(v[0])} min={min} max={max} step={step}
           className="absolute inset-0 opacity-0 cursor-pointer" />
       </div>
@@ -85,76 +85,167 @@ const GlowSlider: React.FC<{
   );
 };
 
-// ─── Tab Button ───
+// ─── Animated Counter ───
+const AnimatedCounter: React.FC<{ value: number; format: (v: number) => string; className?: string }> = ({ value, format, className }) => {
+  const spring = useSpring(0, { stiffness: 60, damping: 20 });
+  const display = useTransform(spring, (v) => format(v));
+  const [text, setText] = useState(format(value));
+
+  useEffect(() => {
+    spring.set(value);
+    const unsub = display.on('change', (v) => setText(v));
+    return unsub;
+  }, [value]);
+
+  return <span className={className}>{text}</span>;
+};
+
+// ─── Tab config ───
 const tabItems = [
-  { value: 'aero', icon: Wind, ua: 'Аеро', en: 'Aero', color: 'hsl(210 90% 60%)' },
-  { value: 'struct', icon: Wrench, ua: 'Конст.', en: 'Struct', color: 'hsl(25 90% 55%)' },
-  { value: 'elec', icon: Zap, ua: 'Елект.', en: 'Elec', color: 'hsl(50 90% 55%)' },
-  { value: 'curve', icon: BarChart3, ua: 'Крива', en: 'Curve', color: 'hsl(270 70% 60%)' },
-  { value: 'calc', icon: Calculator, ua: 'Розр.', en: 'Calc', color: 'hsl(var(--primary))' },
+  { value: 'aero', icon: Wind, ua: 'Аеродинаміка', en: 'Aerodynamics', color: 'hsl(210 90% 60%)' },
+  { value: 'struct', icon: Wrench, ua: 'Конструкція', en: 'Structure', color: 'hsl(25 90% 55%)' },
+  { value: 'elec', icon: Zap, ua: 'Електрика', en: 'Electrical', color: 'hsl(50 90% 55%)' },
+  { value: 'curve', icon: BarChart3, ua: 'Крива P(V)', en: 'P(V) Curve', color: 'hsl(270 70% 60%)' },
+  { value: 'calc', icon: Calculator, ua: 'Розрахунки', en: 'Calculations', color: 'hsl(120 100% 54%)' },
 ];
 
-// ─── Blade Profile SVG ───
+// ─── Enhanced Blade Profile SVG ───
 const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfiles[0]; attackAngle: number }) => {
   const isStall = attackAngle > 15;
-  // NACA-like airfoil shape
-  const upperPoints = [];
-  const lowerPoints = [];
-  for (let i = 0; i <= 20; i++) {
-    const x = i / 20;
-    const t = 0.12; // thickness
-    const camber = 0.04;
-    const yc = camber * (x < 0.4 ? (2 * 0.4 * x - x * x) / (0.4 * 0.4) : ((1 - 2 * 0.4) + 2 * 0.4 * x - x * x) / ((1 - 0.4) * (1 - 0.4)));
+  const t = profile.thickness;
+  const camber = profile.camber;
+  const p = profile.camberPos;
+
+  const upperPoints: { x: number; y: number }[] = [];
+  const lowerPoints: { x: number; y: number }[] = [];
+
+  for (let i = 0; i <= 40; i++) {
+    const x = i / 40;
+    const yc = x < p
+      ? camber * (2 * p * x - x * x) / (p * p)
+      : camber * ((1 - 2 * p) + 2 * p * x - x * x) / ((1 - p) * (1 - p));
     const yt = 5 * t * (0.2969 * Math.sqrt(x) - 0.1260 * x - 0.3516 * x ** 2 + 0.2843 * x ** 3 - 0.1015 * x ** 4);
-    upperPoints.push({ x: 40 + x * 200, y: 50 - (yc + yt) * 300 });
-    lowerPoints.push({ x: 40 + x * 200, y: 50 - (yc - yt) * 300 });
+    upperPoints.push({ x: 50 + x * 280, y: 85 - (yc + yt) * 500 });
+    lowerPoints.push({ x: 50 + x * 280, y: 85 - (yc - yt) * 500 });
   }
-  const upper = upperPoints.map(p => `${p.x},${p.y}`).join(' ');
-  const lower = lowerPoints.map(p => `${p.x},${p.y}`).join(' ');
-  const all = [...upperPoints, ...lowerPoints.reverse()].map(p => `${p.x},${p.y}`).join(' ');
+
+  const allPoints = [...upperPoints, ...lowerPoints.reverse()];
+  const allPath = allPoints.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ') + 'Z';
+
+  // Pressure distribution colors
+  const upperPressurePath = upperPoints.map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
+  const lowerPressurePath = lowerPoints.reverse().map((pt, i) => `${i === 0 ? 'M' : 'L'}${pt.x},${pt.y}`).join(' ');
 
   return (
-    <svg viewBox="0 0 280 100" className="w-full h-20">
+    <svg viewBox="0 0 400 170" className="w-full h-40">
       <defs>
-        <linearGradient id="airfoilGrad" x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0%" stopColor="hsl(210 90% 60%)" stopOpacity="0.6" />
+        <linearGradient id="pressureHigh" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="hsl(0 80% 55%)" stopOpacity="0.35" />
+          <stop offset="50%" stopColor="hsl(0 80% 55%)" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="hsl(0 80% 55%)" stopOpacity="0.05" />
+        </linearGradient>
+        <linearGradient id="pressureLow" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="hsl(210 90% 60%)" stopOpacity="0.35" />
+          <stop offset="50%" stopColor="hsl(210 90% 60%)" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="hsl(210 90% 60%)" stopOpacity="0.05" />
+        </linearGradient>
+        <linearGradient id="airfoilBody" x1="0" x2="1" y1="0" y2="0">
+          <stop offset="0%" stopColor="hsl(210 90% 60%)" stopOpacity="0.4" />
           <stop offset="100%" stopColor="hsl(210 90% 60%)" stopOpacity="0.1" />
         </linearGradient>
+        <filter id="airfoilGlow">
+          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
       </defs>
-      {/* Flow lines */}
-      {[-20, -10, 0, 10, 20].map(dy => (
-        <line key={dy} x1="10" y1={50 + dy} x2="270" y2={50 + dy - attackAngle * 0.5}
-          stroke="hsl(var(--primary))" strokeWidth="0.5" opacity="0.15" strokeDasharray="4,4" />
+
+      {/* Animated flow lines */}
+      {[-30, -18, -6, 6, 18, 30, 42].map((dy, i) => (
+        <line key={i} x1="10" y1={85 + dy} x2="390" y2={85 + dy - attackAngle * 1.2}
+          stroke="hsl(210 90% 60%)" strokeWidth="0.6" opacity="0.12"
+          strokeDasharray="6,4" className="animate-flow-dash" style={{ animationDelay: `${i * 0.15}s` }} />
       ))}
-      {/* Airfoil */}
-      <g transform={`rotate(${-attackAngle}, 140, 50)`}>
-        <polygon points={all} fill="url(#airfoilGrad)" stroke="hsl(210 90% 60%)" strokeWidth="1.5" />
-        {/* Chord line */}
-        <line x1="40" y1="50" x2="240" y2="50" stroke="hsl(var(--muted-foreground))" strokeWidth="0.5" strokeDasharray="3,3" opacity="0.5" />
+
+      {/* Pressure zones */}
+      <g transform={`rotate(${-attackAngle}, 190, 85)`} opacity="0.6">
+        {/* Low pressure (top - suction) */}
+        <path d={`${upperPressurePath} L${upperPoints[upperPoints.length - 1].x},${85 - 40} L${upperPoints[0].x},${85 - 40} Z`}
+          fill="url(#pressureLow)" />
+        {/* High pressure (bottom) */}
+        <path d={`${lowerPressurePath} L${lowerPoints[0].x},${85 + 35} L${lowerPoints[lowerPoints.length - 1].x},${85 + 35} Z`}
+          fill="url(#pressureHigh)" />
       </g>
-      {/* Stall warning */}
+
+      {/* Airfoil body */}
+      <g transform={`rotate(${-attackAngle}, 190, 85)`} filter="url(#airfoilGlow)">
+        <path d={allPath} fill="url(#airfoilBody)" stroke="hsl(210 90% 60%)" strokeWidth="1.5" />
+        {/* Chord line */}
+        <line x1="50" y1="85" x2="330" y2="85" stroke="hsl(var(--muted-foreground))" strokeWidth="0.5" strokeDasharray="4,4" opacity="0.4" />
+        {/* Leading edge dot */}
+        <circle cx="50" cy="85" r="2.5" fill="hsl(210 90% 60%)" />
+      </g>
+
+      {/* Pressure labels */}
+      <g transform={`rotate(${-attackAngle}, 190, 85)`}>
+        <text x="160" y={55 - attackAngle * 0.5} fontSize="9" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
+          − {attackAngle > 10 ? 'LOW' : 'Low'} P
+        </text>
+        <text x="160" y={120 + attackAngle * 0.3} fontSize="9" fill="hsl(0 80% 55%)" fontWeight="600" opacity="0.7">
+          + {attackAngle > 10 ? 'HIGH' : 'High'} P
+        </text>
+      </g>
+
+      {/* Lift arrow */}
+      <g transform={`translate(340, ${85 - Math.min(attackAngle * 2, 35)})`}>
+        <line x1="0" y1="15" x2="0" y2={-Math.min(profile.lift * 15, 30)} stroke="hsl(120 100% 54%)" strokeWidth="2" markerEnd="url(#liftArrow)" />
+        <text x="8" y="0" fontSize="8" fill="hsl(120 100% 54%)" fontWeight="bold">L</text>
+      </g>
+
+      {/* Drag arrow */}
+      <g transform={`translate(355, 85)`}>
+        <line x1="0" y1="0" x2={Math.min(profile.drag * 800, 20)} y2="0" stroke="hsl(0 60% 55%)" strokeWidth="1.5" markerEnd="url(#dragArrow)" />
+        <text x={Math.min(profile.drag * 800, 20) + 4} y="3" fontSize="8" fill="hsl(0 60% 55%)" fontWeight="bold">D</text>
+      </g>
+
+      <defs>
+        <marker id="liftArrow" markerWidth="6" markerHeight="4" refX="3" refY="2" orient="auto">
+          <polygon points="0 4, 3 0, 6 4" fill="hsl(120 100% 54%)" />
+        </marker>
+        <marker id="dragArrow" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
+          <polygon points="0 0, 5 2, 0 4" fill="hsl(0 60% 55%)" />
+        </marker>
+      </defs>
+
+      {/* Stall warning turbulence */}
       {isStall && (
-        <g>
-          <text x="200" y="15" fontSize="8" fill="hsl(var(--destructive))" fontWeight="bold" className="animate-pulse">⚠ STALL</text>
-          {/* Separation vortices */}
-          {[0,1,2].map(i => (
-            <circle key={i} cx={200 + i * 20} cy={35 + Math.sin(i) * 8} r={3 + i} fill="none" stroke="hsl(var(--destructive))" strokeWidth="0.8" opacity={0.5 - i * 0.1} strokeDasharray="2,2" />
+        <g opacity="0.7">
+          <text x="300" y="20" fontSize="11" fill="hsl(var(--destructive))" fontWeight="bold" className="animate-pulse">⚠ STALL</text>
+          {[0, 1, 2, 3].map(i => (
+            <circle key={i} cx={250 + i * 25} cy={50 + Math.sin(i * 1.5) * 12} r={4 + i * 1.5}
+              fill="none" stroke="hsl(var(--destructive))" strokeWidth="1" opacity={0.6 - i * 0.1}
+              strokeDasharray="3,2" className="animate-pulse" style={{ animationDelay: `${i * 0.2}s` }}>
+              <animateTransform attributeName="transform" type="rotate" values={`0 ${250 + i * 25} ${50 + Math.sin(i * 1.5) * 12};360 ${250 + i * 25} ${50 + Math.sin(i * 1.5) * 12}`} dur={`${2 + i * 0.5}s`} repeatCount="indefinite" />
+            </circle>
           ))}
         </g>
       )}
-      {/* Lift/Drag labels */}
-      <text x="10" y="95" fontSize="7" fill="hsl(var(--muted-foreground))">
-        Cl/Cd = {profile.clcd} | Cl = {profile.lift} | Cd = {profile.drag}
+
+      {/* Info bar */}
+      <rect x="20" y="152" width="360" height="14" rx="4" fill="hsl(var(--background) / 0.6)" stroke="hsl(210 90% 60% / 0.15)" strokeWidth="0.5" />
+      <text x="30" y="163" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
+        {profile.value} │ Cl={profile.lift} │ Cd={profile.drag} │ Cl/Cd={profile.clcd} │ t={(profile.thickness * 100).toFixed(0)}%
       </text>
     </svg>
   );
 };
 
-// ─── Radar Chart SVG ───
-const RadarChartSVG = ({ materials: mats }: { materials: typeof materials }) => {
+// ─── Enhanced Radar Chart SVG ───
+const RadarChartSVG = ({ materials: mats, selectedIdx, onSelect }: {
+  materials: typeof materials; selectedIdx: number; onSelect: (i: number) => void;
+}) => {
   const axes = ['E (GPa)', 'σ (MPa)', 'ρ (kg/m³)'];
   const maxVals = [210, 1500, 7850];
-  const cx = 110, cy = 75, r = 55;
+  const cx = 150, cy = 100, r = 80;
   const angles = axes.map((_, i) => (i * 2 * Math.PI / 3) - Math.PI / 2);
 
   const getPoint = (val: number, maxVal: number, angleIdx: number) => ({
@@ -163,20 +254,40 @@ const RadarChartSVG = ({ materials: mats }: { materials: typeof materials }) => 
   });
 
   return (
-    <svg viewBox="0 0 220 150" className="w-full h-36">
+    <svg viewBox="0 0 300 200" className="w-full h-52">
+      <defs>
+        <filter id="radarGlow">
+          <feGaussianBlur stdDeviation="3" result="blur" />
+          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+        </filter>
+      </defs>
+
       {/* Grid rings */}
       {[0.25, 0.5, 0.75, 1].map(f => (
         <polygon key={f}
           points={angles.map(a => `${cx + f * r * Math.cos(a)},${cy + f * r * Math.sin(a)}`).join(' ')}
-          fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.3" />
+          fill="none" stroke="hsl(var(--border))" strokeWidth="0.5" opacity={f === 1 ? 0.4 : 0.2} />
       ))}
+
       {/* Axes */}
       {angles.map((a, i) => (
         <g key={i}>
-          <line x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)} stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.4" />
-          <text x={cx + (r + 12) * Math.cos(a)} y={cy + (r + 12) * Math.sin(a)} fontSize="6" fill="hsl(var(--muted-foreground))" textAnchor="middle" dominantBaseline="middle">{axes[i]}</text>
+          <line x1={cx} y1={cy} x2={cx + r * Math.cos(a)} y2={cy + r * Math.sin(a)}
+            stroke="hsl(var(--border))" strokeWidth="0.5" opacity="0.35" />
+          <text x={cx + (r + 18) * Math.cos(a)} y={cy + (r + 18) * Math.sin(a)}
+            fontSize="9" fill="hsl(var(--muted-foreground))" textAnchor="middle" dominantBaseline="middle" fontWeight="500">
+            {axes[i]}
+          </text>
+          {/* Scale labels */}
+          {[0.5, 1].map(f => (
+            <text key={f} x={cx + (f * r + 3) * Math.cos(a)} y={cy + (f * r + 3) * Math.sin(a)}
+              fontSize="6" fill="hsl(var(--muted-foreground))" opacity="0.4" textAnchor="start">
+              {(f * maxVals[i]).toFixed(0)}
+            </text>
+          ))}
         </g>
       ))}
+
       {/* Material polygons */}
       {mats.map((mat, mi) => {
         const pts = [
@@ -184,57 +295,108 @@ const RadarChartSVG = ({ materials: mats }: { materials: typeof materials }) => 
           getPoint(mat.sigma, maxVals[1], 1),
           getPoint(mat.rho, maxVals[2], 2),
         ];
+        const isSelected = mi === selectedIdx;
         return (
-          <g key={mi}>
+          <g key={mi} onClick={() => onSelect(mi)} className="cursor-pointer">
             <polygon points={pts.map(p => `${p.x},${p.y}`).join(' ')}
-              fill={mat.color} fillOpacity="0.08" stroke={mat.color} strokeWidth="1.2" opacity="0.7" />
+              fill={mat.color} fillOpacity={isSelected ? 0.2 : 0.06}
+              stroke={mat.color} strokeWidth={isSelected ? 2 : 1}
+              opacity={isSelected ? 1 : 0.5}
+              filter={isSelected ? 'url(#radarGlow)' : undefined}
+              style={{ transition: 'all 0.3s ease' }} />
             {pts.map((p, pi) => (
-              <circle key={pi} cx={p.x} cy={p.y} r="2" fill={mat.color} />
+              <circle key={pi} cx={p.x} cy={p.y} r={isSelected ? 4 : 2.5} fill={mat.color}
+                style={{ transition: 'all 0.3s ease' }}>
+                {isSelected && <animate attributeName="r" values="3;5;3" dur="2s" repeatCount="indefinite" />}
+              </circle>
             ))}
           </g>
         );
       })}
+
       {/* Legend */}
       {mats.map((mat, i) => (
-        <g key={i} transform={`translate(155, ${20 + i * 14})`}>
-          <rect width="8" height="8" rx="1" fill={mat.color} opacity="0.7" />
-          <text x="12" y="7" fontSize="6" fill="hsl(var(--foreground))">{mat.name.split(' ')[0]}</text>
+        <g key={i} transform={`translate(230, ${30 + i * 20})`}
+          onClick={() => onSelect(i)} className="cursor-pointer" opacity={i === selectedIdx ? 1 : 0.6}>
+          <rect x={-2} y={-6} width="72" height="16" rx="3" fill={i === selectedIdx ? `${mat.color}22` : 'transparent'}
+            stroke={i === selectedIdx ? mat.color : 'transparent'} strokeWidth="1" style={{ transition: 'all 0.3s ease' }} />
+          <rect width="10" height="10" rx="2" fill={mat.color} opacity="0.8" />
+          <text x="14" y="8" fontSize="8" fill="hsl(var(--foreground))" fontWeight={i === selectedIdx ? '600' : '400'}>
+            {mat.name.split('/')[0]}
+          </text>
         </g>
       ))}
     </svg>
   );
 };
 
-// ─── Generator Schematic SVG ───
+// ─── Enhanced Generator Schematic SVG ───
 const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCount: number }) => {
   const syncSpeed = (60 * 50 / (poleCount / 2));
+  const nodes = [
+    { x: 30, label: '🌬️', sub: 'Wind', color: 'hsl(210 90% 60%)' },
+    { x: 90, label: '⚡', sub: 'Rotor', color: 'hsl(120 100% 54%)' },
+    ...(genType === 'DFIG' ? [{ x: 155, label: '⚙️', sub: 'Gearbox', color: 'hsl(40 80% 60%)' }] : []),
+    { x: genType === 'DFIG' ? 220 : 170, label: genType === 'PMSG' ? '🧲' : genType === 'DFIG' ? '🔌' : '🔄', sub: genType, color: 'hsl(50 90% 55%)' },
+    { x: genType === 'DFIG' ? 285 : 250, label: '🔋', sub: 'Grid', color: 'hsl(var(--primary))' },
+  ];
+
   return (
-    <svg viewBox="0 0 280 80" className="w-full h-16">
-      {/* Flow: Wind → Rotor → [Gearbox] → Generator → Grid */}
-      {[
-        { x: 15, label: '🌬️', sub: 'Wind' },
-        { x: 65, label: '⚡', sub: 'Rotor' },
-        ...(genType === 'DFIG' ? [{ x: 125, label: '⚙️', sub: 'Gearbox' }] : []),
-        { x: genType === 'DFIG' ? 185 : 140, label: genType === 'PMSG' ? '🧲' : genType === 'DFIG' ? '🔌' : '🔄', sub: genType },
-        { x: genType === 'DFIG' ? 245 : 215, label: '🔋', sub: 'Grid' },
-      ].map((node, i, arr) => (
+    <svg viewBox="0 0 320 100" className="w-full h-24">
+      <defs>
+        <marker id="flowArrow" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+          <polygon points="0 0, 6 2, 0 4" fill="hsl(var(--primary))" opacity="0.7" />
+        </marker>
+      </defs>
+
+      {nodes.map((node, i) => (
         <g key={i}>
-          <rect x={node.x - 18} y={15} width="36" height="36" rx="6" fill="none" stroke="hsl(var(--primary))" strokeWidth="0.8" opacity="0.4" />
-          <text x={node.x} y={35} textAnchor="middle" fontSize="14">{node.label}</text>
-          <text x={node.x} y={62} textAnchor="middle" fontSize="6" fill="hsl(var(--muted-foreground))">{node.sub}</text>
-          {i < arr.length - 1 && (
-            <line x1={node.x + 18} y1={33} x2={arr[i + 1].x - 18} y2={33} stroke="hsl(var(--primary))" strokeWidth="1" markerEnd="url(#arrowhead)" opacity="0.5" />
+          {/* Node box */}
+          <rect x={node.x - 22} y={18} width="44" height="44" rx="8"
+            fill="none" stroke={node.color} strokeWidth="1.2" opacity="0.5" />
+          <rect x={node.x - 22} y={18} width="44" height="44" rx="8"
+            fill={node.color} opacity="0.05" />
+          <text x={node.x} y={44} textAnchor="middle" fontSize="18">{node.label}</text>
+          <text x={node.x} y={76} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontWeight="500">{node.sub}</text>
+
+          {/* Animated connection line */}
+          {i < nodes.length - 1 && (
+            <g>
+              <line x1={node.x + 22} y1={40} x2={nodes[i + 1].x - 22} y2={40}
+                stroke="hsl(var(--primary))" strokeWidth="1.5" strokeDasharray="4,3"
+                className="animate-flow-dash" opacity="0.5" markerEnd="url(#flowArrow)" />
+              {/* Energy dot */}
+              <circle r="3" fill="hsl(var(--primary))" opacity="0.8">
+                <animateMotion dur={`${1.5 + i * 0.3}s`} repeatCount="indefinite"
+                  path={`M${node.x + 22},40 L${nodes[i + 1].x - 22},40`} />
+              </circle>
+            </g>
           )}
         </g>
       ))}
-      <defs>
-        <marker id="arrowhead" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
-          <polygon points="0 0, 6 2, 0 4" fill="hsl(var(--primary))" opacity="0.6" />
-        </marker>
-      </defs>
-      <text x="140" y="76" textAnchor="middle" fontSize="6" fill="hsl(var(--muted-foreground))">
-        n_sync = {syncSpeed.toFixed(0)} RPM @ 50Hz | {poleCount} poles
+
+      <text x="160" y="94" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
+        n_sync = {syncSpeed.toFixed(0)} RPM @ 50Hz │ {poleCount} poles
       </text>
+    </svg>
+  );
+};
+
+// ─── Frequency Waveform SVG ───
+const FrequencyWaveform = ({ frequency }: { frequency: number }) => {
+  const points: string[] = [];
+  for (let x = 0; x <= 200; x++) {
+    const y = 20 + Math.sin((x / 200) * Math.PI * 2 * (frequency / 10)) * 15;
+    points.push(`${x},${y}`);
+  }
+  return (
+    <svg viewBox="0 0 200 40" className="w-full h-8 overflow-hidden">
+      <g className="animate-sine-scroll">
+        <polyline points={points.join(' ')} fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
+        <polyline points={points.map(p => { const [x, y] = p.split(','); return `${Number(x) + 200},${y}`; }).join(' ')}
+          fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
+      </g>
+      <text x="100" y="38" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">{frequency} Hz</text>
     </svg>
   );
 };
@@ -243,7 +405,7 @@ const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCo
 const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }: {
   currentSettings: WindGeneratorSpecs; windSpeed: number; lang: 'ua' | 'en'; weibullK: number; weibullC: number;
 }) => {
-  const [hover, setHover] = useState<{ x: number; v: number; p: number } | null>(null);
+  const [hover, setHover] = useState<{ x: number; v: number; p: number; w: number } | null>(null);
   const cutIn = 3, cutOut = 25;
   const rated = currentSettings.ratedPower;
   const ratedSpeed = Math.min(Math.max(Math.pow(rated / (0.5 * 1.225 * Math.PI * currentSettings.bladeLength ** 2 * currentSettings.efficiency), 1 / 3), 8), 16);
@@ -264,84 +426,139 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
   const aepFillPoints: string[] = [];
   const maxWeibull = Math.max(...Array.from({ length: 60 }, (_, i) => getWeibull(i * 0.5 + 0.5)));
 
+  const chartLeft = 40, chartRight = 380, chartTop = 25, chartBottom = 180;
+  const chartW = chartRight - chartLeft;
+  const chartH = chartBottom - chartTop;
+
   for (let v = 0; v <= 30; v += 0.5) {
-    const x = 30 + (v / 30) * 240;
+    const x = chartLeft + (v / 30) * chartW;
     const p = getPower(v);
-    const y = 120 - (p / rated) * 100;
+    const y = chartBottom - (p / rated) * chartH;
     powerPoints.push(`${x},${y}`);
 
     const w = getWeibull(v);
-    const wy = 120 - (w / maxWeibull) * 80;
+    const wy = chartBottom - (w / maxWeibull) * (chartH * 0.7);
     weibullPoints.push(`${x},${wy}`);
 
-    // AEP area = P(v) * f(v)
     const aepVal = p * w;
     const maxAep = rated * maxWeibull;
-    const ay = 120 - (maxAep > 0 ? (aepVal / maxAep) * 60 : 0);
+    const ay = chartBottom - (maxAep > 0 ? (aepVal / maxAep) * (chartH * 0.5) : 0);
     aepFillPoints.push(`${x},${ay}`);
   }
 
-  const currentX = 30 + (windSpeed / 30) * 240;
+  const currentX = chartLeft + (windSpeed / 30) * chartW;
   const currentP = getPower(windSpeed);
-  const currentY = 120 - (currentP / rated) * 100;
+  const currentY = chartBottom - (currentP / rated) * chartH;
   const formatP = (w: number) => w >= 1e6 ? `${(w / 1e6).toFixed(1)}MW` : w >= 1e3 ? `${(w / 1e3).toFixed(0)}kW` : `${w.toFixed(0)}W`;
 
   const handleMouseMove = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const relX = (e.clientX - rect.left) / rect.width;
-    const v = Math.max(0, Math.min(30, relX * 30 * (280 / 240) - 30 / 240 * 30));
-    const svgX = 30 + (v / 30) * 240;
-    setHover({ x: svgX, v, p: getPower(v) });
-  }, [currentSettings, ratedSpeed]);
+    const v = Math.max(0, Math.min(30, (relX * 420 - chartLeft) / chartW * 30));
+    const svgX = chartLeft + (v / 30) * chartW;
+    setHover({ x: svgX, v, p: getPower(v), w: getWeibull(v) });
+  }, [currentSettings, ratedSpeed, weibullK, weibullC]);
+
+  // Operating regions
+  const cutInX = chartLeft + (cutIn / 30) * chartW;
+  const ratedX = chartLeft + (ratedSpeed / 30) * chartW;
+  const cutOutX = chartLeft + (cutOut / 30) * chartW;
 
   return (
-    <svg viewBox="0 0 290 145" className="w-full h-40 cursor-crosshair" onMouseMove={handleMouseMove} onMouseLeave={() => setHover(null)}>
+    <svg viewBox="0 0 420 210" className="w-full h-56 cursor-crosshair" onMouseMove={handleMouseMove} onMouseLeave={() => setHover(null)}>
+      <defs>
+        <linearGradient id="aepGrad" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="hsl(120 100% 54%)" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="hsl(120 100% 54%)" stopOpacity="0.02" />
+        </linearGradient>
+        <linearGradient id="powerFill" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="hsl(120 100% 54%)" stopOpacity="0.15" />
+          <stop offset="100%" stopColor="hsl(120 100% 54%)" stopOpacity="0.02" />
+        </linearGradient>
+      </defs>
+
       {/* Grid */}
       {[0, 0.25, 0.5, 0.75, 1].map(f => (
-        <line key={f} x1="30" y1={120 - f * 100} x2="270" y2={120 - f * 100} stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray={f === 0 ? "" : "2,3"} opacity="0.3" />
+        <g key={f}>
+          <line x1={chartLeft} y1={chartBottom - f * chartH} x2={chartRight} y2={chartBottom - f * chartH}
+            stroke="hsl(var(--border))" strokeWidth="0.5" strokeDasharray={f === 0 ? "" : "3,4"} opacity="0.25" />
+          <text x={chartLeft - 5} y={chartBottom - f * chartH + 3} textAnchor="end" fontSize="7" fill="hsl(var(--muted-foreground))">
+            {formatP(f * rated)}
+          </text>
+        </g>
       ))}
       {[0, 5, 10, 15, 20, 25, 30].map(v => (
         <g key={v}>
-          <line x1={30 + (v / 30) * 240} y1="120" x2={30 + (v / 30) * 240} y2="122" stroke="hsl(var(--muted-foreground))" strokeWidth="0.5" />
-          <text x={30 + (v / 30) * 240} y="132" textAnchor="middle" fontSize="6" fill="hsl(var(--muted-foreground))">{v}</text>
+          <line x1={chartLeft + (v / 30) * chartW} y1={chartBottom} x2={chartLeft + (v / 30) * chartW} y2={chartBottom + 3}
+            stroke="hsl(var(--muted-foreground))" strokeWidth="0.5" />
+          <text x={chartLeft + (v / 30) * chartW} y={chartBottom + 13} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{v}</text>
         </g>
       ))}
-      {/* Cut-in / cut-out zones */}
-      <rect x="30" y="20" width={(cutIn / 30) * 240} height="100" fill="hsl(var(--destructive))" opacity="0.05" />
-      <rect x={30 + (cutOut / 30) * 240} y="20" width={((30 - cutOut) / 30) * 240} height="100" fill="hsl(var(--destructive))" opacity="0.05" />
-      <line x1={30 + (cutIn / 30) * 240} y1="20" x2={30 + (cutIn / 30) * 240} y2="120" stroke="hsl(var(--destructive))" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.4" />
-      <line x1={30 + (cutOut / 30) * 240} y1="20" x2={30 + (cutOut / 30) * 240} y2="120" stroke="hsl(var(--destructive))" strokeWidth="0.5" strokeDasharray="3,2" opacity="0.4" />
+
+      {/* Operating regions */}
+      <rect x={chartLeft} y={chartTop} width={cutInX - chartLeft} height={chartH} fill="hsl(var(--destructive))" opacity="0.04" />
+      <rect x={cutOutX} y={chartTop} width={chartRight - cutOutX} height={chartH} fill="hsl(var(--destructive))" opacity="0.04" />
+      <rect x={cutInX} y={chartTop} width={ratedX - cutInX} height={chartH} fill="hsl(210 90% 60%)" opacity="0.03" />
+      <rect x={ratedX} y={chartTop} width={cutOutX - ratedX} height={chartH} fill="hsl(120 100% 54%)" opacity="0.03" />
+
+      {/* Region labels */}
+      <text x={(chartLeft + cutInX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
+      <text x={(cutInX + ratedX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(210 90% 60%)" opacity="0.6">RAMP</text>
+      <text x={(ratedX + cutOutX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(120 100% 54%)" opacity="0.6">RATED</text>
+      <text x={(cutOutX + chartRight) / 2} y={chartTop + 12} textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
+
+      {/* Cut-in / cut-out lines */}
+      <line x1={cutInX} y1={chartTop} x2={cutInX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
+      <line x1={cutOutX} y1={chartTop} x2={cutOutX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
+
       {/* AEP shaded area */}
-      <polyline points={`30,120 ${aepFillPoints.join(' ')} 270,120`} fill="hsl(var(--primary))" opacity="0.06" />
-      {/* Weibull distribution (dashed) */}
-      <polyline points={weibullPoints.join(' ')} fill="none" stroke="hsl(270 70% 60%)" strokeWidth="1" strokeDasharray="3,2" opacity="0.6" />
-      {/* Power curve fill */}
-      <polyline points={`30,120 ${powerPoints.join(' ')} 270,120`} fill="hsl(var(--primary))" opacity="0.08" />
+      <polyline points={`${chartLeft},${chartBottom} ${aepFillPoints.join(' ')} ${chartRight},${chartBottom}`}
+        fill="url(#aepGrad)" />
+
+      {/* Power fill */}
+      <polyline points={`${chartLeft},${chartBottom} ${powerPoints.join(' ')} ${chartRight},${chartBottom}`}
+        fill="url(#powerFill)" />
+
+      {/* Weibull distribution */}
+      <polyline points={weibullPoints.join(' ')} fill="none" stroke="hsl(270 70% 60%)" strokeWidth="1.5" strokeDasharray="4,3" opacity="0.7" />
+
       {/* Power curve */}
-      <polyline points={powerPoints.join(' ')} fill="none" stroke="hsl(var(--primary))" strokeWidth="2" strokeLinecap="round" />
-      {/* Current point */}
-      <line x1={currentX} y1={currentY} x2={currentX} y2="120" stroke="hsl(var(--primary))" strokeWidth="0.5" strokeDasharray="2,2" opacity="0.5" />
-      <circle cx={currentX} cy={currentY} r="4" fill="hsl(var(--primary))" stroke="hsl(var(--background))" strokeWidth="1.5">
-        <animate attributeName="r" values="4;5;4" dur="2s" repeatCount="indefinite" />
+      <polyline points={powerPoints.join(' ')} fill="none" stroke="hsl(120 100% 54%)" strokeWidth="2.5" strokeLinecap="round"
+        style={{ filter: 'drop-shadow(0 0 3px hsl(120 100% 54% / 0.4))' }} />
+
+      {/* Current operating point */}
+      <line x1={currentX} y1={currentY} x2={currentX} y2={chartBottom} stroke="hsl(120 100% 54%)" strokeWidth="0.8" strokeDasharray="3,3" opacity="0.5" />
+      <circle cx={currentX} cy={currentY} r="5" fill="hsl(120 100% 54%)" stroke="hsl(var(--background))" strokeWidth="2"
+        style={{ filter: 'drop-shadow(0 0 6px hsl(120 100% 54% / 0.8))' }}>
+        <animate attributeName="r" values="5;7;5" dur="2s" repeatCount="indefinite" />
       </circle>
-      <text x={currentX} y={currentY - 8} textAnchor="middle" fontSize="7" fontWeight="bold" fill="hsl(var(--primary))">{formatP(currentP)}</text>
+      <rect x={currentX - 32} y={currentY - 22} width="64" height="16" rx="4" fill="hsl(var(--background) / 0.9)" stroke="hsl(120 100% 54% / 0.3)" strokeWidth="0.8" />
+      <text x={currentX} y={currentY - 10} textAnchor="middle" fontSize="9" fontWeight="bold" fill="hsl(120 100% 54%)" fontFamily="monospace">
+        {formatP(currentP)}
+      </text>
+
       {/* Hover crosshair */}
       {hover && (
         <g>
-          <line x1={hover.x} y1="20" x2={hover.x} y2="120" stroke="hsl(var(--foreground))" strokeWidth="0.5" opacity="0.3" />
-          <rect x={hover.x - 28} y="8" width="56" height="14" rx="3" fill="hsl(var(--background))" stroke="hsl(var(--border))" strokeWidth="0.5" />
-          <text x={hover.x} y="17" textAnchor="middle" fontSize="6" fill="hsl(var(--foreground))">
-            {hover.v.toFixed(1)}m/s → {formatP(hover.p)}
+          <line x1={hover.x} y1={chartTop} x2={hover.x} y2={chartBottom} stroke="hsl(var(--foreground))" strokeWidth="0.5" opacity="0.25" />
+          <rect x={hover.x - 40} y={chartTop - 2} width="80" height="22" rx="4"
+            fill="hsl(var(--background) / 0.95)" stroke="hsl(var(--border))" strokeWidth="0.8" />
+          <text x={hover.x} y={chartTop + 8} textAnchor="middle" fontSize="8" fill="hsl(var(--foreground))" fontFamily="monospace">
+            V={hover.v.toFixed(1)} → {formatP(hover.p)}
+          </text>
+          <text x={hover.x} y={chartTop + 16} textAnchor="middle" fontSize="7" fill="hsl(270 70% 60%)">
+            f={hover.w.toFixed(3)}
           </text>
         </g>
       )}
-      {/* Labels */}
-      <text x="272" y="23" fontSize="5" fill="hsl(var(--primary))">{formatP(rated)}</text>
-      <text x="150" y="143" textAnchor="middle" fontSize="6" fill="hsl(var(--muted-foreground))">
+
+      {/* Axis labels */}
+      <text x={(chartLeft + chartRight) / 2} y={chartBottom + 25} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))">
         {lang === 'ua' ? 'Швидкість вітру (m/s)' : 'Wind Speed (m/s)'}
       </text>
-      <text x="275" y="40" fontSize="5" fill="hsl(270 70% 60%)" opacity="0.7">f(V)</text>
-      <text x="8" y="70" textAnchor="middle" fontSize="6" fill="hsl(var(--muted-foreground))" transform="rotate(-90 8 70)">P</text>
+      <text x="12" y={(chartTop + chartBottom) / 2} textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))"
+        transform={`rotate(-90 12 ${(chartTop + chartBottom) / 2})`}>P(V)</text>
+      <text x={chartRight + 8} y={chartTop + 30} fontSize="7" fill="hsl(270 70% 60%)">f(V)</text>
     </svg>
   );
 };
@@ -351,37 +568,113 @@ const EfficiencyChainSVG = ({ cp, genEff, lang }: { cp: number; genEff: number; 
   const convEff = 0.97;
   const total = cp * genEff * convEff;
   const stages = [
-    { label: lang === 'ua' ? 'Вітер' : 'Wind', value: 1, icon: '🌬️' },
-    { label: `Cp=${cp}`, value: cp, icon: '💨' },
-    { label: `η=${(genEff * 100).toFixed(0)}%`, value: cp * genEff, icon: '⚡' },
-    { label: `η=${(convEff * 100).toFixed(0)}%`, value: total, icon: '🔋' },
+    { label: lang === 'ua' ? 'Вітер' : 'Wind', value: 1, icon: '🌬️', color: 'hsl(210 90% 60%)' },
+    { label: `Cp=${cp}`, value: cp, icon: '💨', color: 'hsl(120 100% 54%)' },
+    { label: `η=${(genEff * 100).toFixed(0)}%`, value: cp * genEff, icon: '⚡', color: 'hsl(50 90% 55%)' },
+    { label: `η=${(convEff * 100).toFixed(0)}%`, value: total, icon: '🔋', color: 'hsl(var(--primary))' },
   ];
 
   return (
-    <svg viewBox="0 0 280 50" className="w-full h-10">
+    <svg viewBox="0 0 340 70" className="w-full h-16">
+      <defs>
+        <marker id="chainArrow" markerWidth="6" markerHeight="4" refX="5" refY="2" orient="auto">
+          <polygon points="0 0, 6 2, 0 4" fill="hsl(var(--primary))" opacity="0.6" />
+        </marker>
+      </defs>
       {stages.map((s, i) => {
-        const x = 20 + i * 70;
+        const x = 30 + i * 80;
         return (
           <g key={i}>
-            <rect x={x - 15} y={8} width="30" height="30" rx="6" fill="none" stroke="hsl(var(--primary))" strokeWidth="0.8" opacity={0.3 + s.value * 0.5} />
-            <text x={x} y={25} textAnchor="middle" fontSize="12">{s.icon}</text>
-            <text x={x} y={46} textAnchor="middle" fontSize="6" fill="hsl(var(--muted-foreground))">{s.label}</text>
+            <rect x={x - 20} y={8} width="40" height="40" rx="8"
+              fill={`${s.color}`} fillOpacity="0.08" stroke={s.color} strokeWidth="1.2"
+              opacity={0.4 + s.value * 0.5} />
+            <text x={x} y={32} textAnchor="middle" fontSize="16">{s.icon}</text>
+            <text x={x} y={60} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" fontWeight="500">{s.label}</text>
             {i < stages.length - 1 && (
               <g>
-                <line x1={x + 15} y1={23} x2={x + 55} y2={23} stroke="hsl(var(--primary))" strokeWidth="1" opacity="0.4" markerEnd="url(#arrowhead2)" />
-                <text x={x + 35} y={18} textAnchor="middle" fontSize="5" fill="hsl(var(--primary))" opacity="0.6">
+                <line x1={x + 20} y1={28} x2={x + 60} y2={28}
+                  stroke="hsl(var(--primary))" strokeWidth="1.5" opacity="0.4"
+                  strokeDasharray="4,3" className="animate-flow-dash" markerEnd="url(#chainArrow)" />
+                <text x={x + 40} y={22} textAnchor="middle" fontSize="8" fill="hsl(var(--primary))" fontWeight="bold" opacity="0.7">
                   {(stages[i + 1].value / s.value * 100).toFixed(0)}%
                 </text>
+                {/* Energy dot */}
+                <circle r="2.5" fill="hsl(var(--primary))">
+                  <animateMotion dur={`${1.8 + i * 0.3}s`} repeatCount="indefinite"
+                    path={`M${x + 20},28 L${x + 60},28`} />
+                </circle>
               </g>
             )}
           </g>
         );
       })}
-      <defs>
-        <marker id="arrowhead2" markerWidth="5" markerHeight="4" refX="4" refY="2" orient="auto">
-          <polygon points="0 0, 5 2, 0 4" fill="hsl(var(--primary))" opacity="0.5" />
-        </marker>
-      </defs>
+      <rect x="280" y="56" width="55" height="12" rx="3" fill="hsl(var(--primary) / 0.1)" stroke="hsl(var(--primary) / 0.3)" strokeWidth="0.5" />
+      <text x="308" y="65" textAnchor="middle" fontSize="8" fontWeight="bold" fill="hsl(var(--primary))" fontFamily="monospace">
+        Σ {(total * 100).toFixed(1)}%
+      </text>
+    </svg>
+  );
+};
+
+// ─── Power Gauge SVG ───
+const PowerGaugeSVG = ({ value, max, label: gaugeLabel }: { value: number; max: number; label: string }) => {
+  const pct = Math.min(value / max, 1);
+  const angle = pct * 180;
+  const r = 40;
+  const cx = 50, cy = 50;
+
+  const polarToCart = (deg: number) => ({
+    x: cx + r * Math.cos((180 + deg) * Math.PI / 180),
+    y: cy + r * Math.sin((180 + deg) * Math.PI / 180),
+  });
+
+  const arcEnd = polarToCart(angle);
+  const largeArc = angle > 180 ? 1 : 0;
+
+  return (
+    <svg viewBox="0 0 100 60" className="w-full h-16">
+      {/* Background arc */}
+      <path d={`M${cx - r},${cy} A${r},${r} 0 0,1 ${cx + r},${cy}`}
+        fill="none" stroke="hsl(var(--border))" strokeWidth="6" opacity="0.2" strokeLinecap="round" />
+      {/* Value arc */}
+      <path d={`M${cx - r},${cy} A${r},${r} 0 ${largeArc},1 ${arcEnd.x},${arcEnd.y}`}
+        fill="none" stroke="hsl(var(--primary))" strokeWidth="6" strokeLinecap="round"
+        style={{ filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))', transition: 'all 0.5s ease' }} />
+      {/* Needle */}
+      <line x1={cx} y1={cy} x2={arcEnd.x} y2={arcEnd.y}
+        stroke="hsl(var(--foreground))" strokeWidth="1.5" opacity="0.7" />
+      <circle cx={cx} cy={cy} r="3" fill="hsl(var(--primary))" />
+      <text x={cx} y={cy + 12} textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">{gaugeLabel}</text>
+    </svg>
+  );
+};
+
+// ─── Blade Deflection SVG ───
+const BladeDeflectionSVG = ({ deflection, bladeLength }: { deflection: number; bladeLength: number }) => {
+  const normalizedDefl = Math.min(Math.abs(deflection) * 20, 40);
+  const points: string[] = [];
+  for (let i = 0; i <= 20; i++) {
+    const t = i / 20;
+    const x = 20 + t * 160;
+    const y = 40 - normalizedDefl * t * t; // quadratic deflection curve
+    points.push(`${x},${y}`);
+  }
+
+  return (
+    <svg viewBox="0 0 200 55" className="w-full h-12">
+      {/* Undeflected blade */}
+      <line x1="20" y1="40" x2="180" y2="40" stroke="hsl(var(--border))" strokeWidth="1" strokeDasharray="3,3" opacity="0.3" />
+      {/* Deflected blade */}
+      <polyline points={points.join(' ')} fill="none" stroke="hsl(25 90% 55%)" strokeWidth="2.5" strokeLinecap="round"
+        style={{ filter: 'drop-shadow(0 0 3px hsl(25 90% 55% / 0.4))' }} />
+      {/* Hub */}
+      <circle cx="20" cy="40" r="4" fill="hsl(25 90% 55%)" opacity="0.6" />
+      {/* Deflection arrow */}
+      <line x1="180" y1="40" x2="180" y2={40 - normalizedDefl} stroke="hsl(25 90% 55%)" strokeWidth="1" strokeDasharray="2,2" opacity="0.5" />
+      <text x="185" y={40 - normalizedDefl / 2} fontSize="7" fill="hsl(25 90% 55%)" fontFamily="monospace">
+        δ≈{(deflection * 100).toFixed(1)}cm
+      </text>
+      <text x="100" y="52" textAnchor="middle" fontSize="7" fill="hsl(var(--muted-foreground))">R={bladeLength}m</text>
     </svg>
   );
 };
@@ -398,6 +691,7 @@ export const GeneratorSettings = ({
   const [voltage, setVoltage] = useState(690);
   const [weibullK, setWeibullK] = useState(2.0);
   const [weibullC, setWeibullC] = useState(7.0);
+  const [selectedMaterialIdx, setSelectedMaterialIdx] = useState(0);
 
   const label = (ua: string, en: string) => lang === 'ua' ? ua : en;
   const profile = bladeProfiles.find(p => p.value === bladeProfile) || bladeProfiles[0];
@@ -416,22 +710,14 @@ export const GeneratorSettings = ({
     const Fc = bladeM * omega * omega * (R / 2);
     const capacityFactor = Math.min(P / currentSettings.ratedPower, 1);
 
-    // Reynolds number
-    const chord = R * 0.07; // approx chord
-    const mu = 1.81e-5; // dynamic viscosity
+    const chord = R * 0.07;
+    const mu = 1.81e-5;
     const Re = (rho * V * chord) / mu;
-
-    // TSR
     const tsr = omega * R / (V || 1);
-
-    // Fatigue cycles (20 years)
     const rps = omega / (2 * Math.PI);
     const fatigueCycles = rps * 3600 * 8760 * 20;
+    const deflection = (rho * V * V * A * R) / (48 * 40e9 * (0.01 * R ** 4));
 
-    // Blade deflection estimate (simplified)
-    const deflection = (rho * V * V * A * R) / (48 * 40e9 * (0.01 * R ** 4)); // rough
-
-    // AEP using Weibull
     let aep = 0;
     for (let v = 0.5; v <= 30; v += 0.5) {
       const fv = (weibullK / weibullC) * Math.pow(v / weibullC, weibullK - 1) * Math.exp(-Math.pow(v / weibullC, weibullK));
@@ -442,13 +728,10 @@ export const GeneratorSettings = ({
       aep += pv * fv * 0.5 * 8760;
     }
 
-    // LCOE estimate (simplified)
-    const capex = currentSettings.ratedPower * 1.2; // $/W typical
-    const opex = capex * 0.025; // 2.5% annual
-    const lcoe = aep > 0 ? ((capex + opex * 20) / (aep * 20 / 1000)) : 0; // $/kWh * 1000 = $/MWh
-
-    // CO2 offset (0.5 kg CO2/kWh grid average)
-    const co2Offset = aep * 0.5 / 1000; // tonnes/year
+    const capex = currentSettings.ratedPower * 1.2;
+    const opex = capex * 0.025;
+    const lcoe = aep > 0 ? ((capex + opex * 20) / (aep * 20 / 1000)) : 0;
+    const co2Offset = aep * 0.5 / 1000;
 
     return { P, omega, torque, Fc, rps, capacityFactor, aep, Re, tsr, fatigueCycles, deflection, lcoe, co2Offset };
   }, [currentSettings, windSpeed, weibullK, weibullC]);
@@ -456,397 +739,557 @@ export const GeneratorSettings = ({
   const formatP = (w: number) => w >= 1e6 ? `${(w / 1e6).toFixed(2)} MW` : w >= 1e3 ? `${(w / 1e3).toFixed(1)} kW` : `${w.toFixed(0)} W`;
   const formatE = (wh: number) => wh >= 1e6 ? `${(wh / 1e6).toFixed(1)} GWh` : wh >= 1e3 ? `${(wh / 1e3).toFixed(0)} MWh` : `${wh.toFixed(0)} kWh`;
 
-  const activeTabData = tabItems.find(t => t.value === activeTab)!;
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto border-primary/30" style={{ backgroundColor: '#0a0e14' }}>
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-foreground">
-            <Wrench className="w-5 h-5 text-primary" />
-            {label('Інженерна панель генератора', 'Generator Engineering Panel')}
-          </DialogTitle>
-        </DialogHeader>
+      <DialogContent className="max-w-4xl max-h-[92vh] overflow-hidden border-primary/30 p-0" style={{ backgroundColor: '#080c12' }}>
+        <div className="p-5 pb-0">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2.5 text-foreground text-lg">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'hsl(var(--primary) / 0.12)', border: '1px solid hsl(var(--primary) / 0.25)' }}>
+                <Wrench className="w-4.5 h-4.5 text-primary" />
+              </div>
+              {label('Інженерна панель генератора', 'Generator Engineering Panel')}
+            </DialogTitle>
+          </DialogHeader>
+        </div>
 
         {/* ─── Custom Tabs ─── */}
-        <div className="flex gap-1 p-1 rounded-lg" style={{ backgroundColor: 'hsl(var(--background) / 0.5)' }}>
-          {tabItems.map(tab => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.value;
-            return (
-              <button key={tab.value} onClick={() => setActiveTab(tab.value)}
-                className="flex-1 flex items-center justify-center gap-1 py-2 px-1 rounded-md text-xs font-medium transition-all duration-200 relative"
-                style={{
-                  background: isActive ? `${tab.color}22` : 'transparent',
-                  color: isActive ? tab.color : 'hsl(var(--muted-foreground))',
-                  borderBottom: isActive ? `2px solid ${tab.color}` : '2px solid transparent',
-                  boxShadow: isActive ? `0 2px 12px ${tab.color}33` : 'none',
-                }}>
-                <Icon className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">{lang === 'ua' ? tab.ua : tab.en}</span>
-              </button>
-            );
-          })}
+        <div className="px-5 pt-3">
+          <div className="flex gap-1 p-1.5 rounded-xl" style={{ backgroundColor: 'hsl(222 28% 10% / 0.8)', border: '1px solid hsl(var(--border) / 0.3)' }}>
+            {tabItems.map(tab => {
+              const Icon = tab.icon;
+              const isActive = activeTab === tab.value;
+              return (
+                <button key={tab.value} onClick={() => setActiveTab(tab.value)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-2 rounded-lg text-xs font-semibold transition-all duration-300 relative"
+                  style={{
+                    background: isActive ? `linear-gradient(135deg, ${tab.color}18, ${tab.color}08)` : 'transparent',
+                    color: isActive ? tab.color : 'hsl(var(--muted-foreground))',
+                    boxShadow: isActive ? `0 2px 16px ${tab.color}25, inset 0 -2px 0 ${tab.color}` : 'none',
+                  }}>
+                  <Icon className="w-4 h-4" style={isActive ? { filter: `drop-shadow(0 0 4px ${tab.color})` } : {}} />
+                  <span className="hidden sm:inline">{lang === 'ua' ? tab.ua : tab.en}</span>
+                  {isActive && (
+                    <motion.div layoutId="activeTabIndicator" className="absolute bottom-0 left-2 right-2 h-0.5 rounded-full"
+                      style={{ backgroundColor: tab.color, boxShadow: `0 0 8px ${tab.color}` }}
+                      transition={{ type: 'spring', stiffness: 300, damping: 30 }} />
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ─── Tab Content ─── */}
-        <AnimatePresence mode="wait">
-          <motion.div key={activeTab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
+        <div className="px-5 pb-5 pt-3 overflow-y-auto eng-scrollbar overflow-x-hidden" style={{ maxHeight: 'calc(92vh - 140px)' }}>
+          <AnimatePresence mode="wait">
+            <motion.div key={activeTab} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }} transition={{ duration: 0.25 }}>
 
-            {/* ═══ AERO ═══ */}
-            {activeTab === 'aero' && (
-              <div className="space-y-4">
-                {/* Blade profile visualizer */}
-                <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--background) / 0.4)', borderColor: 'hsl(210 90% 60% / 0.2)' }}>
-                  <BladeProfileSVG profile={profile} attackAngle={attackAngle} />
-                </div>
-
-                <div>
-                  <Label className="text-xs">{label('Профіль лопаті (NACA)', 'Blade Profile (NACA)')}</Label>
-                  <Select value={bladeProfile} onValueChange={setBladeProfile}>
-                    <SelectTrigger className="mt-1 border-border/30 bg-background/40"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {bladeProfiles.map(p => (
-                        <SelectItem key={p.value} value={p.value}>
-                          {p.value} — Cl/Cd={p.clcd}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {lang === 'ua' ? profile.desc_ua : profile.desc_en}
-                  </p>
-                </div>
-
-                <GlowSlider value={attackAngle} onChange={setAttackAngle} min={0} max={20} step={0.5}
-                  label={label('Кут атаки', 'Angle of Attack')} displayValue={`${attackAngle}°`}
-                  infoText={label('6-10° — оптимально. >15° — зрив потоку (stall)', '6-10° optimal. >15° — flow separation (stall)')}
-                  color={attackAngle > 15 ? 'hsl(var(--destructive))' : 'hsl(210 90% 60%)'} />
-
-                {attackAngle > 15 && (
-                  <div className="flex items-center gap-2 text-[10px] text-destructive p-2 rounded-md" style={{ backgroundColor: 'hsl(var(--destructive) / 0.1)' }}>
-                    <AlertTriangle className="w-3.5 h-3.5" />
-                    {label('Зрив потоку! Різке падіння підйомної сили.', 'Flow separation! Sudden lift drop.')}
-                  </div>
-                )}
-
-                <GlowSlider value={currentSettings.bladeLength} onChange={v => onSettingsChange({ ...currentSettings, bladeLength: v })}
-                  min={5} max={120} step={1} label={label('Довжина лопаті', 'Blade Length')} displayValue={`${currentSettings.bladeLength}m`}
-                  infoText={label('A = πR². Подвоєння R → 4x потужність', 'A = πR². Double R → 4x power')} color="hsl(210 90% 60%)" />
-
-                <GlowSlider value={currentSettings.efficiency} onChange={v => onSettingsChange({ ...currentSettings, efficiency: v })}
-                  min={0.1} max={0.55} step={0.01} label={label('Ефективність (Cp)', 'Efficiency (Cp)')} displayValue={`${currentSettings.efficiency}`}
-                  infoText={label('Ліміт Бетца: 0.593. Реальні: 0.35-0.50', 'Betz limit: 0.593. Real: 0.35-0.50')} color="hsl(var(--primary))" />
-
-                {/* Betz gauge */}
-                <div className="flex items-center gap-3">
-                  <div className="relative w-16 h-16">
-                    <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
-                      <circle cx="18" cy="18" r="15.5" fill="none" stroke="hsl(var(--border))" strokeWidth="3" opacity="0.2" />
-                      <circle cx="18" cy="18" r="15.5" fill="none" stroke="hsl(var(--primary))" strokeWidth="3"
-                        strokeDasharray={`${(currentSettings.efficiency / 0.593) * 97.4} 97.4`}
-                        strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 4px hsl(var(--primary) / 0.5))' }} />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-[10px] font-mono font-bold text-primary">
-                      {((currentSettings.efficiency / 0.593) * 100).toFixed(0)}%
-                    </span>
-                  </div>
-                  <div className="text-[10px] text-muted-foreground space-y-0.5">
-                    <p>{label('Ефективність vs ліміт Бетца', 'Efficiency vs Betz limit')}</p>
-                    <p className="font-mono">Re ≈ {liveCalc.Re > 1e6 ? `${(liveCalc.Re / 1e6).toFixed(1)}M` : `${(liveCalc.Re / 1e3).toFixed(0)}k`}</p>
-                    <p className="font-mono">TSR = {liveCalc.tsr.toFixed(1)}</p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ═══ STRUCT ═══ */}
-            {activeTab === 'struct' && (
-              <div className="space-y-4">
-                <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'hsl(25 90% 55%)' }}>
-                  {label('Властивості матеріалів', 'Material Properties')}
-                </div>
-
-                {/* Radar chart */}
-                <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--background) / 0.4)', borderColor: 'hsl(25 90% 55% / 0.2)' }}>
-                  <RadarChartSVG materials={materials} />
-                </div>
-
-                {/* Material cards */}
-                <div className="space-y-2">
-                  {materials.map((mat, i) => (
-                    <div key={i} className="p-2.5 rounded-lg border transition-all hover:border-opacity-60 group" style={{
-                      backgroundColor: 'hsl(var(--background) / 0.3)',
-                      borderColor: `${mat.color}33`,
-                      borderLeftWidth: '3px',
-                      borderLeftColor: mat.color,
-                    }}>
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="text-xs font-semibold text-foreground">{mat.name}</span>
-                        <span className="text-[9px] text-muted-foreground">{lang === 'ua' ? mat.desc_ua : mat.desc_en}</span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2 text-[10px]">
-                        <div>
-                          <span className="text-muted-foreground">{label('Модуль', 'Modulus')}</span>
-                          <p className="font-mono text-foreground">{mat.E} GPa</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">σ</span>
-                          <p className="font-mono text-foreground">{mat.sigma} MPa</p>
-                        </div>
-                        <div>
-                          <span className="text-muted-foreground">ρ</span>
-                          <p className="font-mono text-foreground">{mat.rho} kg/m³</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-
-                <GlowSlider value={currentSettings.height} onChange={v => onSettingsChange({ ...currentSettings, height: v })}
-                  min={10} max={200} step={5} label={label('Висота маточини', 'Hub Height')} displayValue={`${currentSettings.height}m`}
-                  infoText={label('Висота впливає на швидкість вітру за степеневим законом', 'Height affects wind speed via power law')}
-                  color="hsl(25 90% 55%)" />
-
-                {/* Deep data: blade mass & fatigue */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(25 90% 55% / 0.2)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase">{label('Маса лопаті (оцінка)', 'Blade Mass (est.)')}</div>
-                    <p className="text-sm font-mono font-bold text-foreground">{(0.5 * currentSettings.bladeLength * 15).toFixed(0)} kg</p>
-                  </div>
-                  <div className="p-2 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(25 90% 55% / 0.2)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase">{label('Цикли (20 р.)', 'Fatigue (20yr)')}</div>
-                    <p className="text-sm font-mono font-bold text-foreground">
-                      {liveCalc.fatigueCycles > 1e9 ? `${(liveCalc.fatigueCycles / 1e9).toFixed(1)}G` :
-                        liveCalc.fatigueCycles > 1e6 ? `${(liveCalc.fatigueCycles / 1e6).toFixed(0)}M` :
-                          `${(liveCalc.fatigueCycles / 1e3).toFixed(0)}k`}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* ═══ ELEC ═══ */}
-            {activeTab === 'elec' && (
-              <div className="space-y-4">
-                {/* Generator schematic */}
-                <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--background) / 0.4)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
-                  <GeneratorSchematicSVG genType={genType} poleCount={poleCount} />
-                </div>
-
-                <div>
-                  <Label className="text-xs">{label('Тип генератора', 'Generator Type')}</Label>
-                  <Select value={genType} onValueChange={setGenType}>
-                    <SelectTrigger className="mt-1 border-border/30 bg-background/40"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {genTypes.map(g => (
-                        <SelectItem key={g.value} value={g.value}>{g.icon} {g.value}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <p className="text-[10px] text-muted-foreground mt-1">
-                    {lang === 'ua' ? genTypeData.desc_ua : genTypeData.desc_en}
-                  </p>
-                </div>
-
-                {/* Efficiency comparison */}
-                <div className="space-y-1.5">
-                  <span className="text-[10px] text-muted-foreground uppercase">{label('Порівняння ККД', 'Efficiency Comparison')}</span>
-                  {genTypes.map(g => (
-                    <div key={g.value} className="flex items-center gap-2">
-                      <span className="text-[9px] font-mono w-10" style={{ color: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground))' }}>{g.value}</span>
-                      <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
-                        <div className="h-full rounded-full transition-all duration-500" style={{
-                          width: `${g.efficiency * 100}%`,
-                          background: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground) / 0.3)',
-                          boxShadow: g.value === genType ? '0 0 8px hsl(50 90% 55% / 0.5)' : 'none',
-                        }} />
-                      </div>
-                      <span className="text-[9px] font-mono" style={{ color: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground))' }}>
-                        {(g.efficiency * 100).toFixed(0)}%
+              {/* ═══ AERO ═══ */}
+              {activeTab === 'aero' && (
+                <div className="space-y-5">
+                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(210 30% 8%)', borderColor: 'hsl(210 90% 60% / 0.2)' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Wind className="w-4 h-4" style={{ color: 'hsl(210 90% 60%)' }} />
+                      <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(210 90% 60%)' }}>
+                        {label('Візуалізація профілю', 'Profile Visualization')}
                       </span>
                     </div>
-                  ))}
-                </div>
-
-                <GlowSlider value={poleCount} onChange={v => setPoleCount(v)} min={4} max={96} step={2}
-                  label={label('Кількість полюсів', 'Pole Count')} displayValue={`${poleCount}`}
-                  infoText={`n_sync = ${(60 * 50 / (poleCount / 2)).toFixed(0)} RPM @ 50Hz`}
-                  color="hsl(50 90% 55%)" />
-
-                <GlowSlider value={voltage} onChange={v => setVoltage(v)} min={230} max={6600} step={10}
-                  label={label('Напруга', 'Voltage')} displayValue={`${voltage} V`} color="hsl(50 90% 55%)" />
-
-                <GlowSlider value={currentSettings.ratedPower} onChange={v => onSettingsChange({ ...currentSettings, ratedPower: v })}
-                  min={1000} max={15000000} step={1000}
-                  label={label('Номінальна потужність', 'Rated Power')} displayValue={formatP(currentSettings.ratedPower)}
-                  color="hsl(50 90% 55%)" />
-
-                {/* Power factor & reactive power */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase">{label('Коеф. потужності', 'Power Factor')}</div>
-                    <p className="text-sm font-mono font-bold text-foreground">cos φ = 0.95</p>
+                    <BladeProfileSVG profile={profile} attackAngle={attackAngle} />
                   </div>
-                  <div className="p-2 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase">{label('Реактивна', 'Reactive')}</div>
-                    <p className="text-sm font-mono font-bold text-foreground">
-                      {formatP(liveCalc.P * Math.tan(Math.acos(0.95)))} VAr
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
 
-            {/* ═══ CURVE ═══ */}
-            {activeTab === 'curve' && (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 mb-1">
-                  <TrendingUp className="w-4 h-4" style={{ color: 'hsl(270 70% 60%)' }} />
-                  <span className="text-xs font-semibold uppercase tracking-wide" style={{ color: 'hsl(270 70% 60%)' }}>
-                    {label('Крива потужності P(V) + Вейбулл f(V)', 'Power Curve P(V) + Weibull f(V)')}
-                  </span>
-                </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-semibold">{label('Профіль лопаті (NACA)', 'Blade Profile (NACA)')}</Label>
+                      <Select value={bladeProfile} onValueChange={setBladeProfile}>
+                        <SelectTrigger className="mt-1.5 border-border/30 bg-background/40 h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {bladeProfiles.map(p => (
+                            <SelectItem key={p.value} value={p.value}>
+                              {p.value} — Cl/Cd={p.clcd}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground mt-1.5">
+                        {lang === 'ua' ? profile.desc_ua : profile.desc_en}
+                      </p>
+                    </div>
 
-                <div className="p-3 rounded-lg border" style={{ backgroundColor: 'hsl(var(--background) / 0.4)', borderColor: 'hsl(270 70% 60% / 0.2)' }}>
-                  <PowerCurveSVG currentSettings={currentSettings} windSpeed={windSpeed} lang={lang} weibullK={weibullK} weibullC={weibullC} />
-                  <div className="flex gap-4 mt-1 text-[8px] text-muted-foreground justify-center">
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-0.5 inline-block rounded" style={{ backgroundColor: 'hsl(var(--primary))' }} /> P(V)
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-0.5 inline-block rounded" style={{ backgroundColor: 'hsl(270 70% 60%)', borderBottom: '1px dashed' }} /> f(V)
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <span className="w-3 h-2 inline-block rounded opacity-30" style={{ backgroundColor: 'hsl(var(--primary))' }} /> AEP
-                    </span>
-                  </div>
-                </div>
-
-                {/* Weibull params */}
-                <div className="p-3 rounded-lg border space-y-2" style={{ backgroundColor: 'hsl(270 70% 60% / 0.05)', borderColor: 'hsl(270 70% 60% / 0.2)' }}>
-                  <span className="text-xs font-semibold text-foreground">{label('Параметри Вейбулла', 'Weibull Parameters')}</span>
-                  <div className="grid grid-cols-2 gap-3">
-                    <GlowSlider value={weibullK} onChange={v => setWeibullK(v)} min={1.0} max={4.0} step={0.1}
-                      label={`k (${label('форма', 'shape')})`} displayValue={weibullK.toFixed(1)} color="hsl(270 70% 60%)" />
-                    <GlowSlider value={weibullC} onChange={v => setWeibullC(v)} min={3} max={15} step={0.5}
-                      label={`c (${label('масштаб', 'scale')})`} displayValue={`${weibullC.toFixed(1)} m/s`} color="hsl(270 70% 60%)" />
-                  </div>
-                  <p className="text-[8px] text-muted-foreground">
-                    {label('k=2 — типове. c ≈ середня × 1.12', 'k=2 — typical. c ≈ mean × 1.12')}
-                  </p>
-                </div>
-
-                {/* Capacity factor benchmarks */}
-                <div className="p-2 rounded-lg border space-y-1" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(270 70% 60% / 0.15)' }}>
-                  <span className="text-[10px] text-muted-foreground uppercase">{label('Бенчмарки CF (Україна)', 'CF Benchmarks (Ukraine)')}</span>
-                  {[
-                    { region: lang === 'ua' ? 'Узбережжя (Азов/Чорне)' : 'Coast (Azov/Black)', cf: 0.32 },
-                    { region: lang === 'ua' ? 'Степ (Запоріжжя)' : 'Steppe (Zaporizhia)', cf: 0.25 },
-                    { region: lang === 'ua' ? 'Карпати (хребти)' : 'Carpathians (ridges)', cf: 0.22 },
-                  ].map((b, i) => (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className="text-[9px] w-32 text-muted-foreground">{b.region}</span>
-                      <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
-                        <div className="h-full rounded-full" style={{ width: `${b.cf * 100 * 2}%`, background: 'hsl(270 70% 60% / 0.5)' }} />
+                    {/* Lift/Drag animated bars */}
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between text-[11px] mb-1">
+                          <span className="font-semibold" style={{ color: 'hsl(120 100% 54%)' }}>Cl (Lift)</span>
+                          <span className="font-mono font-bold" style={{ color: 'hsl(120 100% 54%)' }}>{profile.lift}</span>
+                        </div>
+                        <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
+                          <motion.div className="h-full rounded-full" animate={{ width: `${(profile.lift / 1.5) * 100}%` }}
+                            transition={{ type: 'spring', stiffness: 120, damping: 15 }}
+                            style={{ background: 'hsl(120 100% 54%)', boxShadow: '0 0 8px hsl(120 100% 54% / 0.4)' }} />
+                        </div>
                       </div>
-                      <span className="text-[9px] font-mono text-muted-foreground">{(b.cf * 100).toFixed(0)}%</span>
+                      <div>
+                        <div className="flex justify-between text-[11px] mb-1">
+                          <span className="font-semibold" style={{ color: 'hsl(0 60% 55%)' }}>Cd (Drag)</span>
+                          <span className="font-mono font-bold" style={{ color: 'hsl(0 60% 55%)' }}>{profile.drag}</span>
+                        </div>
+                        <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
+                          <motion.div className="h-full rounded-full" animate={{ width: `${(profile.drag / 0.02) * 100}%` }}
+                            transition={{ type: 'spring', stiffness: 120, damping: 15 }}
+                            style={{ background: 'hsl(0 60% 55%)', boxShadow: '0 0 8px hsl(0 60% 55% / 0.4)' }} />
+                        </div>
+                      </div>
+                      <div className="text-center p-1.5 rounded-lg" style={{ background: 'hsl(210 90% 60% / 0.08)', border: '1px solid hsl(210 90% 60% / 0.15)' }}>
+                        <span className="text-[10px] text-muted-foreground">Cl/Cd = </span>
+                        <span className="text-sm font-mono font-bold" style={{ color: 'hsl(210 90% 60%)' }}>{profile.clcd}</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  </div>
 
-            {/* ═══ CALC ═══ */}
-            {activeTab === 'calc' && (
-              <div className="space-y-3">
-                <div className="text-xs font-semibold uppercase tracking-wide text-primary">
-                  {label('Live-розрахунки при V =', 'Live Calculations at V =')} {windSpeed.toFixed(1)} m/s
-                </div>
+                  <GlowSlider value={attackAngle} onChange={setAttackAngle} min={0} max={20} step={0.5}
+                    label={label('Кут атаки', 'Angle of Attack')} displayValue={`${attackAngle}°`}
+                    infoText={label('6-10° — оптимально. >15° — зрив потоку (stall)', '6-10° optimal. >15° — flow separation (stall)')}
+                    color={attackAngle > 15 ? 'hsl(0 62.8% 30.6%)' : 'hsl(210 90% 60%)'} />
 
-                {/* Efficiency chain */}
-                <div className="p-2 rounded-lg border" style={{ backgroundColor: 'hsl(var(--background) / 0.4)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
-                  <EfficiencyChainSVG cp={currentSettings.efficiency} genEff={genTypeData.efficiency} lang={lang} />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { label: label('Потужність', 'Power'), value: formatP(liveCalc.P), formula: 'P = ½ρAV³Cp', highlight: true },
-                    { label: label('Крутний момент', 'Torque'), value: liveCalc.torque > 1000 ? `${(liveCalc.torque / 1000).toFixed(1)} kNm` : `${liveCalc.torque.toFixed(0)} Nm`, formula: 'τ = P/ω' },
-                    { label: label('Відцентрова сила', 'Centrifugal Force'), value: liveCalc.Fc > 1000 ? `${(liveCalc.Fc / 1000).toFixed(1)} kN` : `${liveCalc.Fc.toFixed(0)} N`, formula: 'F = mω²r' },
-                    { label: label('Обертання', 'Rotation'), value: `${(liveCalc.rps * 60).toFixed(1)} RPM`, formula: `ω = ${liveCalc.omega.toFixed(2)} rad/s` },
-                  ].map((card, i) => (
-                    <motion.div key={i} className="p-3 rounded-lg border text-center"
-                      style={{
-                        backgroundColor: card.highlight ? 'hsl(var(--primary) / 0.05)' : 'hsl(var(--background) / 0.3)',
-                        borderColor: card.highlight ? 'hsl(var(--primary) / 0.25)' : 'hsl(var(--border) / 0.3)',
-                      }}
-                      animate={{ scale: [1, 1.01, 1] }} transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}>
-                      <div className="text-[9px] text-muted-foreground uppercase">{card.label}</div>
-                      <p className="text-lg font-mono font-bold" style={{ color: card.highlight ? 'hsl(var(--primary))' : 'hsl(var(--foreground))' }}>{card.value}</p>
-                      <div className="text-[8px] text-muted-foreground font-mono">{card.formula}</div>
+                  {attackAngle > 15 && (
+                    <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+                      className="flex items-center gap-2.5 text-xs p-3 rounded-lg border"
+                      style={{ backgroundColor: 'hsl(0 62.8% 30.6% / 0.12)', borderColor: 'hsl(0 62.8% 30.6% / 0.3)' }}>
+                      <AlertTriangle className="w-4 h-4 text-destructive animate-pulse" />
+                      <span className="text-destructive font-medium">{label('Зрив потоку! Різке падіння підйомної сили.', 'Flow separation! Sudden lift drop.')}</span>
                     </motion.div>
-                  ))}
-                </div>
+                  )}
 
-                {/* CF + AEP */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-3 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--primary) / 0.05)', borderColor: 'hsl(var(--primary) / 0.25)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase">{label('Коеф. використання', 'Capacity Factor')}</div>
-                    <p className="text-lg font-mono font-bold text-primary">{(liveCalc.capacityFactor * 100).toFixed(1)}%</p>
-                    <div className="h-1.5 rounded-full overflow-hidden mt-1" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
-                      <div className="h-full rounded-full transition-all" style={{ width: `${liveCalc.capacityFactor * 100}%`, background: 'hsl(var(--primary))', boxShadow: '0 0 6px hsl(var(--primary) / 0.5)' }} />
-                    </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <GlowSlider value={currentSettings.bladeLength} onChange={v => onSettingsChange({ ...currentSettings, bladeLength: v })}
+                      min={5} max={120} step={1} label={label('Довжина лопаті', 'Blade Length')} displayValue={`${currentSettings.bladeLength}m`}
+                      infoText={label('A = πR². Подвоєння R → 4x потужність', 'A = πR². Double R → 4x power')} color="hsl(210 90% 60%)" />
+
+                    <GlowSlider value={currentSettings.efficiency} onChange={v => onSettingsChange({ ...currentSettings, efficiency: v })}
+                      min={0.1} max={0.55} step={0.01} label={label('Cp (ефективність)', 'Cp (efficiency)')} displayValue={`${currentSettings.efficiency}`}
+                      infoText={label('Ліміт Бетца: 0.593. Реальні: 0.35-0.50', 'Betz limit: 0.593. Real: 0.35-0.50')} color="hsl(120 100% 54%)" />
                   </div>
-                  <div className="p-3 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--primary) / 0.05)', borderColor: 'hsl(var(--primary) / 0.25)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase">{label('Річна енергія (AEP)', 'Annual Energy (AEP)')}</div>
-                    <p className="text-lg font-mono font-bold text-primary">{formatE(liveCalc.aep)}</p>
-                    <div className="text-[8px] text-muted-foreground font-mono">k={weibullK}, c={weibullC}</div>
+
+                  {/* Betz + TSR + Re */}
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-20 h-20 flex-shrink-0">
+                      <svg viewBox="0 0 36 36" className="w-full h-full -rotate-90">
+                        <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--border))" strokeWidth="3" opacity="0.15" />
+                        <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(120 100% 54%)" strokeWidth="3"
+                          strokeDasharray={`${(currentSettings.efficiency / 0.593) * 94.2} 94.2`}
+                          strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 5px hsl(120 100% 54% / 0.5))', transition: 'stroke-dasharray 0.5s ease' }} />
+                      </svg>
+                      <span className="absolute inset-0 flex items-center justify-center text-sm font-mono font-bold text-primary">
+                        {((currentSettings.efficiency / 0.593) * 100).toFixed(0)}%
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 flex-1">
+                      <div className="text-center p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
+                        <div className="text-[10px] text-muted-foreground uppercase">Betz</div>
+                        <div className="text-xs font-mono font-bold text-primary">{((currentSettings.efficiency / 0.593) * 100).toFixed(0)}%</div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
+                        <div className="text-[10px] text-muted-foreground uppercase">Re</div>
+                        <div className="text-xs font-mono font-bold" style={{ color: 'hsl(210 90% 60%)' }}>
+                          {liveCalc.Re > 1e6 ? `${(liveCalc.Re / 1e6).toFixed(1)}M` : `${(liveCalc.Re / 1e3).toFixed(0)}k`}
+                        </div>
+                      </div>
+                      <div className="text-center p-2 rounded-lg" style={{ background: 'hsl(var(--background) / 0.4)', border: '1px solid hsl(var(--border) / 0.2)' }}>
+                        <div className="text-[10px] text-muted-foreground uppercase">TSR</div>
+                        <div className="text-xs font-mono font-bold" style={{ color: 'hsl(40 80% 60%)' }}>{liveCalc.tsr.toFixed(1)}</div>
+                      </div>
+                    </div>
                   </div>
                 </div>
+              )}
 
-                {/* LCOE + CO2 */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="p-2 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--border) / 0.3)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase flex items-center justify-center gap-1">
-                      <DollarSign className="w-3 h-3" /> LCOE
-                    </div>
-                    <p className="text-sm font-mono font-bold text-foreground">{liveCalc.lcoe > 0 ? `${liveCalc.lcoe.toFixed(1)} $/MWh` : '—'}</p>
-                    <p className="text-[7px] text-muted-foreground">{label('Нижче = краще', 'Lower = better')}</p>
+              {/* ═══ STRUCT ═══ */}
+              {activeTab === 'struct' && (
+                <div className="space-y-5">
+                  <div className="flex items-center gap-2">
+                    <Wrench className="w-4 h-4" style={{ color: 'hsl(25 90% 55%)' }} />
+                    <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(25 90% 55%)' }}>
+                      {label('Матеріали та конструкція', 'Materials & Structure')}
+                    </span>
                   </div>
-                  <div className="p-2 rounded-lg border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--border) / 0.3)' }}>
-                    <div className="text-[9px] text-muted-foreground uppercase flex items-center justify-center gap-1">
-                      <Leaf className="w-3 h-3" /> CO₂
+
+                  {/* Radar chart */}
+                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(25 20% 7%)', borderColor: 'hsl(25 90% 55% / 0.2)' }}>
+                    <RadarChartSVG materials={materials} selectedIdx={selectedMaterialIdx} onSelect={setSelectedMaterialIdx} />
+                  </div>
+
+                  {/* Material cards — interactive */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {materials.map((mat, i) => (
+                      <motion.div key={i}
+                        onClick={() => setSelectedMaterialIdx(i)}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className="p-3.5 rounded-xl border cursor-pointer transition-all duration-300"
+                        style={{
+                          backgroundColor: i === selectedMaterialIdx ? `${mat.color}0a` : 'hsl(var(--background) / 0.3)',
+                          borderColor: i === selectedMaterialIdx ? `${mat.color}66` : 'hsl(var(--border) / 0.2)',
+                          borderLeftWidth: '3px',
+                          borderLeftColor: mat.color,
+                          boxShadow: i === selectedMaterialIdx ? `0 0 20px ${mat.color}15` : 'none',
+                        }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-xs font-bold text-foreground">{mat.name}</span>
+                          {i === selectedMaterialIdx && (
+                            <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }}
+                              className="w-2 h-2 rounded-full" style={{ backgroundColor: mat.color, boxShadow: `0 0 6px ${mat.color}` }} />
+                          )}
+                        </div>
+                        <p className="text-[10px] text-muted-foreground mb-2">{lang === 'ua' ? mat.desc_ua : mat.desc_en}</p>
+                        <div className="space-y-1.5">
+                          {[
+                            { prop: label('Модуль', 'Modulus'), val: mat.E, max: 210, unit: 'GPa' },
+                            { prop: 'σ', val: mat.sigma, max: 1500, unit: 'MPa' },
+                            { prop: 'ρ', val: mat.rho, max: 7850, unit: 'kg/m³' },
+                          ].map((p, pi) => (
+                            <div key={pi}>
+                              <div className="flex justify-between text-[10px] mb-0.5">
+                                <span className="text-muted-foreground">{p.prop}</span>
+                                <span className="font-mono text-foreground">{p.val} {p.unit}</span>
+                              </div>
+                              <div className="h-1.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
+                                <motion.div className="h-full rounded-full"
+                                  initial={{ width: 0 }}
+                                  animate={{ width: `${(p.val / p.max) * 100}%` }}
+                                  transition={{ type: 'spring', stiffness: 100, damping: 15, delay: pi * 0.1 }}
+                                  style={{ background: mat.color, opacity: 0.6 }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  <GlowSlider value={currentSettings.height} onChange={v => onSettingsChange({ ...currentSettings, height: v })}
+                    min={10} max={200} step={5} label={label('Висота маточини', 'Hub Height')} displayValue={`${currentSettings.height}m`}
+                    infoText={label('Висота впливає на швидкість вітру за степеневим законом', 'Height affects wind speed via power law')}
+                    color="hsl(25 90% 55%)" />
+
+                  {/* Blade deflection */}
+                  <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
+                    <span className="text-[11px] font-semibold uppercase" style={{ color: 'hsl(25 90% 55%)' }}>
+                      {label('Прогин лопаті (оцінка)', 'Blade Deflection (est.)')}
+                    </span>
+                    <BladeDeflectionSVG deflection={liveCalc.deflection} bladeLength={currentSettings.bladeLength} />
+                  </div>
+
+                  {/* Blade mass & fatigue */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">{label('Маса лопаті', 'Blade Mass')}</div>
+                      <p className="text-xl font-mono font-bold text-foreground">{(0.5 * currentSettings.bladeLength * 15).toFixed(0)}</p>
+                      <span className="text-[10px] text-muted-foreground">kg</span>
                     </div>
-                    <p className="text-sm font-mono font-bold text-foreground">
-                      {liveCalc.co2Offset > 1000 ? `${(liveCalc.co2Offset / 1000).toFixed(1)}k` : liveCalc.co2Offset.toFixed(0)} {label('т/рік', 't/yr')}
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(25 15% 8%)', borderColor: 'hsl(25 90% 55% / 0.15)' }}>
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">{label('Цикли (20 р.)', 'Fatigue (20yr)')}</div>
+                      <p className="text-xl font-mono font-bold text-foreground">
+                        {liveCalc.fatigueCycles > 1e9 ? `${(liveCalc.fatigueCycles / 1e9).toFixed(1)}G` :
+                          liveCalc.fatigueCycles > 1e6 ? `${(liveCalc.fatigueCycles / 1e6).toFixed(0)}M` :
+                            `${(liveCalc.fatigueCycles / 1e3).toFixed(0)}k`}
+                      </p>
+                      <span className="text-[10px] text-muted-foreground">{label('обертань', 'cycles')}</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ ELEC ═══ */}
+              {activeTab === 'elec' && (
+                <div className="space-y-5">
+                  <div className="flex items-center gap-2">
+                    <Zap className="w-4 h-4" style={{ color: 'hsl(50 90% 55%)' }} />
+                    <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(50 90% 55%)' }}>
+                      {label('Електрична система', 'Electrical System')}
+                    </span>
+                  </div>
+
+                  {/* Generator schematic */}
+                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(50 20% 6%)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
+                    <GeneratorSchematicSVG genType={genType} poleCount={poleCount} />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-xs font-semibold">{label('Тип генератора', 'Generator Type')}</Label>
+                      <Select value={genType} onValueChange={setGenType}>
+                        <SelectTrigger className="mt-1.5 border-border/30 bg-background/40 h-9"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {genTypes.map(g => (
+                            <SelectItem key={g.value} value={g.value}>{g.icon} {g.value}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground mt-1.5">
+                        {lang === 'ua' ? genTypeData.desc_ua : genTypeData.desc_en}
+                      </p>
+                    </div>
+
+                    {/* Frequency waveform */}
+                    <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
+                      <span className="text-[10px] text-muted-foreground uppercase">{label('Частота мережі', 'Grid Frequency')}</span>
+                      <FrequencyWaveform frequency={50} />
+                    </div>
+                  </div>
+
+                  {/* Efficiency comparison */}
+                  <div className="space-y-2">
+                    <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Порівняння ККД', 'Efficiency Comparison')}</span>
+                    {genTypes.map((g, i) => (
+                      <div key={g.value} className="flex items-center gap-3 p-2 rounded-lg transition-all"
+                        style={{
+                          backgroundColor: g.value === genType ? 'hsl(50 90% 55% / 0.06)' : 'transparent',
+                          border: `1px solid ${g.value === genType ? 'hsl(50 90% 55% / 0.2)' : 'transparent'}`,
+                        }}>
+                        <span className="text-sm">{g.icon}</span>
+                        <span className="text-xs font-mono w-12 font-semibold" style={{ color: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground))' }}>{g.value}</span>
+                        <div className="flex-1 h-3 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
+                          <motion.div className="h-full rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${g.efficiency * 100}%` }}
+                            transition={{ type: 'spring', stiffness: 100, damping: 15, delay: i * 0.1 }}
+                            style={{
+                              background: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground) / 0.3)',
+                              boxShadow: g.value === genType ? '0 0 10px hsl(50 90% 55% / 0.5)' : 'none',
+                            }} />
+                        </div>
+                        <span className="text-xs font-mono font-bold" style={{ color: g.value === genType ? 'hsl(50 90% 55%)' : 'hsl(var(--muted-foreground))' }}>
+                          {(g.efficiency * 100).toFixed(0)}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <GlowSlider value={poleCount} onChange={setPoleCount} min={4} max={96} step={2}
+                      label={label('Кількість полюсів', 'Pole Count')} displayValue={`${poleCount}`}
+                      infoText={`n_sync = ${(60 * 50 / (poleCount / 2)).toFixed(0)} RPM @ 50Hz`}
+                      color="hsl(50 90% 55%)" />
+                    <GlowSlider value={voltage} onChange={setVoltage} min={230} max={6600} step={10}
+                      label={label('Напруга', 'Voltage')} displayValue={`${voltage} V`} color="hsl(50 90% 55%)" />
+                  </div>
+
+                  <GlowSlider value={currentSettings.ratedPower} onChange={v => onSettingsChange({ ...currentSettings, ratedPower: v })}
+                    min={1000} max={15000000} step={1000}
+                    label={label('Номінальна потужність', 'Rated Power')} displayValue={formatP(currentSettings.ratedPower)}
+                    color="hsl(50 90% 55%)" />
+
+                  {/* Power factor & reactive */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">{label('Коеф. потужності', 'Power Factor')}</div>
+                      <p className="text-lg font-mono font-bold text-foreground">cos φ = 0.95</p>
+                    </div>
+                    <div className="p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
+                      <div className="text-[10px] text-muted-foreground uppercase mb-1">{label('Реактивна', 'Reactive')}</div>
+                      <p className="text-lg font-mono font-bold text-foreground">
+                        {formatP(liveCalc.P * Math.tan(Math.acos(0.95)))} VAr
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ═══ CURVE ═══ */}
+              {activeTab === 'curve' && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4" style={{ color: 'hsl(270 70% 60%)' }} />
+                    <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(270 70% 60%)' }}>
+                      {label('Крива потужності P(V) + Вейбулл f(V)', 'Power Curve P(V) + Weibull f(V)')}
+                    </span>
+                  </div>
+
+                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(270 20% 7%)', borderColor: 'hsl(270 70% 60% / 0.2)' }}>
+                    <PowerCurveSVG currentSettings={currentSettings} windSpeed={windSpeed} lang={lang} weibullK={weibullK} weibullC={weibullC} />
+                    <div className="flex gap-5 mt-2 justify-center">
+                      {[
+                        { color: 'hsl(120 100% 54%)', label: 'P(V)', dash: false },
+                        { color: 'hsl(270 70% 60%)', label: 'f(V)', dash: true },
+                        { color: 'hsl(120 100% 54%)', label: 'AEP', dash: false, fill: true },
+                      ].map((item, i) => (
+                        <span key={i} className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                          <span className="w-4 h-0.5 inline-block rounded" style={{
+                            backgroundColor: item.color,
+                            opacity: item.fill ? 0.3 : 1,
+                            height: item.fill ? '8px' : '2px',
+                            borderBottom: item.dash ? `2px dashed ${item.color}` : 'none',
+                          }} />
+                          {item.label}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Weibull params */}
+                  <div className="p-4 rounded-xl border space-y-3" style={{ backgroundColor: 'hsl(270 70% 60% / 0.04)', borderColor: 'hsl(270 70% 60% / 0.2)' }}>
+                    <span className="text-xs font-semibold text-foreground">{label('Параметри Вейбулла', 'Weibull Parameters')}</span>
+                    <div className="grid grid-cols-2 gap-4">
+                      <GlowSlider value={weibullK} onChange={setWeibullK} min={1.0} max={4.0} step={0.1}
+                        label={`k (${label('форма', 'shape')})`} displayValue={weibullK.toFixed(1)} color="hsl(270 70% 60%)" />
+                      <GlowSlider value={weibullC} onChange={setWeibullC} min={3} max={15} step={0.5}
+                        label={`c (${label('масштаб', 'scale')})`} displayValue={`${weibullC.toFixed(1)} m/s`} color="hsl(270 70% 60%)" />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">
+                      {label('k=2 — типове розподілення. c ≈ середня_V × 1.12', 'k=2 — typical distribution. c ≈ mean_V × 1.12')}
                     </p>
-                    <p className="text-[7px] text-muted-foreground">{label('Офсет CO₂', 'CO₂ offset')}</p>
                   </div>
-                </div>
 
-                {/* Industry comparison */}
-                <div className="p-2 rounded-lg border" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--primary) / 0.15)' }}>
-                  <span className="text-[10px] text-muted-foreground uppercase">{label('Ваша турбіна vs індустрія', 'Your turbine vs industry')}</span>
-                  <div className="grid grid-cols-3 gap-2 mt-1 text-center">
+                  {/* Capacity factor benchmarks */}
+                  <div className="p-3 rounded-xl border space-y-2" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(270 70% 60% / 0.15)' }}>
+                    <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Бенчмарки CF (Україна)', 'CF Benchmarks (Ukraine)')}</span>
                     {[
-                      { metric: 'Cp', yours: currentSettings.efficiency.toFixed(2), avg: '0.40' },
-                      { metric: 'CF', yours: `${(liveCalc.capacityFactor * 100).toFixed(0)}%`, avg: '25-35%' },
-                      { metric: 'TSR', yours: liveCalc.tsr.toFixed(1), avg: '6-8' },
-                    ].map((c, i) => (
-                      <div key={i}>
-                        <div className="text-[8px] text-muted-foreground">{c.metric}</div>
-                        <div className="text-[10px] font-mono font-bold text-primary">{c.yours}</div>
-                        <div className="text-[7px] text-muted-foreground">{label('сер.', 'avg')}: {c.avg}</div>
+                      { region: lang === 'ua' ? '🌊 Узбережжя (Азов/Чорне)' : '🌊 Coast (Azov/Black)', cf: 0.32 },
+                      { region: lang === 'ua' ? '🌾 Степ (Запоріжжя)' : '🌾 Steppe (Zaporizhia)', cf: 0.25 },
+                      { region: lang === 'ua' ? '⛰️ Карпати (хребти)' : '⛰️ Carpathians (ridges)', cf: 0.22 },
+                    ].map((b, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <span className="text-[11px] w-40 text-muted-foreground">{b.region}</span>
+                        <div className="flex-1 h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
+                          <motion.div className="h-full rounded-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${b.cf * 100 * 2.5}%` }}
+                            transition={{ type: 'spring', stiffness: 80, damping: 15, delay: i * 0.15 }}
+                            style={{ background: 'hsl(270 70% 60%)', boxShadow: '0 0 6px hsl(270 70% 60% / 0.3)' }} />
+                        </div>
+                        <span className="text-xs font-mono font-bold" style={{ color: 'hsl(270 70% 60%)' }}>{(b.cf * 100).toFixed(0)}%</span>
                       </div>
                     ))}
                   </div>
                 </div>
-              </div>
-            )}
+              )}
 
-          </motion.div>
-        </AnimatePresence>
+              {/* ═══ CALC ═══ */}
+              {activeTab === 'calc' && (
+                <div className="space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Activity className="w-4 h-4 text-primary" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-primary">
+                        {label('Live-розрахунки', 'Live Calculations')}
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono px-3 py-1 rounded-lg" style={{ background: 'hsl(var(--primary) / 0.1)', border: '1px solid hsl(var(--primary) / 0.2)' }}>
+                      V = {windSpeed.toFixed(1)} m/s
+                    </div>
+                  </div>
+
+                  {/* Power gauge */}
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="col-span-1 p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
+                      <PowerGaugeSVG value={liveCalc.P} max={currentSettings.ratedPower} label={label('Потужність', 'Power')} />
+                      <p className="text-lg font-mono font-bold text-primary mt-1">{formatP(liveCalc.P)}</p>
+                      <p className="text-[9px] text-muted-foreground font-mono">P = ½ρAV³Cp</p>
+                    </div>
+                    <div className="col-span-2">
+                      {/* Efficiency chain */}
+                      <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--primary) / 0.15)' }}>
+                        <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label('Ланцюг ефективності', 'Efficiency Chain')}</span>
+                        <EfficiencyChainSVG cp={currentSettings.efficiency} genEff={genTypeData.efficiency} lang={lang} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Main calc cards */}
+                  <div className="grid grid-cols-2 gap-3">
+                    {[
+                      { label: label('Крутний момент', 'Torque'), value: liveCalc.torque > 1000 ? `${(liveCalc.torque / 1000).toFixed(1)} kNm` : `${liveCalc.torque.toFixed(0)} Nm`, formula: 'τ = P/ω', color: 'hsl(210 90% 60%)' },
+                      { label: label('Відцентрова сила', 'Centrifugal Force'), value: liveCalc.Fc > 1000 ? `${(liveCalc.Fc / 1000).toFixed(1)} kN` : `${liveCalc.Fc.toFixed(0)} N`, formula: 'F = mω²r', color: 'hsl(25 90% 55%)' },
+                      { label: label('Обертання', 'Rotation'), value: `${(liveCalc.rps * 60).toFixed(1)} RPM`, formula: `ω = ${liveCalc.omega.toFixed(2)} rad/s`, color: 'hsl(50 90% 55%)' },
+                      { label: label('Коеф. використання', 'Capacity Factor'), value: `${(liveCalc.capacityFactor * 100).toFixed(1)}%`, formula: 'CF = P/P_rated', color: 'hsl(270 70% 60%)' },
+                    ].map((card, i) => (
+                      <motion.div key={i} className="p-4 rounded-xl border text-center"
+                        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: i * 0.08 }}
+                        style={{
+                          backgroundColor: 'hsl(var(--background) / 0.3)',
+                          borderColor: `${card.color}22`,
+                          borderLeftWidth: '3px',
+                          borderLeftColor: card.color,
+                        }}>
+                        <div className="text-[10px] text-muted-foreground uppercase mb-1">{card.label}</div>
+                        <p className="text-xl font-mono font-bold text-foreground">{card.value}</p>
+                        <div className="text-[9px] text-muted-foreground font-mono mt-1">{card.formula}</div>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* AEP */}
+                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Річна енергія (AEP)', 'Annual Energy (AEP)')}</div>
+                      <span className="text-[10px] text-muted-foreground font-mono">k={weibullK}, c={weibullC}</span>
+                    </div>
+                    <p className="text-3xl font-mono font-bold text-primary text-center mb-2">{formatE(liveCalc.aep)}</p>
+                    <div className="h-2 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
+                      <motion.div className="h-full rounded-full"
+                        animate={{ width: `${Math.min(liveCalc.capacityFactor * 100 * 2, 100)}%` }}
+                        transition={{ type: 'spring', stiffness: 80, damping: 15 }}
+                        style={{ background: 'hsl(var(--primary))', boxShadow: '0 0 10px hsl(var(--primary) / 0.5)' }} />
+                    </div>
+                  </div>
+
+                  {/* LCOE + CO2 */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+                      <div className="text-[10px] text-muted-foreground uppercase flex items-center justify-center gap-1.5 mb-1">
+                        <DollarSign className="w-3.5 h-3.5" /> LCOE
+                      </div>
+                      <p className="text-xl font-mono font-bold text-foreground">{liveCalc.lcoe > 0 ? `${liveCalc.lcoe.toFixed(1)}` : '—'}</p>
+                      <p className="text-[10px] text-muted-foreground">$/MWh</p>
+                      <div className="mt-2 text-[9px] font-mono rounded-md p-1" style={{
+                        color: liveCalc.lcoe < 50 ? 'hsl(120 100% 54%)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55%)' : 'hsl(0 60% 55%)',
+                        background: liveCalc.lcoe < 50 ? 'hsl(120 100% 54% / 0.08)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55% / 0.08)' : 'hsl(0 60% 55% / 0.08)',
+                      }}>
+                        {liveCalc.lcoe < 50 ? '✓ Excellent' : liveCalc.lcoe < 100 ? '◐ Average' : '✗ High'}
+                      </div>
+                    </div>
+                    <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+                      <div className="text-[10px] text-muted-foreground uppercase flex items-center justify-center gap-1.5 mb-1">
+                        <Leaf className="w-3.5 h-3.5" /> CO₂ {label('Офсет', 'Offset')}
+                      </div>
+                      <p className="text-xl font-mono font-bold" style={{ color: 'hsl(120 100% 54%)' }}>
+                        {liveCalc.co2Offset > 1000 ? `${(liveCalc.co2Offset / 1000).toFixed(1)}k` : liveCalc.co2Offset.toFixed(0)}
+                      </p>
+                      <p className="text-[10px] text-muted-foreground">{label('тонн/рік', 'tonnes/yr')}</p>
+                      <div className="mt-2 text-[9px] font-mono rounded-md p-1" style={{ color: 'hsl(120 100% 54%)', background: 'hsl(120 100% 54% / 0.08)' }}>
+                        🌱 {label('Еквів.', 'Equiv.')} {(liveCalc.co2Offset * 0.05).toFixed(0)} {label('дерев', 'trees')}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Industry comparison */}
+                  <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--primary) / 0.15)' }}>
+                    <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Ваша турбіна vs індустрія', 'Your turbine vs industry')}</span>
+                    <div className="grid grid-cols-3 gap-4 mt-3">
+                      {[
+                        { metric: 'Cp', yours: currentSettings.efficiency.toFixed(2), avg: '0.40', good: currentSettings.efficiency >= 0.40 },
+                        { metric: 'CF', yours: `${(liveCalc.capacityFactor * 100).toFixed(0)}%`, avg: '25-35%', good: liveCalc.capacityFactor >= 0.25 },
+                        { metric: 'TSR', yours: liveCalc.tsr.toFixed(1), avg: '6-8', good: liveCalc.tsr >= 6 && liveCalc.tsr <= 8 },
+                      ].map((c, i) => (
+                        <div key={i} className="text-center p-2 rounded-lg" style={{
+                          background: c.good ? 'hsl(120 100% 54% / 0.05)' : 'hsl(0 60% 55% / 0.05)',
+                          border: `1px solid ${c.good ? 'hsl(120 100% 54% / 0.15)' : 'hsl(0 60% 55% / 0.15)'}`,
+                        }}>
+                          <div className="text-[10px] text-muted-foreground font-semibold">{c.metric}</div>
+                          <div className="text-lg font-mono font-bold" style={{ color: c.good ? 'hsl(120 100% 54%)' : 'hsl(0 60% 55%)' }}>{c.yours}</div>
+                          <div className="text-[9px] text-muted-foreground">{label('сер.', 'avg')}: {c.avg}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </DialogContent>
     </Dialog>
   );

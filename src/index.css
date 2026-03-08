@@ -109,3 +109,49 @@
   scrollbar-width: thin;
   scrollbar-color: hsl(120 100% 54% / 0.3) hsl(222 28% 13% / 0.5);
 }
+
+/* Engineering panel scrollbar */
+.eng-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+.eng-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.eng-scrollbar::-webkit-scrollbar-thumb {
+  background: hsl(120 100% 54% / 0.2);
+  border-radius: 4px;
+}
+.eng-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: hsl(120 100% 54% / 0.4);
+}
+.eng-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: hsl(120 100% 54% / 0.2) transparent;
+}
+
+/* Animated flow lines */
+@keyframes flow-dash {
+  to { stroke-dashoffset: -20; }
+}
+@keyframes energy-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}
+@keyframes ring-expand {
+  0% { r: 2; opacity: 0.8; }
+  100% { r: 12; opacity: 0; }
+}
+.animate-flow-dash {
+  animation: flow-dash 1.5s linear infinite;
+}
+.animate-energy-pulse {
+  animation: energy-pulse 2s ease-in-out infinite;
+}
+
+/* Frequency sine wave */
+@keyframes sine-scroll {
+  to { transform: translateX(-50px); }
+}
+.animate-sine-scroll {
+  animation: sine-scroll 2s linear infinite;
+}
