@@ -595,7 +595,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
         <span className="text-xs font-semibold text-foreground">{t('recommendedGen', lang)}</span>
         <p className="text-[11px] text-muted-foreground mt-1">
-          {genRecommendations[displayWeather.recommendedGen]?.[lang]}
+          {genRecommendations[weather.recommendedGen]?.[lang]}
         </p>
       </div>
 
