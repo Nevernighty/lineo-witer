@@ -630,10 +630,10 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       {onApplyToSimulation && (
         <button
           onClick={() => onApplyToSimulation({
-            windSpeed: displayWeather.windSpeed,
-            temperature: displayWeather.temperature,
-            humidity: displayWeather.humidity,
-            windAngle: displayWeather.windAngle
+            windSpeed: weather.windSpeed,
+            temperature: weather.temperature,
+            humidity: weather.humidity,
+            windAngle: weather.windAngle
           })}
           className="w-full py-2.5 rounded-xl text-sm font-semibold transition-all"
           style={{ background: 'hsl(var(--primary) / 0.15)', border: '1px solid hsl(var(--primary) / 0.4)', color: 'hsl(var(--primary))' }}>
