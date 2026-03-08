@@ -13,23 +13,7 @@ interface InstancedParticlesProps {
 }
 
 const createParticleGeometry = () => {
-  const geometry = new THREE.BufferGeometry();
-  const vertices = new Float32Array([
-    0, 0, 1.2,
-    -0.15, 0.1, 0,
-    0.15, 0.1, 0,
-    0.15, -0.1, 0,
-    -0.15, -0.1, 0,
-    0, 0, -0.4,
-  ]);
-  const indices = new Uint16Array([
-    0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 1,
-    5, 2, 1, 5, 3, 2, 5, 4, 3, 5, 1, 4,
-  ]);
-  geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
-  geometry.setIndex(new THREE.BufferAttribute(indices, 1));
-  geometry.computeVertexNormals();
-  return geometry;
+  return new THREE.SphereGeometry(0.3, 6, 4);
 };
 
 const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
