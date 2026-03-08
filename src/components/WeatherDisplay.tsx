@@ -332,7 +332,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       
       <p className="text-xs text-muted-foreground">
         {weather.isLive 
-          ? (lang === 'ua' ? 'Реальні дані з OpenWeatherMap API.' : 'Live data from OpenWeatherMap API.')
+          ? (lang === 'ua' ? 'Реальні дані з Open-Meteo API (безкоштовно).' : 'Live data from Open-Meteo API (free).')
           : (lang === 'ua' ? 'Синтетичні дані на основі геолокації, сезону та часу доби.' : 'Synthetic data based on geolocation, season, and time of day.')}
       </p>
 
