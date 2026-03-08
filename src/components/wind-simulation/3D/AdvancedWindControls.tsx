@@ -255,7 +255,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="terrain" className="p-3 space-y-3 mt-0">
+        <TabsContent value="terrain" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.surfaceRoughness} onChange={(v) => updateConfig('surfaceRoughness', v)}
             min={0.001} max={2} step={0.01} label={t('surfaceRoughness', lang)} displayValue={config.surfaceRoughness.toFixed(2)}
             infoText={t('infoSurfaceRoughness', lang)} />
