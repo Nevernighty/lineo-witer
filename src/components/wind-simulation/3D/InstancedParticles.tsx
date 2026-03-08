@@ -132,10 +132,15 @@ const PRESET_CONFIG: Record<string, { baseSizeMul: number; opacity: number; tail
 const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
   const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
+  // Glow: floor at 0.35, boost brightness above 1.0
+  const glowFloor = Math.max(glow, 0.35);
+  const glowBoost = glow > 1.0 ? 1.0 + (glow - 1.0) * 0.6 : glowFloor;
 
   if (absorbed) {
-    const pulse = 0.8 + Math.sin(Date.now() * 0.02) * 0.2;
-    c.setRGB(1 * pulse * glow, 0.95 * pulse * glow, 0.3 * pulse);
+    // Grey/silver with subtle white pulse — "energy extracted" look
+    const pulse = 0.55 + Math.sin(Date.now() * 0.015) * 0.15;
+    const grey = pulse * 0.65;
+    c.setRGB(grey, grey, grey * 1.05);
     return;
   }
 
