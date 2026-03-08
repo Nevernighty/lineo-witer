@@ -1,127 +1,94 @@
 
+# Виправлення UI, фізики частинок та візуалізації
 
-## Comprehensive Fix & Enhancement Plan
+## 1. Кнопки "Встановити/Вибрати" перекривають статистику
 
-### Issues Identified from Code Review
+**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
 
-1. **Terrain slope**: `getTerrainYOffset` uses `Math.sin(slopeRad)` which is correct math, but the `terrainRotation` at line 282-284 swaps X and Z axes incorrectly — `rotation={[slopeZ, 0, -slopeX]}` rotates the grid visually but obstacles use a different formula via `getTerrainYOffset`. The grid and objects diverge at high slopes.
+**Рішення (WindSimulation3D.tsx):**
+- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
+- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
 
-2. **IntakeCone visual clutter**: The current IntakeCone renders 10 ring geometries + 6 cone arrows + 6 cylinder lines + 1 sphere — all static green meshes that look like "rings and triangles". No actual rotor-aligned spiral animation.
+## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
 
-3. **Select mode drag**: Currently drags immediately on first pointerDown (line 289-296). No second-click-hold requirement.
+**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
 
-4. **Weather**: Uses synthetic `generateSyntheticWeather()` — no real API connected.
+**Рішення:**
+- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
+- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
+- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
+- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
+- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
 
-5. **Particle trails**: Trail materials are hardcoded green (`#00ff88`) regardless of particle speed color.
+## 3. "Слід" (Trail) налаштування не працює
 
----
+**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
 
-### Changes by File
+**Рішення (InstancedParticles.tsx):**
+- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
+- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
+- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
+- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
+- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
+- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
+- Колір trail segments = колір частинки з зниженою яскравістю
 
-#### 1. Fix Terrain Slope — `terrainModel.ts` + `WindSimulation3D.tsx`
+## 4. Реалістичніші частинки та оптимізація
 
-- Fix `terrainRotation` calculation at line 282-284: currently `[slopeZ_rad, 0, -slopeX_rad]` — this is correct for the grid visual but the conversion uses degrees directly in a confusing way. The real issue: slopes above ~15° cause objects to clip through the grid because `getTerrainYOffset` clamps to ±8 but the grid rotates further. **Fix**: Increase clamp to ±15 and ensure grid rotation matches the offset formula exactly.
+**AdvancedParticleSystem.tsx:**
+- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
+- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
+- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
+- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
+- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
 
-#### 2. Replace IntakeCone with Rotor-Based Spiral Suction — `WindGenerator3D.tsx`
+**InstancedParticles.tsx:**
+- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
+- Залишити 2 instanced meshes: particles + trails (замість 3)
 
-Remove the current `IntakeCone` component entirely. Replace with:
-- **SuctionSpiral**: Animated particle paths that spiral inward toward the spinning rotor plane using `useFrame` to rotate and translate ring positions along the wind axis
-- The spiral particles match the wind direction and converge at the actual blade rotation center
-- Color transitions from cyan (far) to bright yellow-green (absorbed) with additive blending
-- Power-scaled: spiral intensity, count, and glow scale with `windSpeed` and `adjustedSpeed`
-- Impact popup flashes positioned at rotor center when absorption events happen
-- No more static cones/rings/cylinders — all animated
+## 5. Генератори всмоктують частинки — візуалізація
 
-#### 3. Select Mode: Second-Click-Hold Drag — `WindSimulation3D.tsx`
+**AdvancedParticleSystem.tsx:**
+- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
+- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
+- Передати `absorbed` стан в InstancedParticles як окреме поле
 
-Current behavior (line 286-300): pointerDown in select mode immediately selects + starts drag tracking.
+**InstancedParticles.tsx:**
+- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
+- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
 
-**New behavior**:
-- First click: select the object (highlight it)
-- Second click on already-selected object + hold: begin drag
-- Track `selectedObstacleIndex` and a `clickCountRef` — if clicking the same already-selected object, enter drag mode
-- Release: stop drag
+**WindGenerator3D.tsx:**
+- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
 
-#### 4. Neomorphic Blur Selection — `Obstacle3D.tsx` + `WindGenerator3D.tsx`
+## 6. Стрілки напрямку вітру після колізії
 
-Replace the current wireframe cylinder selection indicator with a glassmorphic glow effect:
-- Selected objects get a soft blurred outer glow sphere using `meshBasicMaterial` with additive blending, cyan color, `opacity: 0.12`
-- Hovered objects get a subtle yellow glow
-- Apply to both obstacles and generators
+**CollisionEffect.tsx:**
+- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
+- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
+- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
 
-#### 5. Connect Real Weather API — `WeatherDisplay.tsx`
+**AdvancedParticleSystem.tsx:**
+- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
+- Передати в `CollisionEffectsManager`
 
-Add OpenWeatherMap API integration:
-- Use the free tier endpoint: `https://api.openweathermap.org/data/2.5/weather?lat={lat}&lon={lon}&appid={key}&units=metric`
-- Fallback to existing synthetic data when API key is not set or request fails
-- Add environment variable `VITE_OPENWEATHER_API_KEY`
-- Display "Live" / "Synthetic" badge to indicate data source
-- Keep the "Apply to Simulation" button
+**WindSimulation3D.tsx:**
+- Оновити тип `collisionEffects` щоб включити `deflection`
 
-#### 6. Trail Color Inheritance — `InstancedParticles.tsx`
+## 7. Кращі impact ефекти
 
-Currently trail materials use hardcoded green colors (lines 94-100). Change:
-- Make trail meshes use `vertexColors: true` with `instanceColor`
-- In the trail update loop, inherit the main particle's speed-based color with reduced saturation per trail segment
-- This makes trails match particle color (blue → green → yellow → red) instead of fixed green
-
-#### 7. Compact UI + Realistic Defaults — `AdvancedWindControls.tsx` + `WindSimulation3D.tsx`
-
-- Reduce default wind speed from 8 to 6 m/s (more realistic average)
-- Default turbulence intensity: 0.18 (typical land)
-- Default particle count: 400
-- Default wobbliness: 0.6 (less jelly)
-- Tighter padding in control panel: reduce `p-3` to `p-2` in tabs content
-- Reduce GlowSlider label text from `text-xs` to `text-[10px]`
-
-#### 8. Optimization — `InstancedParticles.tsx` + `AdvancedParticleSystem.tsx`
-
-- Pre-allocate `maxCount` to 2000 and reuse — avoid re-creating `instanceColors` on count change
-- Move `instanceColors` allocation outside `useMemo` with count dependency — use a stable ref
-- Reduce trail segments from 5 to 3 for LOW quality
-- Skip obstacle energy map copy when no obstacles have generators
-
-#### 9. Scenario Knowledge Cards — `data/scenarios.ts`
-
-Add `knowledgeCard` field to `ScenarioPreset`:
-```ts
-knowledgeCard?: {
-  phenomenon: Record<Lang, string>;
-  approximates: Record<Lang, string>;
-  limitations: Record<Lang, string>;
-};
-```
-
-Add cards for urban, coastal, mountain, katabatic, sea breeze scenarios.
-
-#### 10. Analysis Overlay Confidence Badges — `WindSimulation3D.tsx`
-
-Add a badge type to each analysis item: `'visualization' | 'estimate' | 'theoretical'`
-- Wake map → VISUALIZATION
-- Capacity factor → ESTIMATE
-- Betz → THEORETICAL
-- Display as a tiny colored badge next to each toggle label
+**CollisionEffect.tsx:**
+- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
+- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
+- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
+- Тривалість збільшити з 0.5с до 0.8с
 
 ---
 
-### Files Modified
+## Технічна послідовність
 
-| File | Changes |
-|------|---------|
-| `WindSimulation3D.tsx` | Fix terrain, select mode logic, analysis badges, realistic defaults, disclaimer |
-| `WindGenerator3D.tsx` | Replace IntakeCone with SuctionSpiral, rotor-aligned animation |
-| `Obstacle3D.tsx` | Neomorphic glow selection effect |
-| `InstancedParticles.tsx` | Trail color inheritance, optimization |
-| `AdvancedParticleSystem.tsx` | Minor optimization |
-| `AdvancedWindControls.tsx` | Compact UI, tighter spacing |
-| `WeatherDisplay.tsx` | OpenWeatherMap API integration with fallback |
-| `terrainModel.ts` | Fix clamp range |
-| `data/scenarios.ts` | Add knowledge cards |
-
-### What We Do NOT Touch
-- Simulation core modules (`simulation/*.ts`)
-- Store (`useWindStore.ts`)
-- Info pages
-- Sound effects
-- 2D simulation components
-
+1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
+2. `Obstacle3D.tsx` — rotation тільки по Y
+3. `GhostObstacle.tsx` — rotation тільки по Y
+4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
+5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
+6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори

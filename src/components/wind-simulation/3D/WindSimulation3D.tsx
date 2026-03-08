@@ -104,15 +104,15 @@ const MouseTracker: React.FC<{
 };
 
 export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
-  windSpeed: initialWindSpeed = 8,
+  windSpeed: initialWindSpeed = 6,
   onWindSpeedChange,
   lang
 }) => {
   const [physicsConfig, setPhysicsConfig] = useState<WindPhysicsConfig>({ ...DEFAULT_WIND_PHYSICS, windSpeed: initialWindSpeed });
-  const [particleCount, setParticleCount] = useState(250);
+  const [particleCount, setParticleCount] = useState(400);
   const [particleImpact, setParticleImpact] = useState(1.0);
   const [particleTrailLength, setParticleTrailLength] = useState(3.0);
-  const [wobbliness, setWobbliness] = useState(1.0);
+  const [wobbliness, setWobbliness] = useState(0.6);
   const [particleGlow, setParticleGlow] = useState(1.0);
   const [pulsation, setPulsation] = useState(0);
   const [particlePreset, setParticlePreset] = useState('standard');
@@ -283,12 +283,35 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     (physicsConfig.terrainSlopeZ * Math.PI) / 180, 0, -(physicsConfig.terrainSlopeX * Math.PI) / 180
   ];
 
+  // Second-click-hold drag: first click selects, second click on same object + hold = drag
+  const selectClickCountRef = useRef(0);
+  const lastSelectedIndexRef = useRef<number | null>(null);
+
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.altKey) return;
     if (interactionMode === 'select') {
-      if (ghostPosition) { selectObstacleAt(ghostPosition); dragStartRef.current = { x: ghostPosition[0], z: ghostPosition[2] }; isDraggingRef.current = false; }
+      if (ghostPosition) {
+        // Find what we clicked
+        let clickedIdx = -1;
+        obstacles.forEach((obs, idx) => {
+          const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
+          const dist = Math.sqrt((ghostPosition[0] - cx) ** 2 + (ghostPosition[2] - cz) ** 2);
+          const maxReach = Math.max(obs.width, obs.depth) * (obs.scale || 1);
+          if (dist < maxReach && (clickedIdx === -1)) { clickedIdx = idx; }
+        });
+
+        if (clickedIdx >= 0 && clickedIdx === selectedObstacleIndex) {
+          // Second click on already-selected → start drag
+          dragStartRef.current = { x: ghostPosition[0], z: ghostPosition[2] };
+          isDraggingRef.current = false;
+        } else {
+          // First click or different object → just select
+          setSelectedObstacleIndex(clickedIdx >= 0 ? clickedIdx : null);
+          dragStartRef.current = null;
+        }
+      }
     } else { if (ghostPosition) addObstacle(ghostPosition[0], 0, ghostPosition[2]); }
-  }, [interactionMode, ghostPosition, addObstacle, selectObstacleAt]);
+  }, [interactionMode, ghostPosition, addObstacle, obstacles, selectedObstacleIndex]);
 
   const handleCanvasPointerMove = useCallback(() => {
     if (interactionMode === 'select' && dragStartRef.current && selectedObstacleIndex !== null && ghostPosition) {
@@ -299,17 +322,20 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const handleCanvasPointerUp = useCallback(() => { dragStartRef.current = null; isDraggingRef.current = false; }, []);
 
-  // Analysis items config
-  const analysisItems = [
-    { key: 'ruler', checked: showHeightRuler, set: setShowHeightRuler, icon: '📏', label: t('heightRuler', lang), dotColor: '#39ff14', info: t('infoHeightRuler', lang) },
-    { key: 'vprofile', checked: showWindProfile, set: setShowWindProfile, icon: '🌬️', label: t('windProfile', lang), dotColor: '#00aaff', info: t('infoWindProfile', lang) },
-    { key: 'pressure', checked: showPressureMap, set: setShowPressureMap, icon: '🔴', label: t('pressureZones', lang), dotColor: '#ff6644', info: t('infoPressureZones', lang) },
-    { key: 'energy', checked: showEnergyDensity, set: setShowEnergyDensity, icon: '⚡', label: t('energyDensity', lang), dotColor: '#ffaa00', info: t('infoEnergyDensity', lang) },
-    { key: 'turbulence', checked: showTurbulenceField, set: setShowTurbulenceField, icon: '🌀', label: t('turbulenceField', lang), dotColor: '#aa44ff', info: t('infoTurbulenceField', lang) },
-    { key: 'shear', checked: showWindShear, set: setShowWindShear, icon: '📊', label: t('windShearLayer', lang), dotColor: '#22ff88', info: t('infoWindShear', lang) },
-    { key: 'wake', checked: showWakeMap, set: setShowWakeMap, icon: '💨', label: t('wakeMap', lang), dotColor: '#44aaff', info: t('infoWakeMap', lang) },
-    { key: 'capacity', checked: showCapacityFactor, set: setShowCapacityFactor, icon: '📈', label: t('capacityFactor', lang), dotColor: '#88ff00', info: t('infoCapacityFactor', lang) },
-    { key: 'betz', checked: showBetzOverlay, set: setShowBetzOverlay, icon: '🎯', label: t('betzOverlay', lang), dotColor: '#ff4488', info: t('infoBetzOverlay', lang) },
+  // Analysis items config with confidence badges
+  type ConfidenceBadge = 'visualization' | 'estimate' | 'theoretical';
+  const badgeColors: Record<ConfidenceBadge, string> = { visualization: '#44aaff', estimate: '#ffaa00', theoretical: '#ff44aa' };
+
+  const analysisItems: Array<{ key: string; checked: boolean; set: (v: boolean) => void; icon: string; label: string; dotColor: string; info: string; badge: ConfidenceBadge }> = [
+    { key: 'ruler', checked: showHeightRuler, set: setShowHeightRuler, icon: '📏', label: t('heightRuler', lang), dotColor: '#39ff14', info: t('infoHeightRuler', lang), badge: 'visualization' },
+    { key: 'vprofile', checked: showWindProfile, set: setShowWindProfile, icon: '🌬️', label: t('windProfile', lang), dotColor: '#00aaff', info: t('infoWindProfile', lang), badge: 'estimate' },
+    { key: 'pressure', checked: showPressureMap, set: setShowPressureMap, icon: '🔴', label: t('pressureZones', lang), dotColor: '#ff6644', info: t('infoPressureZones', lang), badge: 'visualization' },
+    { key: 'energy', checked: showEnergyDensity, set: setShowEnergyDensity, icon: '⚡', label: t('energyDensity', lang), dotColor: '#ffaa00', info: t('infoEnergyDensity', lang), badge: 'estimate' },
+    { key: 'turbulence', checked: showTurbulenceField, set: setShowTurbulenceField, icon: '🌀', label: t('turbulenceField', lang), dotColor: '#aa44ff', info: t('infoTurbulenceField', lang), badge: 'visualization' },
+    { key: 'shear', checked: showWindShear, set: setShowWindShear, icon: '📊', label: t('windShearLayer', lang), dotColor: '#22ff88', info: t('infoWindShear', lang), badge: 'estimate' },
+    { key: 'wake', checked: showWakeMap, set: setShowWakeMap, icon: '💨', label: t('wakeMap', lang), dotColor: '#44aaff', info: t('infoWakeMap', lang), badge: 'visualization' },
+    { key: 'capacity', checked: showCapacityFactor, set: setShowCapacityFactor, icon: '📈', label: t('capacityFactor', lang), dotColor: '#88ff00', info: t('infoCapacityFactor', lang), badge: 'estimate' },
+    { key: 'betz', checked: showBetzOverlay, set: setShowBetzOverlay, icon: '🎯', label: t('betzOverlay', lang), dotColor: '#ff4488', info: t('infoBetzOverlay', lang), badge: 'theoretical' },
   ];
 
   const activeAnalysisCount = analysisItems.filter(i => i.checked).length;
@@ -349,6 +375,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
                 <input type="checkbox" checked={item.checked} onChange={(e) => item.set(e.target.checked)} className="hidden" />
                 <span className="text-[9px]">{item.icon}</span>
                 <span className={`text-[10px] font-mono flex-1 ${item.checked ? 'text-foreground' : 'text-muted-foreground'}`}>{item.label}</span>
+                <span className="text-[6px] font-mono px-1 py-0 rounded-full uppercase tracking-wider" style={{ backgroundColor: `${badgeColors[item.badge]}20`, color: badgeColors[item.badge], border: `1px solid ${badgeColors[item.badge]}40` }}>{item.badge}</span>
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>

@@ -58,7 +58,7 @@ const GlowSlider: React.FC<{
     <div className="space-y-1.5">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-1">
-          <span className="text-xs font-medium text-primary/90 uppercase tracking-wider">{label}</span>
+          <span className="text-[10px] font-medium text-primary/90 uppercase tracking-wider">{label}</span>
           {infoText && (
             <TooltipProvider delayDuration={200}>
               <Tooltip>
@@ -136,7 +136,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           })}
         </TabsList>
 
-        <TabsContent value="wind" className="p-3 space-y-3 mt-0">
+        <TabsContent value="wind" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.windSpeed} onChange={(v) => updateConfig('windSpeed', v)}
             min={0} max={30} step={0.5} label={t('speed', lang)} displayValue={`${config.windSpeed.toFixed(1)} m/s`}
             infoText={t('infoSpeed', lang)} />
@@ -168,7 +168,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="turb" className="p-3 space-y-3 mt-0">
+        <TabsContent value="turb" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.turbulenceIntensity} onChange={(v) => updateConfig('turbulenceIntensity', v)}
             min={0} max={1} step={0.05} label={t('intensity', lang)} displayValue={`${(config.turbulenceIntensity * 100).toFixed(0)}%`}
             infoText={t('infoTurbulenceIntensity', lang)} />
@@ -221,7 +221,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="atmo" className="p-3 space-y-3 mt-0">
+        <TabsContent value="atmo" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.temperature} onChange={(v) => updateConfig('temperature', v)}
             min={-20} max={45} step={1} label={t('temperature', lang)} displayValue={`${config.temperature}°C`}
             infoText={t('infoTemperature', lang)} />
@@ -255,7 +255,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="terrain" className="p-3 space-y-3 mt-0">
+        <TabsContent value="terrain" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.surfaceRoughness} onChange={(v) => updateConfig('surfaceRoughness', v)}
             min={0.001} max={2} step={0.01} label={t('surfaceRoughness', lang)} displayValue={config.surfaceRoughness.toFixed(2)}
             infoText={t('infoSurfaceRoughness', lang)} />

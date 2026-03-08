@@ -1,5 +1,5 @@
-import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Cloud, Wind, Thermometer, Gauge, ArrowUp, Droplets, BookOpen, Wifi, WifiOff } from "lucide-react";
+import { useMemo, useState, useEffect } from "react";
 import { t, type Lang } from '@/utils/i18n';
 
 interface WeatherDisplayProps {
@@ -8,7 +8,28 @@ interface WeatherDisplayProps {
   onApplyToSimulation?: (data: { windSpeed: number; temperature: number; humidity: number; windAngle: number }) => void;
 }
 
-function generateSyntheticWeather(lat: number, lon: number) {
+interface WeatherData {
+  windSpeed: number;
+  windAngle: number;
+  temperature: number;
+  pressure: number;
+  humidity: number;
+  cloudCover: number;
+  season: string;
+  wpd: number;
+  potentialClass: string;
+  hour: number;
+  month: number;
+  monthlyEnergy: number;
+  windVariability: number;
+  windChill: number;
+  beaufort: number;
+  forecast24h: Array<{ hour: number; speed: number }>;
+  recommendedGen: string;
+  isLive?: boolean;
+}
+
+function generateSyntheticWeather(lat: number, lon: number): WeatherData {
   const now = new Date();
   const month = now.getMonth();
   const hour = now.getHours();
@@ -40,21 +61,17 @@ function generateSyntheticWeather(lat: number, lon: number) {
   const potentialClass = wpd > 500 ? 'excellent' : wpd > 300 ? 'good' : wpd > 150 ? 'moderate' : 'low';
   const monthlyEnergy = wpd * 0.4 * 720 / 1000;
 
-  // Wind variability (σ)
   const windVariability = windSpeed * (isWinter ? 0.35 : isSummer ? 0.2 : 0.28);
 
-  // Wind chill (Siple formula, valid for T<10°C and V>1.3 m/s)
   const windChill = temperature < 10 && windSpeed > 1.3
     ? 13.12 + 0.6215 * temperature - 11.37 * Math.pow(windSpeed * 3.6, 0.16) + 0.3965 * temperature * Math.pow(windSpeed * 3.6, 0.16)
     : temperature;
 
-  // Beaufort scale
   const beaufort = windSpeed < 0.3 ? 0 : windSpeed < 1.6 ? 1 : windSpeed < 3.4 ? 2
     : windSpeed < 5.5 ? 3 : windSpeed < 8 ? 4 : windSpeed < 10.8 ? 5
     : windSpeed < 13.9 ? 6 : windSpeed < 17.2 ? 7 : windSpeed < 20.8 ? 8
     : windSpeed < 24.5 ? 9 : windSpeed < 28.5 ? 10 : windSpeed < 32.7 ? 11 : 12;
 
-  // 24h forecast
   const forecast24h = Array.from({ length: 24 }, (_, i) => {
     const fHour = (hour + i) % 24;
     const fDiurnal = Math.sin((fHour - 6) * Math.PI / 12) * 1.8;
@@ -64,7 +81,6 @@ function generateSyntheticWeather(lat: number, lon: number) {
     };
   });
 
-  // Recommended generator
   const recommendedGen = windSpeed > 10 ? 'hawt3' : windSpeed > 6 ? 'hawt2' : windSpeed > 3 ? 'darrieus' : 'savonius';
 
   return {
@@ -79,8 +95,75 @@ function generateSyntheticWeather(lat: number, lon: number) {
     windChill: Math.round(windChill * 10) / 10,
     beaufort,
     forecast24h,
-    recommendedGen
+    recommendedGen,
+    isLive: false,
   };
+}
+
+async function fetchLiveWeather(lat: number, lon: number): Promise<WeatherData | null> {
+  const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY;
+  if (!apiKey) return null;
+  
+  try {
+    const res = await fetch(
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${apiKey}&units=metric`
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    
+    const windSpeed = data.wind?.speed || 0;
+    const windAngle = data.wind?.deg || 0;
+    const temperature = data.main?.temp || 0;
+    const pressure = data.main?.pressure || 1013;
+    const humidity = data.main?.humidity || 50;
+    const cloudCover = data.clouds?.all || 0;
+    
+    const now = new Date();
+    const month = now.getMonth();
+    const hour = now.getHours();
+    const isWinter = month >= 10 || month <= 2;
+    const isSummer = month >= 5 && month <= 7;
+    const isSpring = month >= 3 && month <= 4;
+    const season = isWinter ? 'winter' : isSummer ? 'summer' : isSpring ? 'spring' : 'autumn';
+    
+    const rho = 1.225;
+    const wpd = 0.5 * rho * Math.pow(windSpeed, 3);
+    const potentialClass = wpd > 500 ? 'excellent' : wpd > 300 ? 'good' : wpd > 150 ? 'moderate' : 'low';
+    const monthlyEnergy = wpd * 0.4 * 720 / 1000;
+    const windVariability = windSpeed * 0.25;
+    const windChill = temperature < 10 && windSpeed > 1.3
+      ? 13.12 + 0.6215 * temperature - 11.37 * Math.pow(windSpeed * 3.6, 0.16) + 0.3965 * temperature * Math.pow(windSpeed * 3.6, 0.16)
+      : temperature;
+    const beaufort = windSpeed < 0.3 ? 0 : windSpeed < 1.6 ? 1 : windSpeed < 3.4 ? 2
+      : windSpeed < 5.5 ? 3 : windSpeed < 8 ? 4 : windSpeed < 10.8 ? 5
+      : windSpeed < 13.9 ? 6 : windSpeed < 17.2 ? 7 : windSpeed < 20.8 ? 8
+      : windSpeed < 24.5 ? 9 : windSpeed < 28.5 ? 10 : windSpeed < 32.7 ? 11 : 12;
+    
+    const baseWind = windSpeed;
+    const forecast24h = Array.from({ length: 24 }, (_, i) => {
+      const fHour = (hour + i) % 24;
+      const fDiurnal = Math.sin((fHour - 6) * Math.PI / 12) * 1.5;
+      return { hour: fHour, speed: Math.max(0.5, baseWind + fDiurnal + Math.sin(i * 0.5) * 0.6) };
+    });
+    
+    const recommendedGen = windSpeed > 10 ? 'hawt3' : windSpeed > 6 ? 'hawt2' : windSpeed > 3 ? 'darrieus' : 'savonius';
+    
+    return {
+      windSpeed: Math.round(windSpeed * 10) / 10,
+      windAngle: Math.round(windAngle),
+      temperature: Math.round(temperature * 10) / 10,
+      pressure: Math.round(pressure),
+      humidity: Math.round(humidity),
+      cloudCover: Math.round(cloudCover),
+      season, wpd: Math.round(wpd), potentialClass, hour, month, monthlyEnergy: Math.round(monthlyEnergy),
+      windVariability: Math.round(windVariability * 10) / 10,
+      windChill: Math.round(windChill * 10) / 10,
+      beaufort, forecast24h, recommendedGen,
+      isLive: true,
+    };
+  } catch {
+    return null;
+  }
 }
 
 const seasonNames = {
@@ -128,11 +211,22 @@ const windDirName = (angle: number, lang: 'ua' | 'en') => {
 };
 
 export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: WeatherDisplayProps) => {
-  const weather = useMemo(() => {
-    if (!location) return null;
-    return generateSyntheticWeather(location.lat, location.lon);
-  }, [location]);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
   const [showPhysics, setShowPhysics] = useState(false);
+
+  // Try live API first, fall back to synthetic
+  useEffect(() => {
+    if (!location) { setWeather(null); return; }
+    
+    let cancelled = false;
+    (async () => {
+      const live = await fetchLiveWeather(location.lat, location.lon);
+      if (!cancelled) {
+        setWeather(live || generateSyntheticWeather(location.lat, location.lon));
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [location]);
 
   if (!location || !weather) {
     return <div className="text-muted-foreground">{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
@@ -147,15 +241,26 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Cloud className="w-5 h-5 text-primary" />
-          <span className="text-sm font-semibold">{lang === 'ua' ? 'Синтетична погода' : 'Synthetic Weather'}</span>
+          <span className="text-sm font-semibold">{lang === 'ua' ? 'Погода' : 'Weather'}</span>
         </div>
-        <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">{seasonLabel}</span>
+        <div className="flex items-center gap-2">
+          {weather.isLive ? (
+            <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-green-500/15 text-green-400 border border-green-500/30 font-mono">
+              <Wifi className="w-3 h-3" /> Live
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-orange-500/15 text-orange-400 border border-orange-500/30 font-mono">
+              <WifiOff className="w-3 h-3" /> {lang === 'ua' ? 'Синтетична' : 'Synthetic'}
+            </span>
+          )}
+          <span className="text-xs px-2 py-0.5 rounded bg-primary/10 text-primary font-mono">{seasonLabel}</span>
+        </div>
       </div>
       
       <p className="text-xs text-muted-foreground">
-        {lang === 'ua' 
-          ? 'Синтетичні дані на основі геолокації, сезону та часу доби для регіону України.'
-          : 'Synthetic data based on geolocation, season, and time of day for Ukraine region.'}
+        {weather.isLive 
+          ? (lang === 'ua' ? 'Реальні дані з OpenWeatherMap API.' : 'Live data from OpenWeatherMap API.')
+          : (lang === 'ua' ? 'Синтетичні дані на основі геолокації, сезону та часу доби.' : 'Synthetic data based on geolocation, season, and time of day.')}
       </p>
 
       {/* Main metrics grid */}

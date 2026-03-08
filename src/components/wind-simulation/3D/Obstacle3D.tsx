@@ -541,11 +541,18 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
   return (
     <group rotation={[0, rotationY, 0]} scale={scaleVal}>
       {renderShape()}
+      {/* Neomorphic glow selection */}
       {isSelected && (
-        <Box args={[obstacle.width + 2, obstacle.height + 2, obstacle.depth + 2]}
-          position={[obstacle.x + obstacle.width / 2, obstacle.height / 2, obstacle.z + obstacle.depth / 2]}>
-          <meshBasicMaterial color="#00ff00" transparent opacity={0.2} wireframe />
-        </Box>
+        <mesh position={[obstacle.x + obstacle.width / 2, obstacle.height / 2, obstacle.z + obstacle.depth / 2]}>
+          <sphereGeometry args={[Math.max(obstacle.width, obstacle.height, obstacle.depth) * 0.7, 16, 16]} />
+          <meshBasicMaterial color="#00ffff" transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </mesh>
+      )}
+      {isHovered && !isSelected && (
+        <mesh position={[obstacle.x + obstacle.width / 2, obstacle.height / 2, obstacle.z + obstacle.depth / 2]}>
+          <sphereGeometry args={[Math.max(obstacle.width, obstacle.height, obstacle.depth) * 0.65, 16, 16]} />
+          <meshBasicMaterial color="#ffff00" transparent opacity={0.06} blending={THREE.AdditiveBlending} depthWrite={false} />
+        </mesh>
       )}
     </group>
   );
