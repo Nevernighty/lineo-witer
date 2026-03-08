@@ -322,17 +322,20 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const handleCanvasPointerUp = useCallback(() => { dragStartRef.current = null; isDraggingRef.current = false; }, []);
 
-  // Analysis items config
-  const analysisItems = [
-    { key: 'ruler', checked: showHeightRuler, set: setShowHeightRuler, icon: '📏', label: t('heightRuler', lang), dotColor: '#39ff14', info: t('infoHeightRuler', lang) },
-    { key: 'vprofile', checked: showWindProfile, set: setShowWindProfile, icon: '🌬️', label: t('windProfile', lang), dotColor: '#00aaff', info: t('infoWindProfile', lang) },
-    { key: 'pressure', checked: showPressureMap, set: setShowPressureMap, icon: '🔴', label: t('pressureZones', lang), dotColor: '#ff6644', info: t('infoPressureZones', lang) },
-    { key: 'energy', checked: showEnergyDensity, set: setShowEnergyDensity, icon: '⚡', label: t('energyDensity', lang), dotColor: '#ffaa00', info: t('infoEnergyDensity', lang) },
-    { key: 'turbulence', checked: showTurbulenceField, set: setShowTurbulenceField, icon: '🌀', label: t('turbulenceField', lang), dotColor: '#aa44ff', info: t('infoTurbulenceField', lang) },
-    { key: 'shear', checked: showWindShear, set: setShowWindShear, icon: '📊', label: t('windShearLayer', lang), dotColor: '#22ff88', info: t('infoWindShear', lang) },
-    { key: 'wake', checked: showWakeMap, set: setShowWakeMap, icon: '💨', label: t('wakeMap', lang), dotColor: '#44aaff', info: t('infoWakeMap', lang) },
-    { key: 'capacity', checked: showCapacityFactor, set: setShowCapacityFactor, icon: '📈', label: t('capacityFactor', lang), dotColor: '#88ff00', info: t('infoCapacityFactor', lang) },
-    { key: 'betz', checked: showBetzOverlay, set: setShowBetzOverlay, icon: '🎯', label: t('betzOverlay', lang), dotColor: '#ff4488', info: t('infoBetzOverlay', lang) },
+  // Analysis items config with confidence badges
+  type ConfidenceBadge = 'visualization' | 'estimate' | 'theoretical';
+  const badgeColors: Record<ConfidenceBadge, string> = { visualization: '#44aaff', estimate: '#ffaa00', theoretical: '#ff44aa' };
+
+  const analysisItems: Array<{ key: string; checked: boolean; set: (v: boolean) => void; icon: string; label: string; dotColor: string; info: string; badge: ConfidenceBadge }> = [
+    { key: 'ruler', checked: showHeightRuler, set: setShowHeightRuler, icon: '📏', label: t('heightRuler', lang), dotColor: '#39ff14', info: t('infoHeightRuler', lang), badge: 'visualization' },
+    { key: 'vprofile', checked: showWindProfile, set: setShowWindProfile, icon: '🌬️', label: t('windProfile', lang), dotColor: '#00aaff', info: t('infoWindProfile', lang), badge: 'estimate' },
+    { key: 'pressure', checked: showPressureMap, set: setShowPressureMap, icon: '🔴', label: t('pressureZones', lang), dotColor: '#ff6644', info: t('infoPressureZones', lang), badge: 'visualization' },
+    { key: 'energy', checked: showEnergyDensity, set: setShowEnergyDensity, icon: '⚡', label: t('energyDensity', lang), dotColor: '#ffaa00', info: t('infoEnergyDensity', lang), badge: 'estimate' },
+    { key: 'turbulence', checked: showTurbulenceField, set: setShowTurbulenceField, icon: '🌀', label: t('turbulenceField', lang), dotColor: '#aa44ff', info: t('infoTurbulenceField', lang), badge: 'visualization' },
+    { key: 'shear', checked: showWindShear, set: setShowWindShear, icon: '📊', label: t('windShearLayer', lang), dotColor: '#22ff88', info: t('infoWindShear', lang), badge: 'estimate' },
+    { key: 'wake', checked: showWakeMap, set: setShowWakeMap, icon: '💨', label: t('wakeMap', lang), dotColor: '#44aaff', info: t('infoWakeMap', lang), badge: 'visualization' },
+    { key: 'capacity', checked: showCapacityFactor, set: setShowCapacityFactor, icon: '📈', label: t('capacityFactor', lang), dotColor: '#88ff00', info: t('infoCapacityFactor', lang), badge: 'estimate' },
+    { key: 'betz', checked: showBetzOverlay, set: setShowBetzOverlay, icon: '🎯', label: t('betzOverlay', lang), dotColor: '#ff4488', info: t('infoBetzOverlay', lang), badge: 'theoretical' },
   ];
 
   const activeAnalysisCount = analysisItems.filter(i => i.checked).length;
