@@ -343,7 +343,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       </group>
 
-      <SuctionSpiral towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} windSpeed={config.windSpeed} adjustedSpeed={adjustedSpeed} power={power} />
+      <EnergyAbsorptionEffect towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} power={power} adjustedSpeed={adjustedSpeed} />
 
       <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'auto' }}>
         <div 
