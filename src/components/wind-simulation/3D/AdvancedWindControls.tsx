@@ -168,7 +168,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           )}
         </TabsContent>
 
-        <TabsContent value="turb" className="p-3 space-y-3 mt-0">
+        <TabsContent value="turb" className="p-2 space-y-2.5 mt-0">
           <GlowSlider value={config.turbulenceIntensity} onChange={(v) => updateConfig('turbulenceIntensity', v)}
             min={0} max={1} step={0.05} label={t('intensity', lang)} displayValue={`${(config.turbulenceIntensity * 100).toFixed(0)}%`}
             infoText={t('infoTurbulenceIntensity', lang)} />
