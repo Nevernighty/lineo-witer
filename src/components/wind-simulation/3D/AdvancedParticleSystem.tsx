@@ -58,11 +58,11 @@ const GENERATOR_SUCTION_PHYSICS: Record<string, {
   wakeTurbulence: number;
   rotorEfficiency: number;
 }> = {
-  hawt3: { attractK: 10.0, suctionRadius: 5.0, speedReduction: 0.41, wakeTurbulence: 3.5, rotorEfficiency: 0.45 },
-  hawt2: { attractK: 8.5, suctionRadius: 4.5, speedReduction: 0.37, wakeTurbulence: 4.0, rotorEfficiency: 0.42 },
-  darrieus: { attractK: 6.5, suctionRadius: 3.5, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
-  savonius: { attractK: 5.0, suctionRadius: 3.0, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
-  micro: { attractK: 7.0, suctionRadius: 4.0, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
+  hawt3: { attractK: 20.0, suctionRadius: 7.5, speedReduction: 0.41, wakeTurbulence: 3.5, rotorEfficiency: 0.45 },
+  hawt2: { attractK: 17.0, suctionRadius: 6.75, speedReduction: 0.37, wakeTurbulence: 4.0, rotorEfficiency: 0.42 },
+  darrieus: { attractK: 13.0, suctionRadius: 5.25, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
+  savonius: { attractK: 10.0, suctionRadius: 4.5, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
+  micro: { attractK: 14.0, suctionRadius: 6.0, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
 };
 
 // Shared buffer for zero-copy particle data transfer to InstancedParticles
@@ -259,6 +259,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       }
 
       for (const obstacle of obstacles) {
+        if (obstacle.type === 'wind_generator') continue; // generators use Jensen wake below
         const obstacleCenter = {
           x: obstacle.x + obstacle.width / 2,
           y: obstacle.y + obstacle.height / 2,
@@ -268,9 +269,13 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         
         if (isInWakeZone(particle, obstacleCenter, obstacle, windDirection, physics.wakeLength)) {
           const distance = Math.sqrt((particle.x - obstacleCenter.x) ** 2 + (particle.z - obstacleCenter.z) ** 2);
+          // Exponential obstacle shadow model
+          const obstacleSize = Math.max(obstacle.width, obstacle.depth) * (obstacle.scale || 1);
+          const shadowFactor = 1 - Math.exp(-distance / obstacleSize);
           const wakeReduction = calculateWakeVelocity(distance, physics.wakeLength, effectiveSpeed) / effectiveSpeed;
-          targetSpeedX *= wakeReduction;
-          targetSpeedZ *= wakeReduction;
+          const combinedReduction = Math.min(wakeReduction, shadowFactor);
+          targetSpeedX *= combinedReduction;
+          targetSpeedZ *= combinedReduction;
           const wakeTurbulence = physics.turbulenceGeneration * 0.5;
           targetSpeedX += (Math.random() - 0.5) * wakeTurbulence;
           targetSpeedY += (Math.random() - 0.5) * wakeTurbulence;
@@ -306,13 +311,19 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             const dotWind = dx * windDirection.x + dz * windDirection.z;
             if (dotWind > 0) {
               const closeRange = dist < gen.rotorRadius * 2;
+              // Exponential force increase at close range
+              const exponentialBoost = closeRange
+                ? Math.exp((gen.rotorRadius * 2 - dist) / gen.rotorRadius) * 0.5
+                : 0;
               const force = closeRange 
-                ? gen.attractK / (dist + 0.5) * 1.5
+                ? gen.attractK / (dist + 0.5) * 1.5 + exponentialBoost
                 : gen.attractK / (dist * dist + 1);
               const convergeFactor = Math.max(0.5, 1 - dist / gen.attractRadius);
-              targetSpeedX += (dx / dist) * force * convergeFactor;
-              targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor;
-              targetSpeedZ += (dz / dist) * force * convergeFactor;
+              // Velocity boost — particles accelerate as they approach
+              const velocityBoost = closeRange ? 1.5 : 1.0;
+              targetSpeedX += (dx / dist) * force * convergeFactor * velocityBoost;
+              targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor * velocityBoost;
+              targetSpeedZ += (dz / dist) * force * convergeFactor * velocityBoost;
             } else {
               targetSpeedX *= (1 - gen.speedReduction);
               targetSpeedZ *= (1 - gen.speedReduction);
@@ -322,7 +333,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             }
           }
 
-          if (dist < gen.rotorRadius * 1.2 && !particle.absorbed) {
+          if (dist < gen.rotorRadius * 0.8 && !particle.absorbed) {
             particle.absorbed = true;
             particle.absorptionTimer = 25;
             
@@ -331,7 +342,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               absorbSoundCooldown.current = 0.3;
             }
             
-            if (onCollisionEvent && Math.random() < 0.25) {
+            if (onCollisionEvent && Math.random() < 0.60) {
               onCollisionEvent({
                 id: `absorb-${Date.now()}-${Math.random()}`,
                 position: [particle.x, particle.y, particle.z],

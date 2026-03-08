@@ -581,6 +581,14 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           activeCollisions={obstacles.length} generatorPower={generatorPower} lang={lang} />
       </div>
 
+      {activeAnalysisCount > 0 && (
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20" style={{ pointerEvents: 'none' }}>
+          <div className="px-3 py-1 rounded-full bg-background/80 border border-orange-500/40 text-[9px] font-mono text-orange-400/80 tracking-wide">
+            ⚠ Visualization model — not CFD accurate
+          </div>
+        </div>
+      )}
+
       <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10" style={{ pointerEvents: 'none' }}>
         <p className="text-[9px] text-muted-foreground/70 text-center font-mono bg-background/60 px-3 py-1 rounded-full">
           {interactionMode === 'select' ? t('footerHintSelect', lang) : t('footerHint', lang)}
