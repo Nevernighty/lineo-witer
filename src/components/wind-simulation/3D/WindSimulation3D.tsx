@@ -375,6 +375,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
                 <input type="checkbox" checked={item.checked} onChange={(e) => item.set(e.target.checked)} className="hidden" />
                 <span className="text-[9px]">{item.icon}</span>
                 <span className={`text-[10px] font-mono flex-1 ${item.checked ? 'text-foreground' : 'text-muted-foreground'}`}>{item.label}</span>
+                <span className="text-[6px] font-mono px-1 py-0 rounded-full uppercase tracking-wider" style={{ backgroundColor: `${badgeColors[item.badge]}20`, color: badgeColors[item.badge], border: `1px solid ${badgeColors[item.badge]}40` }}>{item.badge}</span>
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
