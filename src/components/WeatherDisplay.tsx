@@ -391,13 +391,8 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
           <div className="flex items-center gap-2">
             <Wind className="w-4 h-4 text-primary" />
             <span className="text-xs font-bold text-foreground">
-              {displayLat.toFixed(2)}°, {displayLon.toFixed(2)}°
+              {location.lat.toFixed(2)}°, {location.lon.toFixed(2)}°
             </span>
-            {isCustomPoint && (
-              <span className="text-[9px] px-1.5 py-0.5 rounded-full font-mono" style={{ backgroundColor: 'hsl(30 80% 50% / 0.15)', color: 'hsl(30 80% 60%)', border: '1px solid hsl(30 80% 50% / 0.3)' }}>
-                {lang === 'ua' ? 'Інша точка' : 'Custom'}
-              </span>
-            )}
           </div>
           <div className="flex items-center gap-2">
             {displayWeather.isLive ? (
