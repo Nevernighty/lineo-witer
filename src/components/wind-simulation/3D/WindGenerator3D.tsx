@@ -221,17 +221,16 @@ const SuctionSpiral: React.FC<{ towerHeight: number; rotorDiameter: number; wind
       child.position.set(x, y, z);
       
       // Scale: larger far, smaller near
-      const scale = (0.15 + dist * 0.35) * (0.5 + speedFactor * 0.5);
+      const scale = (0.25 + dist * 0.5) * (0.6 + speedFactor * 0.6);
       child.scale.setScalar(scale);
 
-      // Color: cyan far → yellow-green near
       const mat = (child as THREE.Mesh).material as THREE.MeshBasicMaterial;
       if (mat) {
         const r = dist < 0.3 ? 0.5 + (1 - dist / 0.3) * 0.5 : 0.0;
         const g = 0.8 + (1 - dist) * 0.2;
         const b = dist > 0.5 ? 0.8 * (dist - 0.5) * 2 : 0;
         mat.color.setRGB(r, g, b);
-        mat.opacity = (0.15 + (1 - dist) * 0.5) * speedFactor;
+        mat.opacity = (0.25 + (1 - dist) * 0.65) * Math.max(speedFactor, 0.3);
       }
     });
 
