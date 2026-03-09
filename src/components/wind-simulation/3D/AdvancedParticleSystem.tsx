@@ -441,10 +441,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       // Absorbed particles shrink + spiral inward before respawn
       if (particle.absorptionTimer > 0) {
         particle.absorptionTimer--;
-        const progress = 1 - particle.absorptionTimer / 20; // 0→1
-        // Rapid size oscillation during dissolve (VFX pulsation)
-        const dissolvePulse = Math.sin(progress * Math.PI * 6) * 0.3 * (1 - progress);
-        particle.size = Math.max(0.05, (1 - progress * progress) * 1.2 + dissolvePulse);
+        const progress = 1 - particle.absorptionTimer / 28; // 0→1
+        // Scale spike at start (frames 0-3), then rapid oscillating shrink
+        const initialSpike = progress < 0.1 ? 1.5 + (0.1 - progress) * 8 : 1;
+        const dissolvePulse = Math.sin(progress * Math.PI * 8) * 0.5 * (1 - progress);
+        particle.size = Math.max(0.05, (1 - progress * progress) * 1.2 * initialSpike + dissolvePulse);
         // Spiral inward: stronger tangential swirl for VAWT
         const nearGen = generators.find(g => {
           const ddx = g.cx - particle.x;
