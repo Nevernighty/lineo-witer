@@ -525,14 +525,24 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
           {showWindShear && (
             <group position={[-48, 0, 48]}>
-              {[2, 10, 30, 50, 80].map((h, i, arr) => {
+              {/* Vertical gradient ribbon */}
+              <mesh position={[-1, 40, 0]}>
+                <boxGeometry args={[0.3, 80, 0.3]} />
+                <meshBasicMaterial color="#22ff88" transparent opacity={0.15} />
+              </mesh>
+              {[2, 10, 30, 50, 80].map((h) => {
                 const speedH = calculateWindShear(physicsConfig.windSpeed, physicsConfig.referenceHeight, h, physicsConfig.surfaceRoughness);
                 const shearExp = h > 1 ? Math.log(speedH / (physicsConfig.windSpeed || 1)) / Math.log(h / physicsConfig.referenceHeight) : 0;
+                const norm = Math.min(speedH / 20, 1);
+                const r = Math.round(255 * (1 - norm));
+                const b = Math.round(255 * norm);
+                const barColor = `rgb(${r}, ${Math.round(100 + 100 * norm)}, ${b})`;
                 return (
                   <group key={`shear-${h}`}>
-                    <mesh position={[0, h, 0]}><boxGeometry args={[6, 0.15, 0.15]} /><meshBasicMaterial color="#22ff88" transparent opacity={0.3 + (speedH / 20) * 0.3} /></mesh>
-                    <Html position={[5, h, 0]} center style={{ pointerEvents: 'none' }}>
-                      <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: '#44ffaa', border: '1px solid rgba(34,255,136,0.3)' }}>
+                    <mesh position={[0, h, 0]}><boxGeometry args={[speedH * 0.4, 0.2, 0.2]} /><meshBasicMaterial color={barColor} transparent opacity={0.4 + norm * 0.3} /></mesh>
+                    <mesh position={[-1, h, 0]}><boxGeometry args={[0.6, 0.06, 0.06]} /><meshBasicMaterial color={barColor} transparent opacity={0.5} /></mesh>
+                    <Html position={[speedH * 0.25 + 2, h, 0]} center style={{ pointerEvents: 'none' }}>
+                      <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: barColor, border: `1px solid ${barColor}40` }}>
                         {h}m: {speedH.toFixed(1)}m/s α≈{Math.abs(shearExp).toFixed(2)}
                       </div>
                     </Html>
@@ -541,6 +551,88 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
               })}
             </group>
           )}
+
+          {/* Wake Map: tapered cones behind obstacles */}
+          {showWakeMap && obstacles.map((obs, i) => {
+            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
+            const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
+            const obsSize = Math.max(obs.width, obs.depth) * (obs.scale || 1);
+            const wakeLen = obsSize * 4;
+            const dx = Math.cos(angleRad), dz = Math.sin(angleRad);
+            return (
+              <group key={`wake-${i}`}>
+                {/* Wake cone mesh */}
+                <mesh position={[cx + dx * wakeLen * 0.5, obs.height * 0.4, cz + dz * wakeLen * 0.5]} rotation={[0, -angleRad + Math.PI / 2, Math.PI / 2]}>
+                  <coneGeometry args={[obsSize * 0.8, wakeLen, 8, 1, true]} />
+                  <meshBasicMaterial color="#44aaff" transparent opacity={0.08} side={THREE.DoubleSide} wireframe />
+                </mesh>
+                {/* Deficit labels at 3D, 5D, 10D */}
+                {[3, 5, 10].map(mult => {
+                  const dist = obsSize * mult;
+                  if (dist > wakeLen * 1.5) return null;
+                  const deficit = Math.max(0, 1 - (1 - Math.sqrt(1 - 0.8)) / Math.pow(1 + 0.075 * dist / (obsSize / 2), 2));
+                  const deficitPct = ((1 - deficit) * 100).toFixed(0);
+                  return (
+                    <Html key={mult} position={[cx + dx * dist, obs.height * 0.6, cz + dz * dist]} center style={{ pointerEvents: 'none' }}>
+                      <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(0,20,40,0.85)', color: '#44aaff', border: '1px solid rgba(68,170,255,0.3)' }}>
+                        {mult}D: -{deficitPct}%
+                      </div>
+                    </Html>
+                  );
+                })}
+              </group>
+            );
+          })}
+
+          {/* Capacity Factor for generators */}
+          {showCapacityFactor && obstacles.filter(o => o.type === 'wind_generator').map((obs, i) => {
+            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
+            const power = calculateGeneratorPower(physicsConfig.airDensity, obs.width * 1.8, physicsConfig.windSpeed, obs.height + obs.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness, obs.generatorSubtype || 'hawt3');
+            const ratedPower = 0.5 * physicsConfig.airDensity * Math.PI * Math.pow(obs.width * 0.9, 2) * Math.pow(12, 3) * 0.45;
+            const cf = ratedPower > 0 ? Math.min(power / ratedPower, 0.6) : 0;
+            const cfPct = (cf * 100).toFixed(0);
+            const cfColor = cf < 0.2 ? '#ff4444' : cf < 0.35 ? '#ffaa00' : '#44ff44';
+            return (
+              <Html key={`cf-${i}`} position={[cx, obs.height + obs.y + 8, cz]} center style={{ pointerEvents: 'none' }}>
+                <div className="flex flex-col items-center">
+                  <svg width="44" height="28" viewBox="0 0 44 28">
+                    <path d="M 4 24 A 18 18 0 0 1 40 24" fill="none" stroke="#333" strokeWidth="3" />
+                    <path d="M 4 24 A 18 18 0 0 1 40 24" fill="none" stroke={cfColor} strokeWidth="3"
+                      strokeDasharray={`${cf / 0.6 * 56.5} 56.5`} strokeLinecap="round" />
+                    <text x="22" y="22" textAnchor="middle" fill={cfColor} fontSize="9" fontFamily="monospace" fontWeight="bold">{cfPct}%</text>
+                  </svg>
+                  <div className="text-[7px] font-mono mt-0.5" style={{ color: cfColor }}>Cf</div>
+                </div>
+              </Html>
+            );
+          })}
+
+          {/* Betz Zones for generators */}
+          {showBetzOverlay && obstacles.filter(o => o.type === 'wind_generator').map((obs, i) => {
+            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
+            const cy = obs.y + obs.height * 0.7;
+            const rotorR = obs.width * 0.9 * (obs.scale || 1);
+            const power = calculateGeneratorPower(physicsConfig.airDensity, obs.width * 1.8, physicsConfig.windSpeed, obs.height + obs.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness, obs.generatorSubtype || 'hawt3');
+            const totalWind = 0.5 * physicsConfig.airDensity * Math.PI * rotorR * rotorR * Math.pow(physicsConfig.windSpeed, 3);
+            const actualPct = totalWind > 0 ? ((power / totalWind) * 100).toFixed(0) : '0';
+            return (
+              <group key={`betz-${i}`} position={[cx, cy, cz]}>
+                {/* Outer: total wind energy */}
+                <mesh><sphereGeometry args={[rotorR * 1.5, 16, 12]} /><meshBasicMaterial color="#4488ff" transparent opacity={0.04} wireframe /></mesh>
+                {/* Middle: Betz limit 59.3% */}
+                <mesh><sphereGeometry args={[rotorR * 1.1, 16, 12]} /><meshBasicMaterial color="#ffaa00" transparent opacity={0.06} wireframe /></mesh>
+                {/* Inner: actual extraction */}
+                <mesh><sphereGeometry args={[rotorR * 0.7, 16, 12]} /><meshBasicMaterial color="#44ff44" transparent opacity={0.08} wireframe /></mesh>
+                <Html position={[rotorR * 1.6, rotorR * 0.5, 0]} center style={{ pointerEvents: 'none' }}>
+                  <div className="text-[7px] font-mono leading-tight px-1 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: '#aaddff', border: '1px solid rgba(68,136,255,0.3)' }}>
+                    <div style={{ color: '#4488ff' }}>100% total</div>
+                    <div style={{ color: '#ffaa00' }}>59.3% Betz</div>
+                    <div style={{ color: '#44ff44' }}>{actualPct}% actual</div>
+                  </div>
+                </Html>
+              </group>
+            );
+          })}
 
           <group>
             {interactionMode === 'place' && ghostPosition && (
