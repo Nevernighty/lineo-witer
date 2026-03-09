@@ -679,7 +679,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </div>
       )}
 
-      <div className="absolute top-3 right-3 w-56 z-10" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
+      <div className="absolute top-3 right-3 w-56 z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedWindControls config={physicsConfig} onConfigChange={handleConfigChange}
           selectedObstacleType={selectedObstacleType} onObstacleTypeChange={setSelectedObstacleType}
           selectedGeneratorSubtype={selectedGeneratorSubtype} onGeneratorSubtypeChange={setSelectedGeneratorSubtype}
