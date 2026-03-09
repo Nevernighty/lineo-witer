@@ -463,22 +463,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             </group>
           )}
 
-          {showTurbulenceField && (
-            <group>
-              {[[-20, 10, -20], [0, 20, 0], [20, 10, 20], [-15, 30, 15], [15, 15, -15]].map(([px, py, pz], i) => {
-                const ti = physicsConfig.turbulenceIntensity * physicsConfig.windSpeed;
-                const size = 1 + ti * 0.3;
-                return (
-                  <group key={`turb-${i}`} position={[px, py, pz]}>
-                    <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[size, 0.1, 6, 16]} /><meshBasicMaterial color="#aa44ff" transparent opacity={0.15 + ti * 0.02} side={THREE.DoubleSide} /></mesh>
-                    <Html position={[size + 1, 0, 0]} center style={{ pointerEvents: 'none' }}>
-                      <div className="text-[6px] font-mono px-0.5 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.7)', color: '#bb66ff' }}>TI={physicsConfig.turbulenceIntensity.toFixed(2)}</div>
-                    </Html>
-                  </group>
-                );
-              })}
-            </group>
-          )}
+          {showTurbulenceField && <TurbulenceFieldViz config={physicsConfig} obstacles={obstacles} />}
 
           {showWindShear && (
             <group position={[-48, 0, 48]}>
