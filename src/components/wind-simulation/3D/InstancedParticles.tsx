@@ -244,6 +244,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       const isAbsorbed = (flags & 2) !== 0;
 
       const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+      const ap = buf.absorbProgress ? buf.absorbProgress[i] : 0;
 
       dummy.position.set(px, py, pz);
 
@@ -252,15 +253,29 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       }
 
       let baseScale = size * sizeMul * (hasCollided ? impactMultiplier * 1.4 : 1);
-      if (isAbsorbed) {
-        // Dramatic pulsation during dissolve — energy extraction VFX with splitting look
-        const absorbPhase = Math.sin(time * 22 + i * 0.7);
-        baseScale *= 1.6 + absorbPhase * 0.7 + Math.sin(time * 35 + i * 1.3) * 0.25;
+      let lateralMul = 1.0;
+      
+      if (isAbsorbed && ap > 0) {
+        // 3-phase scale animation
+        if (ap < 0.2) {
+          // Phase 1: Big spike expansion
+          baseScale *= 2.5 - ap * 5;
+        } else if (ap < 0.6) {
+          // Phase 2: Elongated stretch — Z grows, X/Y shrinks (splitting look)
+          const p2 = (ap - 0.2) / 0.4;
+          baseScale *= 1.2 + Math.sin(p2 * Math.PI * 6) * 0.3;
+          lateralMul = 0.4 + (1 - p2) * 0.3;
+        } else {
+          // Phase 3: Rapid dissolve with jitter
+          const p3 = (ap - 0.6) / 0.4;
+          baseScale *= (0.6 - p3 * 0.5) * (0.85 + Math.random() * 0.3);
+          lateralMul = 0.3 + Math.random() * 0.2;
+        }
       }
 
       const tailLength = 1 + speed * 0.12 * tailMul;
       const cappedTail = Math.min(tailLength, 60.0);
-      const lateralSize = baseScale * 0.8;
+      const lateralSize = baseScale * 0.8 * lateralMul;
       const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.03);
 
       dummy.scale.set(
