@@ -366,7 +366,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
       {/* Compact analysis dropdown */}
       {showAnalysisPanel && (
-        <div className="absolute top-12 left-[195px] z-20 bg-background/95 backdrop-blur-md rounded-lg border border-orange-500/40 p-2 shadow-[0_0_15px_rgba(255,140,0,0.15)] w-64 animate-in fade-in slide-in-from-top-2 duration-200" style={{ pointerEvents: 'auto' }}>
+        <div className="absolute top-12 left-[195px] z-50 bg-background/95 backdrop-blur-md rounded-lg border border-orange-500/40 p-2 shadow-[0_0_15px_rgba(255,140,0,0.15)] w-64 animate-in fade-in slide-in-from-top-2 duration-200" style={{ pointerEvents: 'auto' }}>
           <div className="space-y-1">
             {analysisItems.map(item => (
               <label key={item.key} className={`flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded transition-all hover:bg-primary/10 ${item.checked ? 'bg-primary/10' : ''}`}>
