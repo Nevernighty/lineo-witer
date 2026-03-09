@@ -362,7 +362,9 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
           
           if (shouldAbsorb && !particle.absorbed) {
             particle.absorbed = true;
-            particle.absorptionTimer = 25;
+            particle.absorptionTimer = 20;
+            // Flash: initial size boost
+            particle.size = particle.size * 1.8;
             
             if (absorbSoundCooldown.current <= 0) {
               playAbsorbSound();
