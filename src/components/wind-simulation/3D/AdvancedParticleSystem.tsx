@@ -61,8 +61,8 @@ const GENERATOR_SUCTION_PHYSICS: Record<string, {
 }> = {
   hawt3: { attractK: 60.0, suctionRadius: 15, speedReduction: 0.41, wakeTurbulence: 3.5, rotorEfficiency: 0.45 },
   hawt2: { attractK: 50.0, suctionRadius: 13, speedReduction: 0.37, wakeTurbulence: 4.0, rotorEfficiency: 0.42 },
-  darrieus: { attractK: 40.0, suctionRadius: 10, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
-  savonius: { attractK: 30.0, suctionRadius: 9, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
+  darrieus: { attractK: 70.0, suctionRadius: 14, speedReduction: 0.30, wakeTurbulence: 2.5, rotorEfficiency: 0.35 },
+  savonius: { attractK: 55.0, suctionRadius: 12, speedReduction: 0.50, wakeTurbulence: 2.0, rotorEfficiency: 0.18 },
   micro: { attractK: 42.0, suctionRadius: 12, speedReduction: 0.35, wakeTurbulence: 3.0, rotorEfficiency: 0.30 },
 };
 
