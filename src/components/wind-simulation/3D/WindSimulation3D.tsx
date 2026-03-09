@@ -343,7 +343,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   return (
     <div className="relative w-full h-full" style={{ isolation: 'isolate' }}>
       {/* Mode toggle + Scenario + Analysis buttons */}
-      <div className="absolute top-3 left-[195px] z-20 flex gap-1" style={{ pointerEvents: 'auto' }}>
+      <div className="absolute top-3 left-[195px] z-50 flex gap-1" style={{ pointerEvents: 'auto' }}>
         <button onClick={() => { setInteractionMode('place'); setSelectedObstacleIndex(null); }}
           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-mono border transition-all ${interactionMode === 'place' ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_10px_hsl(var(--primary)/0.3)]' : 'bg-background/90 border-primary/20 text-muted-foreground hover:border-primary/40'}`}>
           <Crosshair className="w-3.5 h-3.5" />{t('placeMode', lang)}
