@@ -131,60 +131,43 @@ const PRESET_CONFIG: Record<string, { baseSizeMul: number; opacity: number; tail
 const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
   const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
-  const glowFloor = Math.max(glow, 0.35);
-  const glowBoost = glow > 1.0 ? 1.0 + (glow - 1.0) * 0.6 : glowFloor;
+  const time = Date.now() * 0.001;
 
   if (absorbed) {
-    // Bright WHITE flash (first 30%) → vivid GREEN dissolve (rest)
-    const t2 = Date.now() * 0.012;
-    const phase = (Math.sin(t2) + 1) * 0.5; // 0→1 oscillation
-    // First 30%: nearly pure white, then transition to bright green
-    const whiteness = Math.max(0, 1 - phase * 0.7);
-    const isEarlyPhase = phase < 0.3;
-    if (isEarlyPhase) {
-      // Bright white flash
-      const w = 0.8 + (0.3 - phase) * 0.67;
-      c.setRGB(w * glowFloor, w * glowFloor, w * glowFloor);
+    // Bright WHITE flash (first 30%) → vivid GREEN glow dissolve
+    const phase = (Math.sin(time * 12) + 1) * 0.5;
+    if (phase < 0.3) {
+      // Pure white flash
+      const w = 1.0 + (0.3 - phase) * 1.5;
+      c.setRGB(w, w, w);
     } else {
-      // Vivid green dissolve with pulsation
-      const gPulse = 0.8 + Math.sin(t2 * 4) * 0.2;
+      // Vivid saturated green with strong pulsation
+      const gPulse = 0.85 + Math.sin(time * 18) * 0.35;
       c.setRGB(
-        0.1 * glowFloor,
-        (0.9 + Math.sin(t2 * 6) * 0.1) * gPulse * glowFloor,
-        0.15 * glowFloor
+        0.05,
+        Math.min(1.5, (1.1 + Math.sin(time * 24) * 0.2) * gPulse),
+        0.1
       );
     }
     return;
   }
 
   if (hasCollided) {
-    // RED/orange collision indicator — very distinct
+    // Bright RED glow with pulsation — very high contrast vs white wind
+    const pulse = 0.9 + Math.sin(time * 15) * 0.15;
     const intensity = Math.min(t * impactMul, 1);
     c.setRGB(
-      Math.min(1, (0.9 + intensity * 0.1) * glowBoost),
-      Math.max(0, (0.15 - intensity * 0.1)) * glowBoost,
-      0.02 * glowBoost
+      Math.min(1.5, (1.0 + intensity * 0.5) * pulse),
+      Math.max(0, 0.08 - intensity * 0.06),
+      0.02
     );
     return;
   }
 
-  // Normal wind: blue → cyan → green gradient
-  if (t < 0.2) {
-    const p = t / 0.2;
-    c.setRGB(0.1 * glowBoost, 0.2 + p * 0.4, (0.9 + p * 0.1) * glowBoost);
-  } else if (t < 0.4) {
-    const p = (t - 0.2) / 0.2;
-    c.setRGB(0.1 * glowBoost, (0.6 + p * 0.4) * glowBoost, (1 - p * 0.5) * glowBoost);
-  } else if (t < 0.65) {
-    const p = (t - 0.4) / 0.25;
-    c.setRGB((0.1 + p * 0.15) * glowBoost, (1.0) * glowBoost, (0.5 - p * 0.3) * glowBoost);
-  } else if (t < 0.85) {
-    const p = (t - 0.65) / 0.2;
-    c.setRGB((0.25 + p * 0.75) * glowBoost, (1 - p * 0.2) * glowBoost, (0.2 - p * 0.15) * glowBoost);
-  } else {
-    const p = (t - 0.85) / 0.15;
-    c.setRGB(Math.min(1, (1 + p * 0.3) * glowBoost), (0.8 - p * 0.4) * glowBoost, 0.05 * glowBoost);
-  }
+  // Default wind: white-grey transparent, subtle speed shift
+  const base = 0.55 + t * 0.25; // 0.55 → 0.80
+  const blueShift = 0.6 + t * 0.2; // slightly cooler tone
+  c.setRGB(base * 0.95, base * 0.95, blueShift);
 };
 
 export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
@@ -214,7 +197,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     transparent: true,
-    opacity: Math.min(1, presetCfg.opacity * Math.max(glowIntensity * 1.5, 0.4)),
+    opacity: Math.min(1, presetCfg.opacity * Math.max(glowIntensity * 1.8, 0.5)),
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     side: THREE.DoubleSide,

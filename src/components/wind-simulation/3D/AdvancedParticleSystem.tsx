@@ -385,14 +385,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               );
             }
             
-            if (onCollisionEvent && Math.random() < 0.60) {
-              onCollisionEvent({
-                id: `absorb-${Date.now()}-${Math.random()}`,
-                position: [particle.x, particle.y, particle.z],
-                intensity: Math.min(Math.sqrt(particle.speedX ** 2 + particle.speedZ ** 2) * 0.12, 1.8),
-                deflection: [-windDirection.x, 0.3, -windDirection.z],
-              });
-            }
+            // No red collision effect for generators — only green absorption popups
           }
         }
       }
@@ -533,10 +526,17 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               particle.speedX += Math.sign(ddx) * Math.sin(separationAngleRad) * speed * 0.3;
             }
 
-            const scatterAmount = physics.turbulenceGeneration * 1.5;
-            particle.speedX += (Math.random() - 0.5) * scatterAmount;
-            particle.speedY += Math.random() * scatterAmount * 0.5;
-            particle.speedZ += (Math.random() - 0.5) * scatterAmount;
+            // Enhanced scatter: velocity-dependent + random spread
+            const scatterAmount = physics.turbulenceGeneration * 2.5;
+            const speedFactor = Math.min(speed * 0.15, 2);
+            particle.speedX += (Math.random() - 0.5) * scatterAmount * (1 + speedFactor);
+            particle.speedY += Math.random() * scatterAmount * 0.8;
+            particle.speedZ += (Math.random() - 0.5) * scatterAmount * (1 + speedFactor);
+            // Post-collision speed decay
+            const decayFactor = 0.6 + materialRestitution * 0.3;
+            particle.speedX *= decayFactor;
+            particle.speedY *= decayFactor;
+            particle.speedZ *= decayFactor;
             particle.hasCollided = true;
             particle.collisionTimer = 20;
             particle.lastObstacleId = obstacleId;
