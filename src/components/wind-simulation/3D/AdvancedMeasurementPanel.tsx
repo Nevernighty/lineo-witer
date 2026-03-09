@@ -42,7 +42,7 @@ export const AdvancedMeasurementPanel: React.FC<AdvancedMeasurementPanelProps> =
   const powerStr = generatorPower >= 1000 ? `${(generatorPower / 1000).toFixed(1)} kW` : `${generatorPower.toFixed(0)} W`;
 
   return (
-    <div className="absolute top-3 left-3 space-y-1.5 w-44 z-10">
+    <div className="absolute top-3 left-3 space-y-1.5 w-44 z-50" style={{ position: 'absolute' }}>
       {/* Wind Power */}
       <div className="bg-card/95 backdrop-blur-sm rounded-lg border border-primary/30 overflow-hidden shadow-lg">
         <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 border-b border-primary/20">

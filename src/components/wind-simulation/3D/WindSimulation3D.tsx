@@ -8,6 +8,7 @@ import { AdvancedMeasurementPanel } from './AdvancedMeasurementPanel';
 import { AdvancedWindControls } from './AdvancedWindControls';
 import { GhostObstacle } from './GhostObstacle';
 import { CollisionEffectsManager } from './CollisionEffect';
+import { WindProfileViz, PressureMapViz, TurbulenceFieldViz, CapacityFactorViz, BetzOverlayViz } from './AnalysisVisualizations';
 import { CollisionHotspotManager } from './CollisionHotspot';
 import { LocalHitManager } from './LocalHitPopup';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateWindShear } from './WindPhysicsEngine';
@@ -341,9 +342,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const activeAnalysisCount = analysisItems.filter(i => i.checked).length;
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" style={{ isolation: 'isolate' }}>
       {/* Mode toggle + Scenario + Analysis buttons */}
-      <div className="absolute top-3 left-[195px] z-20 flex gap-1" style={{ pointerEvents: 'auto' }}>
+      <div className="absolute top-3 left-[195px] z-50 flex gap-1" style={{ pointerEvents: 'auto' }}>
         <button onClick={() => { setInteractionMode('place'); setSelectedObstacleIndex(null); }}
           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-mono border transition-all ${interactionMode === 'place' ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_10px_hsl(var(--primary)/0.3)]' : 'bg-background/90 border-primary/20 text-muted-foreground hover:border-primary/40'}`}>
           <Crosshair className="w-3.5 h-3.5" />{t('placeMode', lang)}
@@ -366,7 +367,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
       {/* Compact analysis dropdown */}
       {showAnalysisPanel && (
-        <div className="absolute top-12 left-[195px] z-20 bg-background/95 backdrop-blur-md rounded-lg border border-orange-500/40 p-2 shadow-[0_0_15px_rgba(255,140,0,0.15)] w-64 animate-in fade-in slide-in-from-top-2 duration-200" style={{ pointerEvents: 'auto' }}>
+        <div className="absolute top-12 left-[195px] z-50 bg-background/95 backdrop-blur-md rounded-lg border border-orange-500/40 p-2 shadow-[0_0_15px_rgba(255,140,0,0.15)] w-64 animate-in fade-in slide-in-from-top-2 duration-200" style={{ pointerEvents: 'auto' }}>
           <div className="space-y-1">
             {analysisItems.map(item => (
               <label key={item.key} className={`flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded transition-all hover:bg-primary/10 ${item.checked ? 'bg-primary/10' : ''}`}>
@@ -394,7 +395,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
       {/* Scenario picker */}
       {showScenarios && (
-        <div className="absolute top-12 left-[195px] z-30 w-80 bg-background/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
+        <div className="absolute top-12 left-[195px] z-50 w-80 bg-background/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
           <div className="px-3 py-2 border-b border-cyan-500/20 flex items-center gap-2">
             <MapIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">{t('scenarios', lang)}</span>
@@ -419,7 +420,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </div>
       )}
 
-      <Canvas camera={{ position: [70, 45, 70], fov: 50 }} className="!absolute inset-0" style={{ pointerEvents: 'auto' }}
+      <Canvas camera={{ position: [70, 45, 70], fov: 50 }} className="!absolute inset-0" style={{ pointerEvents: 'auto', zIndex: 0 }}
         onPointerDown={handleCanvasPointerDown} onPointerMove={handleCanvasPointerMove} onPointerUp={handleCanvasPointerUp}>
         <Suspense fallback={null}>
           <ambientLight intensity={0.35} />
@@ -437,52 +438,9 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
           {showHeightRuler && (<><HeightRuler maxHeight={simulationSize.height} config={physicsConfig} /><HeightRulerLabels maxHeight={simulationSize.height} config={physicsConfig} /></>)}
 
-          {showWindProfile && (
-            <group position={[-48, 0, -48]}>
-              {[5, 10, 20, 30, 40, 50].map(h => {
-                const speed = calculateWindShear(physicsConfig.windSpeed, physicsConfig.referenceHeight, h, physicsConfig.surfaceRoughness);
-                const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
-                const arrowLen = speed * 0.5;
-                return (
-                  <group key={h} position={[0, h, 0]}>
-                    <mesh position={[Math.cos(angleRad) * arrowLen / 2, 0, Math.sin(angleRad) * arrowLen / 2]} rotation={[0, -angleRad + Math.PI / 2, Math.PI / 2]}>
-                      <cylinderGeometry args={[0.08, 0.08, arrowLen, 4]} /><meshBasicMaterial color="#00aaff" transparent opacity={0.5} />
-                    </mesh>
-                    <mesh position={[Math.cos(angleRad) * arrowLen, 0, Math.sin(angleRad) * arrowLen]} rotation={[0, -angleRad + Math.PI / 2, 0]}>
-                      <coneGeometry args={[0.25, 0.6, 4]} /><meshBasicMaterial color="#00aaff" transparent opacity={0.6} />
-                    </mesh>
-                  </group>
-                );
-              })}
-            </group>
-          )}
+          {showWindProfile && <WindProfileViz config={physicsConfig} />}
 
-          {showPressureMap && obstacles.map((obs, i) => {
-            if (obs.type === 'wind_generator') return null;
-            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
-            const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
-            const hpX = cx - Math.cos(angleRad) * obs.width, hpZ = cz - Math.sin(angleRad) * obs.depth;
-            const lpX = cx + Math.cos(angleRad) * obs.width * 1.5, lpZ = cz + Math.sin(angleRad) * obs.depth * 1.5;
-            const pi = Math.min(physicsConfig.windSpeed / 15, 1);
-            return (
-              <group key={`pressure-${i}`}>
-                <mesh position={[hpX, obs.height * 0.5, hpZ]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <circleGeometry args={[obs.width * 0.5 * (0.5 + pi * 0.5), 20]} /><meshBasicMaterial color="#ff4444" transparent opacity={0.15 + pi * 0.1} side={THREE.DoubleSide} />
-                </mesh>
-                <Html position={[hpX, obs.height * 0.7, hpZ]} center style={{ pointerEvents: 'none' }}>
-                  <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(255,50,50,0.3)', color: '#ff6666' }}>
-                    H+ {(0.5 * physicsConfig.airDensity * physicsConfig.windSpeed * physicsConfig.windSpeed).toFixed(0)} Pa
-                  </div>
-                </Html>
-                <mesh position={[lpX, obs.height * 0.5, lpZ]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <circleGeometry args={[obs.width * 0.6 * (0.5 + pi * 0.5), 20]} /><meshBasicMaterial color="#4444ff" transparent opacity={0.12 + pi * 0.08} side={THREE.DoubleSide} />
-                </mesh>
-                <Html position={[lpX, obs.height * 0.7, lpZ]} center style={{ pointerEvents: 'none' }}>
-                  <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(50,50,255,0.3)', color: '#6666ff' }}>L-</div>
-                </Html>
-              </group>
-            );
-          })}
+          {showPressureMap && <PressureMapViz config={physicsConfig} obstacles={obstacles} />}
 
           {showEnergyDensity && (
             <group position={[48, 0, 48]}>
@@ -506,22 +464,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             </group>
           )}
 
-          {showTurbulenceField && (
-            <group>
-              {[[-20, 10, -20], [0, 20, 0], [20, 10, 20], [-15, 30, 15], [15, 15, -15]].map(([px, py, pz], i) => {
-                const ti = physicsConfig.turbulenceIntensity * physicsConfig.windSpeed;
-                const size = 1 + ti * 0.3;
-                return (
-                  <group key={`turb-${i}`} position={[px, py, pz]}>
-                    <mesh rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[size, 0.1, 6, 16]} /><meshBasicMaterial color="#aa44ff" transparent opacity={0.15 + ti * 0.02} side={THREE.DoubleSide} /></mesh>
-                    <Html position={[size + 1, 0, 0]} center style={{ pointerEvents: 'none' }}>
-                      <div className="text-[6px] font-mono px-0.5 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.7)', color: '#bb66ff' }}>TI={physicsConfig.turbulenceIntensity.toFixed(2)}</div>
-                    </Html>
-                  </group>
-                );
-              })}
-            </group>
-          )}
+          {showTurbulenceField && <TurbulenceFieldViz config={physicsConfig} obstacles={obstacles} />}
 
           {showWindShear && (
             <group position={[-48, 0, 48]}>
@@ -585,54 +528,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           })}
 
           {/* Capacity Factor for generators */}
-          {showCapacityFactor && obstacles.filter(o => o.type === 'wind_generator').map((obs, i) => {
-            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
-            const power = calculateGeneratorPower(physicsConfig.airDensity, obs.width * 1.8, physicsConfig.windSpeed, obs.height + obs.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness, obs.generatorSubtype || 'hawt3');
-            const ratedPower = 0.5 * physicsConfig.airDensity * Math.PI * Math.pow(obs.width * 0.9, 2) * Math.pow(12, 3) * 0.45;
-            const cf = ratedPower > 0 ? Math.min(power / ratedPower, 0.6) : 0;
-            const cfPct = (cf * 100).toFixed(0);
-            const cfColor = cf < 0.2 ? '#ff4444' : cf < 0.35 ? '#ffaa00' : '#44ff44';
-            return (
-              <Html key={`cf-${i}`} position={[cx, obs.height + obs.y + 8, cz]} center style={{ pointerEvents: 'none' }}>
-                <div className="flex flex-col items-center">
-                  <svg width="44" height="28" viewBox="0 0 44 28">
-                    <path d="M 4 24 A 18 18 0 0 1 40 24" fill="none" stroke="#333" strokeWidth="3" />
-                    <path d="M 4 24 A 18 18 0 0 1 40 24" fill="none" stroke={cfColor} strokeWidth="3"
-                      strokeDasharray={`${cf / 0.6 * 56.5} 56.5`} strokeLinecap="round" />
-                    <text x="22" y="22" textAnchor="middle" fill={cfColor} fontSize="9" fontFamily="monospace" fontWeight="bold">{cfPct}%</text>
-                  </svg>
-                  <div className="text-[7px] font-mono mt-0.5" style={{ color: cfColor }}>Cf</div>
-                </div>
-              </Html>
-            );
-          })}
+          {showCapacityFactor && <CapacityFactorViz config={physicsConfig} obstacles={obstacles} />}
 
           {/* Betz Zones for generators */}
-          {showBetzOverlay && obstacles.filter(o => o.type === 'wind_generator').map((obs, i) => {
-            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
-            const cy = obs.y + obs.height * 0.7;
-            const rotorR = obs.width * 0.9 * (obs.scale || 1);
-            const power = calculateGeneratorPower(physicsConfig.airDensity, obs.width * 1.8, physicsConfig.windSpeed, obs.height + obs.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness, obs.generatorSubtype || 'hawt3');
-            const totalWind = 0.5 * physicsConfig.airDensity * Math.PI * rotorR * rotorR * Math.pow(physicsConfig.windSpeed, 3);
-            const actualPct = totalWind > 0 ? ((power / totalWind) * 100).toFixed(0) : '0';
-            return (
-              <group key={`betz-${i}`} position={[cx, cy, cz]}>
-                {/* Outer: total wind energy */}
-                <mesh><sphereGeometry args={[rotorR * 1.5, 16, 12]} /><meshBasicMaterial color="#4488ff" transparent opacity={0.04} wireframe /></mesh>
-                {/* Middle: Betz limit 59.3% */}
-                <mesh><sphereGeometry args={[rotorR * 1.1, 16, 12]} /><meshBasicMaterial color="#ffaa00" transparent opacity={0.06} wireframe /></mesh>
-                {/* Inner: actual extraction */}
-                <mesh><sphereGeometry args={[rotorR * 0.7, 16, 12]} /><meshBasicMaterial color="#44ff44" transparent opacity={0.08} wireframe /></mesh>
-                <Html position={[rotorR * 1.6, rotorR * 0.5, 0]} center style={{ pointerEvents: 'none' }}>
-                  <div className="text-[7px] font-mono leading-tight px-1 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: '#aaddff', border: '1px solid rgba(68,136,255,0.3)' }}>
-                    <div style={{ color: '#4488ff' }}>100% total</div>
-                    <div style={{ color: '#ffaa00' }}>59.3% Betz</div>
-                    <div style={{ color: '#44ff44' }}>{actualPct}% actual</div>
-                  </div>
-                </Html>
-              </group>
-            );
-          })}
+          {showBetzOverlay && <BetzOverlayViz config={physicsConfig} obstacles={obstacles} />}
 
           <group>
             {interactionMode === 'place' && ghostPosition && (
@@ -672,14 +571,14 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       </Canvas>
 
       {showHint && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-bottom-4 duration-300" style={{ pointerEvents: 'none' }}>
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 animate-in fade-in slide-in-from-bottom-4 duration-300" style={{ pointerEvents: 'none' }}>
           <div className="px-3 py-1.5 rounded-full bg-background/90 border border-primary/50 text-primary text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.3)]">
             {t('hintRotateScale', lang)}
           </div>
         </div>
       )}
 
-      <div className="absolute top-3 right-3 w-56 z-10" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
+      <div className="absolute top-3 right-3 w-56 z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedWindControls config={physicsConfig} onConfigChange={handleConfigChange}
           selectedObstacleType={selectedObstacleType} onObstacleTypeChange={setSelectedObstacleType}
           selectedGeneratorSubtype={selectedGeneratorSubtype} onGeneratorSubtypeChange={setSelectedGeneratorSubtype}
@@ -695,21 +594,21 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           particlePreset={particlePreset} onParticlePresetChange={handlePresetChange} />
       </div>
 
-      <div style={{ pointerEvents: 'auto', overflow: 'visible' }}>
+      <div className="z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedMeasurementPanel config={physicsConfig} particleCount={particleCount}
           obstacles={obstacles} collisionEnergy={collisionEnergy}
           activeCollisions={obstacles.length} generatorPower={generatorPower} lang={lang} />
       </div>
 
       {activeAnalysisCount > 0 && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20" style={{ pointerEvents: 'none' }}>
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40" style={{ pointerEvents: 'none' }}>
           <div className="px-3 py-1 rounded-full bg-background/80 border border-orange-500/40 text-[9px] font-mono text-orange-400/80 tracking-wide">
             {t('vizWarning', lang)}
           </div>
         </div>
       )}
 
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10" style={{ pointerEvents: 'none' }}>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-40" style={{ pointerEvents: 'none' }}>
         <p className="text-[9px] text-muted-foreground/70 text-center font-mono bg-background/60 px-3 py-1 rounded-full">
           {interactionMode === 'select' ? t('footerHintSelect', lang) : t('footerHint', lang)}
         </p>

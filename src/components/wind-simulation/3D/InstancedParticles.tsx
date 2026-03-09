@@ -16,33 +16,46 @@ interface InstancedParticlesProps {
 // --- 5 custom geometries ---
 
 function createStandardGeometry(): THREE.BufferGeometry {
-  // Tapered diamond: wide at center, pointed front and back
-  const verts = new Float32Array([
-    0, 0, -1.2,   // tail point (narrow)
-    -0.3, 0, 0,   // left
-    0, 0.08, 0,   // top center
-    0.3, 0, 0,    // right
-    0, -0.08, 0,  // bottom center
-    0, 0, 0.3,    // head point
-  ]);
-  const indices = [
-    0, 1, 2,  0, 2, 3,  0, 3, 4,  0, 4, 1, // tail cone
-    5, 2, 1,  5, 3, 2,  5, 4, 3,  5, 1, 4, // head cone
-  ];
+  // Smooth elongated teardrop — natural wind particle
+  const segments = 10;
+  const verts: number[] = [];
+  const indices: number[] = [];
+  // Generate teardrop profile: wide front tapering to thin tail
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments; // 0=head, 1=tail
+    // Radius: max at 0.2, tapering to 0 at both ends
+    const r = Math.sin(t * Math.PI) * (1 - t * 0.6) * 0.18;
+    const z = 0.3 - t * 1.5; // head at +0.3, tail at -1.2
+    for (let j = 0; j < 6; j++) {
+      const a = (j / 6) * Math.PI * 2;
+      verts.push(Math.cos(a) * r, Math.sin(a) * r, z);
+    }
+  }
+  // Connect rings
+  for (let i = 0; i < segments; i++) {
+    for (let j = 0; j < 6; j++) {
+      const c = i * 6 + j;
+      const n = i * 6 + ((j + 1) % 6);
+      const c2 = (i + 1) * 6 + j;
+      const n2 = (i + 1) * 6 + ((j + 1) % 6);
+      indices.push(c, n, c2, n, n2, c2);
+    }
+  }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;
 }
 
 function createSmokeGeometry(): THREE.BufferGeometry {
-  // 8-sided soft circle — cloud puff
-  const segments = 8;
-  const verts: number[] = [0, 0, 0]; // center
+  // Soft rounded puff — 12-sided for smoothness
+  const segments = 12;
+  const verts: number[] = [0, 0, 0];
   for (let i = 0; i < segments; i++) {
     const a = (i / segments) * Math.PI * 2;
-    verts.push(Math.cos(a) * 0.5, Math.sin(a) * 0.15, Math.sin(a) * 0.5);
+    const wobble = 0.9 + Math.sin(a * 3) * 0.1;
+    verts.push(Math.cos(a) * 0.4 * wobble, Math.sin(a) * 0.12, Math.sin(a) * 0.4 * wobble);
   }
   const indices: number[] = [];
   for (let i = 1; i <= segments; i++) {
@@ -56,19 +69,10 @@ function createSmokeGeometry(): THREE.BufferGeometry {
 }
 
 function createArrowGeometry(): THREE.BufferGeometry {
-  // Arrow/chevron shape
   const verts = new Float32Array([
-    0, 0, 0.4,     // tip (front)
-    -0.35, 0, -0.2, // left wing
-    -0.1, 0, 0,     // left notch
-    0, 0, -1.0,     // tail center
-    0.1, 0, 0,      // right notch
-    0.35, 0, -0.2,  // right wing
+    0, 0, 0.4, -0.35, 0, -0.2, -0.1, 0, 0, 0, 0, -1.0, 0.1, 0, 0, 0.35, 0, -0.2,
   ]);
-  const indices = [
-    0, 1, 2,  0, 2, 3,  0, 3, 4,  0, 4, 5, // top
-    0, 2, 1,  0, 3, 2,  0, 4, 3,  0, 5, 4, // bottom (double-sided)
-  ];
+  const indices = [0,1,2, 0,2,3, 0,3,4, 0,4,5, 0,2,1, 0,3,2, 0,4,3, 0,5,4];
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
   geo.setIndex(indices);
@@ -77,19 +81,10 @@ function createArrowGeometry(): THREE.BufferGeometry {
 }
 
 function createSparkGeometry(): THREE.BufferGeometry {
-  // Tiny 4-pointed star
   const verts = new Float32Array([
-    0, 0, 0.15,    // front
-    -0.08, 0, 0,   // left
-    0, 0, -0.15,   // back
-    0.08, 0, 0,    // right
-    0, 0.08, 0,    // top
-    0, -0.08, 0,   // bottom
+    0,0,0.15, -0.08,0,0, 0,0,-0.15, 0.08,0,0, 0,0.08,0, 0,-0.08,0,
   ]);
-  const indices = [
-    0, 1, 4,  0, 4, 3,  2, 3, 4,  2, 4, 1,
-    0, 5, 1,  0, 3, 5,  2, 1, 5,  2, 5, 3,
-  ];
+  const indices = [0,1,4, 0,4,3, 2,3,4, 2,4,1, 0,5,1, 0,3,5, 2,1,5, 2,5,3];
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
   geo.setIndex(indices);
@@ -98,24 +93,28 @@ function createSparkGeometry(): THREE.BufferGeometry {
 }
 
 function createStreamGeometry(): THREE.BufferGeometry {
-  // Long tapered comet — wide head tapering to a thin tail
-  const verts = new Float32Array([
-    0, 0, 0.3,      // head tip
-    -0.25, 0.06, 0,  // head left top
-    0.25, 0.06, 0,   // head right top
-    -0.25, -0.06, 0, // head left bottom
-    0.25, -0.06, 0,  // head right bottom
-    -0.06, 0, -1.5,  // tail left
-    0.06, 0, -1.5,   // tail right
-    0, 0, -2.0,      // tail tip
-  ]);
-  const indices = [
-    0, 1, 2,  0, 3, 1,  0, 2, 4,  0, 4, 3, // head
-    1, 5, 6,  1, 6, 2,  3, 6, 5,  3, 4, 6, // mid body
-    5, 7, 6,  6, 7, 5, // tail tip
-  ];
+  // Smooth tapered comet using rings
+  const segments = 8;
+  const verts: number[] = [];
+  const indices: number[] = [];
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments;
+    const r = (1 - t) * 0.2 + 0.02;
+    const z = 0.3 - t * 2.3;
+    for (let j = 0; j < 5; j++) {
+      const a = (j / 5) * Math.PI * 2;
+      verts.push(Math.cos(a) * r, Math.sin(a) * r, z);
+    }
+  }
+  for (let i = 0; i < segments; i++) {
+    for (let j = 0; j < 5; j++) {
+      const c = i * 5 + j, n = i * 5 + ((j + 1) % 5);
+      const c2 = (i + 1) * 5 + j, n2 = (i + 1) * 5 + ((j + 1) % 5);
+      indices.push(c, n, c2, n, n2, c2);
+    }
+  }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.BufferAttribute(verts, 3));
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(verts), 3));
   geo.setIndex(indices);
   geo.computeVertexNormals();
   return geo;
@@ -132,24 +131,33 @@ const PRESET_CONFIG: Record<string, { baseSizeMul: number; opacity: number; tail
 const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
   const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
-  // Glow: floor at 0.35, boost brightness above 1.0
   const glowFloor = Math.max(glow, 0.35);
   const glowBoost = glow > 1.0 ? 1.0 + (glow - 1.0) * 0.6 : glowFloor;
 
   if (absorbed) {
-    // Grey/silver with subtle white pulse — "energy extracted" look
-    const pulse = 0.55 + Math.sin(Date.now() * 0.015) * 0.15;
-    const grey = pulse * 0.65;
-    c.setRGB(grey, grey, grey * 1.05);
+    // Bright WHITE → GREEN transition — energy extracted
+    const pulse = 0.6 + Math.sin(Date.now() * 0.012) * 0.4;
+    const whiteness = Math.max(0, 1 - pulse * 0.7);
+    c.setRGB(
+      0.3 + whiteness * 0.7,
+      0.85 + whiteness * 0.15,
+      0.2 + whiteness * 0.6
+    );
     return;
   }
 
   if (hasCollided) {
+    // RED/orange collision indicator — very distinct
     const intensity = Math.min(t * impactMul, 1);
-    c.setRGB(Math.min(1, (1 + intensity * 0.5) * glowBoost), 0.2 + (1 - intensity) * 0.3, 0.02);
+    c.setRGB(
+      Math.min(1, (0.9 + intensity * 0.1) * glowBoost),
+      Math.max(0, (0.15 - intensity * 0.1)) * glowBoost,
+      0.02 * glowBoost
+    );
     return;
   }
 
+  // Normal wind: blue → cyan → green gradient
   if (t < 0.2) {
     const p = t / 0.2;
     c.setRGB(0.1 * glowBoost, 0.2 + p * 0.4, (0.9 + p * 0.1) * glowBoost);
@@ -233,7 +241,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
       dummy.position.set(px, py, pz);
 
-      // Orient along velocity — tail trails behind
       if (speed > 0.1) {
         dummy.lookAt(px + vx, py + vy, pz + vz);
       }
@@ -243,14 +250,11 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
         baseScale *= 1.6 + Math.sin(time * 12) * 0.35;
       }
 
-      // Tail length grows with speed AND trailLengthMultiplier
       const tailLength = 1 + speed * 0.12 * tailMul;
       const cappedTail = Math.min(tailLength, 60.0);
       const lateralSize = baseScale * 0.8;
       const pulse = pulseMul * (1 + Math.sin(time * 3 + i * 0.5) * 0.03);
 
-      // Z = forward (lookAt direction) = tail length
-      // X,Y = lateral size
       dummy.scale.set(
         lateralSize * pulse,
         lateralSize * pulse,
