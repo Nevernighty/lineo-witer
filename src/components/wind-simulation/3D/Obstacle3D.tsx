@@ -52,42 +52,34 @@ export const Obstacle3D: React.FC<Obstacle3DProps> = ({
     const time = state.clock.elapsedTime;
     const wb = wobbliness;
 
-    // Trees: dramatic jelly wobble driven by wind direction
+    // Trees: realistic sway driven by wind direction (~2x building intensity)
     if (obstacle.type === 'tree' && treeGroupRef.current) {
       const windNorm = Math.min(windSpeed / 5, 2.5);
-      const wobbleIntensity = windNorm * 0.22 * wb;
+      const wobbleIntensity = windNorm * 0.06 * wb;
       const freq1 = 1.0 + Math.sin(time * 0.15 + wobblePhase.current) * 0.5;
       const freq2 = 2.1 + Math.cos(time * 0.35 + wobblePhase.current) * 0.4;
       const freq3 = 3.4 + Math.sin(time * 0.6 + wobblePhase.current * 1.5) * 0.3;
-      const freq4 = 5.2 + Math.cos(time * 0.9 + wobblePhase.current * 0.7) * 0.2;
       const angleRad = (windAngle * Math.PI) / 180;
-      // Wind-direction-aligned wobble: primary axis = downwind, secondary = crosswind
       const windCos = Math.cos(angleRad);
       const windSin = Math.sin(angleRad);
       
-      // Oscillation amplitude modulated by wind direction alignment
       const downwindOsc = Math.sin(time * freq1 + wobblePhase.current) * wobbleIntensity
                      + Math.sin(time * freq2 * 1.7) * wobbleIntensity * 0.45
                      + Math.sin(time * freq3 * 2.3) * wobbleIntensity * 0.25;
-      const crosswindOsc = Math.cos(time * freq2 + wobblePhase.current * 1.3) * wobbleIntensity * 0.35
-                     + Math.cos(time * freq4 * 1.8 + 1.0) * wobbleIntensity * 0.15;
+      const crosswindOsc = Math.cos(time * freq2 + wobblePhase.current * 1.3) * wobbleIntensity * 0.35;
       
-      // Project oscillation onto X/Z via wind direction
       const wobbleX = windCos * downwindOsc + (-windSin) * crosswindOsc;
       const wobbleZ = windSin * downwindOsc + windCos * crosswindOsc;
       
-      // Wind lean: strong directional bending aligned with wind
-      const leanAmount = Math.min(windSpeed / 8, 0.8) * 0.18 * wb;
+      // Capped lean: max ~0.05 rad even at extreme wind
+      const leanAmount = Math.min(windSpeed / 8, 0.8) * 0.05 * wb;
       const leanX = windCos * leanAmount;
       const leanZ = windSin * leanAmount;
       
-      // Rubber-band squash & stretch
-      const stretchY = 1 + Math.sin(time * freq1 * 1.5) * wobbleIntensity * 0.1;
-      const squashX = 1 - Math.sin(time * freq1 * 1.5) * wobbleIntensity * 0.04;
-      
       treeGroupRef.current.rotation.x = wobbleX + leanX;
       treeGroupRef.current.rotation.z = wobbleZ + leanZ;
-      treeGroupRef.current.scale.set(squashX, stretchY, squashX);
+      // No squash/stretch — keep natural geometry
+      treeGroupRef.current.scale.set(1, 1, 1);
     }
 
     // Buildings/structures: vibration aligned with wind direction
