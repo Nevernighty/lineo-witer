@@ -250,7 +250,8 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
       let baseScale = size * sizeMul * (hasCollided ? impactMultiplier * 1.4 : 1);
       if (isAbsorbed) {
-        baseScale *= 1.6 + Math.sin(time * 12) * 0.35;
+        // Rapid pulsation during dissolve — energy extraction VFX
+        baseScale *= 1.4 + Math.sin(time * 18 + i * 0.7) * 0.4;
       }
 
       const tailLength = 1 + speed * 0.12 * tailMul;

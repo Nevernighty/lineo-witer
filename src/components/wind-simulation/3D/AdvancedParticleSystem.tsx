@@ -427,25 +427,26 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       // Absorbed particles shrink + spiral inward before respawn
       if (particle.absorptionTimer > 0) {
         particle.absorptionTimer--;
-        const progress = 1 - particle.absorptionTimer / 25; // 0→1
-        // Shrink size toward zero
-        particle.size = Math.max(0.05, (1 - progress * progress) * 0.8);
-        // Spiral inward: add tangential + inward velocity
+        const progress = 1 - particle.absorptionTimer / 20; // 0→1
+        // Rapid size oscillation during dissolve (VFX pulsation)
+        const dissolvePulse = Math.sin(progress * Math.PI * 6) * 0.3 * (1 - progress);
+        particle.size = Math.max(0.05, (1 - progress * progress) * 1.2 + dissolvePulse);
+        // Spiral inward: stronger tangential swirl for VAWT
         const nearGen = generators.find(g => {
           const ddx = g.cx - particle.x;
           const ddz = g.cz - particle.z;
           return Math.sqrt(ddx*ddx + ddz*ddz) < g.attractRadius;
         });
-        if (nearGen && progress > 0.3) {
+        if (nearGen) {
           const ddx = nearGen.cx - particle.x;
           const ddy = nearGen.cy - particle.y;
           const ddz = nearGen.cz - particle.z;
           const dd = Math.sqrt(ddx*ddx + ddy*ddy + ddz*ddz) || 1;
-          // Spiral: tangent + pull inward
-          const swirlStrength = progress * 3;
-          particle.speedX += (ddx / dd * 2 + (-ddz / dd) * swirlStrength) * delta * 8;
+          const swirlStrength = nearGen.isVAWT ? progress * 5 : progress * 3;
+          const inwardPull = nearGen.isVAWT ? 1.5 : 2.5;
+          particle.speedX += (ddx / dd * inwardPull + (-ddz / dd) * swirlStrength) * delta * 8;
           particle.speedY += (ddy / dd * 1.5) * delta * 8;
-          particle.speedZ += (ddz / dd * 2 + (ddx / dd) * swirlStrength) * delta * 8;
+          particle.speedZ += (ddz / dd * inwardPull + (ddx / dd) * swirlStrength) * delta * 8;
         }
         if (particle.absorptionTimer === 0) {
           particle.absorbed = false;

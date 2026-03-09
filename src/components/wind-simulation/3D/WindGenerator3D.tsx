@@ -377,7 +377,12 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       </group>
 
-      <EnergyAbsorptionEffect towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} power={power} adjustedSpeed={adjustedSpeed} />
+      {/* HAWT: disc effect, VAWT: cylindrical glow */}
+      {(subtype === 'darrieus' || subtype === 'savonius') ? (
+        <VAWTRotorGlow towerHeight={towerHeight} rotorDiameter={rotorDiameter} power={power} adjustedSpeed={adjustedSpeed} isVAWT_savonius={subtype === 'savonius'} />
+      ) : (
+        <EnergyAbsorptionEffect towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} power={power} adjustedSpeed={adjustedSpeed} />
+      )}
 
       <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'auto' }}>
         <div 
