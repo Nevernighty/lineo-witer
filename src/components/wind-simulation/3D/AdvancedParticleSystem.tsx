@@ -294,19 +294,36 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
           if (gen.isVAWT) {
             const horizDist = Math.sqrt(dx * dx + dz * dz);
             if (horizDist > 0.5) {
-              const force = gen.attractK / (horizDist * horizDist + 1.5);
-              targetSpeedX += (dx / horizDist) * force;
-              targetSpeedZ += (dz / horizDist) * force;
+              // Stronger radial pull + pronounced tangential swirl for VAWT
+              const closeBoost = horizDist < gen.rotorRadius * 2
+                ? Math.exp((gen.rotorRadius * 2 - horizDist) / gen.rotorRadius) * 1.2
+                : 0;
+              const force = gen.attractK / (horizDist * horizDist + 1.0) + closeBoost;
+              // Radial inward (reduced to make swirl more visible)
+              targetSpeedX += (dx / horizDist) * force * 0.6;
+              targetSpeedZ += (dz / horizDist) * force * 0.6;
+              // Tangential swirl (strong — particles orbit around vertical axis)
               const tangentX = -dz / horizDist;
               const tangentZ = dx / horizDist;
-              targetSpeedX += tangentX * force * 0.4;
-              targetSpeedZ += tangentZ * force * 0.4;
+              targetSpeedX += tangentX * force * 0.9;
+              targetSpeedZ += tangentZ * force * 0.9;
+              // Vertical pull toward rotor center
+              targetSpeedY += (gen.cy - particle.y) * force * 0.02;
             }
             if (horizDist < gen.rotorRadius * 1.5) {
               targetSpeedX *= (1 - gen.speedReduction);
               targetSpeedZ *= (1 - gen.speedReduction);
               targetSpeedX += (Math.random() - 0.5) * gen.wakeTurbulence;
               targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence;
+            }
+            // Anti-jamming: force-eject particles stuck deep inside rotor
+            if (horizDist < gen.rotorRadius * 0.3 && !particle.absorbed) {
+              const ejX = particle.x - gen.cx;
+              const ejZ = particle.z - gen.cz;
+              const ejDist = Math.sqrt(ejX * ejX + ejZ * ejZ) || 1;
+              particle.speedX += (ejX / ejDist) * 8 + windDirection.x * 4;
+              particle.speedZ += (ejZ / ejDist) * 8 + windDirection.z * 4;
+              particle.speedY += 2;
             }
           } else {
             // Attract from ALL directions (low pressure zone effect)
