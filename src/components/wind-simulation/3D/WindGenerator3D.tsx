@@ -182,7 +182,7 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
   );
 };
 
-// Energy absorption glow effect — lightweight replacement for SuctionSpiral
+// Energy absorption glow effect — for HAWT only (disc at rotor plane)
 const MAX_RINGS = 3;
 const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; power: number; adjustedSpeed: number }> = 
   ({ towerHeight, rotorDiameter, windAngleRad, power, adjustedSpeed }) => {
@@ -196,44 +196,33 @@ const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: num
     const powerFactor = Math.min(power / 8000, 1);
     const isActive = adjustedSpeed > 0.5 && power > 0;
 
-    // Pulsing disc
     if (discRef.current) {
       const mat = discRef.current.material as THREE.MeshBasicMaterial;
       const pulse = Math.sin(time * 6) * 0.3 + 0.7;
       mat.opacity = isActive ? (0.05 + powerFactor * 0.25) * pulse : 0.02;
-      // Color: cyan → green → yellow based on power
-      const hue = 0.5 - powerFactor * 0.35; // 0.5=cyan, 0.15=yellow
+      const hue = 0.5 - powerFactor * 0.35;
       mat.color.setHSL(hue, 0.9, 0.6);
       const s = 1 + Math.sin(time * 4) * 0.08 * powerFactor;
       discRef.current.scale.set(s, s, 1);
     }
 
-    // Spawn ring bursts
     spawnCooldown.current -= delta;
     if (isActive && spawnCooldown.current <= 0 && powerFactor > 0.05) {
       const freeSlot = ringTimers.current.findIndex(t => t < 0);
       if (freeSlot >= 0) {
         ringTimers.current[freeSlot] = 0;
-        spawnCooldown.current = 0.3 + (1 - powerFactor) * 0.7; // faster at higher power
+        spawnCooldown.current = 0.3 + (1 - powerFactor) * 0.7;
       }
     }
 
-    // Animate rings
     if (ringsRef.current) {
       ringsRef.current.children.forEach((ring, i) => {
         const t = ringTimers.current[i];
-        if (t < 0) {
-          ring.visible = false;
-          return;
-        }
+        if (t < 0) { ring.visible = false; return; }
         ring.visible = true;
         ringTimers.current[i] += delta * 2.5;
         const progress = ringTimers.current[i];
-        if (progress > 1) {
-          ringTimers.current[i] = -1;
-          ring.visible = false;
-          return;
-        }
+        if (progress > 1) { ringTimers.current[i] = -1; ring.visible = false; return; }
         const scale = 0.3 + progress * 1.2;
         ring.scale.set(scale, scale, scale);
         const mat = (ring as THREE.Mesh).material as THREE.MeshBasicMaterial;
@@ -248,13 +237,10 @@ const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: num
 
   return (
     <group position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
-      {/* Glowing disc at rotor plane */}
       <mesh ref={discRef} rotation={[0, 0, 0]}>
         <circleGeometry args={[rotorDiameter * 0.35, 16]} />
         <meshBasicMaterial color="#00ffcc" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
-
-      {/* Expanding burst rings */}
       <group ref={ringsRef}>
         {Array.from({ length: MAX_RINGS }).map((_, i) => (
           <mesh key={i} rotation={[0, 0, 0]}>
@@ -263,6 +249,54 @@ const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: num
           </mesh>
         ))}
       </group>
+    </group>
+  );
+};
+
+// Cylindrical glow for VAWT generators (Darrieus/Savonius)
+const VAWTRotorGlow: React.FC<{ towerHeight: number; rotorDiameter: number; power: number; adjustedSpeed: number; isVAWT_savonius?: boolean }> = 
+  ({ towerHeight, rotorDiameter, power, adjustedSpeed, isVAWT_savonius = false }) => {
+  const glowRef = useRef<THREE.Mesh>(null);
+  const ringRef = useRef<THREE.Mesh>(null);
+
+  useFrame((state) => {
+    const time = state.clock.elapsedTime;
+    const powerFactor = Math.min(power / 5000, 1);
+    const isActive = adjustedSpeed > 0.5 && power > 0;
+
+    if (glowRef.current) {
+      const mat = glowRef.current.material as THREE.MeshBasicMaterial;
+      const pulse = Math.sin(time * 5 + adjustedSpeed) * 0.3 + 0.7;
+      mat.opacity = isActive ? (0.03 + powerFactor * 0.15) * pulse : 0.01;
+      const hue = 0.35 - powerFactor * 0.2; // green → yellow-green
+      mat.color.setHSL(hue, 0.9, 0.6);
+    }
+
+    if (ringRef.current) {
+      const mat = ringRef.current.material as THREE.MeshBasicMaterial;
+      const pulse2 = Math.sin(time * 8 + 1.5) * 0.4 + 0.6;
+      mat.opacity = isActive ? powerFactor * 0.12 * pulse2 : 0;
+      const scale = 1 + Math.sin(time * 3) * 0.06 * powerFactor;
+      ringRef.current.scale.set(scale, 1, scale);
+    }
+  });
+
+  const rotorH = isVAWT_savonius ? towerHeight * 0.5 : towerHeight * 0.6;
+  const centerY = isVAWT_savonius ? towerHeight * 0.75 : towerHeight * 0.5;
+  const r = rotorDiameter * 0.45;
+
+  return (
+    <group position={[0, centerY, 0]}>
+      {/* Cylindrical glow around rotor body */}
+      <mesh ref={glowRef}>
+        <cylinderGeometry args={[r * 1.3, r * 1.3, rotorH * 1.1, 16, 1, true]} />
+        <meshBasicMaterial color="#00ff88" transparent opacity={0.03} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      {/* Subtle ring at mid-height */}
+      <mesh ref={ringRef} rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[r * 1.0, r * 1.4, 24]} />
+        <meshBasicMaterial color="#44ffaa" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
     </group>
   );
 };
