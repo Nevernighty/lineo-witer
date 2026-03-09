@@ -72,6 +72,7 @@ export interface ParticleBuffer {
   velocities: Float32Array;  // [vx,vy,vz, ...] length = count*3
   sizes: Float32Array;       // length = count
   flags: Uint8Array;         // bit 0 = hasCollided, bit 1 = absorbed
+  absorbProgress: Float32Array; // 0→1 absorption lifecycle progress
   count: number;
 }
 
