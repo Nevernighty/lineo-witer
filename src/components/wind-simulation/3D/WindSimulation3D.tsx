@@ -672,7 +672,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       </Canvas>
 
       {showHint && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-20 animate-in fade-in slide-in-from-bottom-4 duration-300" style={{ pointerEvents: 'none' }}>
+        <div className="absolute bottom-16 left-1/2 -translate-x-1/2 z-40 animate-in fade-in slide-in-from-bottom-4 duration-300" style={{ pointerEvents: 'none' }}>
           <div className="px-3 py-1.5 rounded-full bg-background/90 border border-primary/50 text-primary text-xs font-mono shadow-[0_0_15px_rgba(57,255,20,0.3)]">
             {t('hintRotateScale', lang)}
           </div>
