@@ -197,7 +197,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
 
   const particleMaterial = useMemo(() => new THREE.MeshBasicMaterial({
     transparent: true,
-    opacity: Math.min(1, presetCfg.opacity * Math.max(glowIntensity * 1.5, 0.4)),
+    opacity: Math.min(1, presetCfg.opacity * Math.max(glowIntensity * 1.8, 0.5)),
     blending: THREE.AdditiveBlending,
     depthWrite: false,
     side: THREE.DoubleSide,

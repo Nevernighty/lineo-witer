@@ -526,10 +526,17 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               particle.speedX += Math.sign(ddx) * Math.sin(separationAngleRad) * speed * 0.3;
             }
 
-            const scatterAmount = physics.turbulenceGeneration * 1.5;
-            particle.speedX += (Math.random() - 0.5) * scatterAmount;
-            particle.speedY += Math.random() * scatterAmount * 0.5;
-            particle.speedZ += (Math.random() - 0.5) * scatterAmount;
+            // Enhanced scatter: velocity-dependent + random spread
+            const scatterAmount = physics.turbulenceGeneration * 2.5;
+            const speedFactor = Math.min(speed * 0.15, 2);
+            particle.speedX += (Math.random() - 0.5) * scatterAmount * (1 + speedFactor);
+            particle.speedY += Math.random() * scatterAmount * 0.8;
+            particle.speedZ += (Math.random() - 0.5) * scatterAmount * (1 + speedFactor);
+            // Post-collision speed decay
+            const decayFactor = 0.6 + materialRestitution * 0.3;
+            particle.speedX *= decayFactor;
+            particle.speedY *= decayFactor;
+            particle.speedZ *= decayFactor;
             particle.hasCollided = true;
             particle.collisionTimer = 20;
             particle.lastObstacleId = obstacleId;
