@@ -437,25 +437,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
           {showHeightRuler && (<><HeightRuler maxHeight={simulationSize.height} config={physicsConfig} /><HeightRulerLabels maxHeight={simulationSize.height} config={physicsConfig} /></>)}
 
-          {showWindProfile && (
-            <group position={[-48, 0, -48]}>
-              {[5, 10, 20, 30, 40, 50].map(h => {
-                const speed = calculateWindShear(physicsConfig.windSpeed, physicsConfig.referenceHeight, h, physicsConfig.surfaceRoughness);
-                const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
-                const arrowLen = speed * 0.5;
-                return (
-                  <group key={h} position={[0, h, 0]}>
-                    <mesh position={[Math.cos(angleRad) * arrowLen / 2, 0, Math.sin(angleRad) * arrowLen / 2]} rotation={[0, -angleRad + Math.PI / 2, Math.PI / 2]}>
-                      <cylinderGeometry args={[0.08, 0.08, arrowLen, 4]} /><meshBasicMaterial color="#00aaff" transparent opacity={0.5} />
-                    </mesh>
-                    <mesh position={[Math.cos(angleRad) * arrowLen, 0, Math.sin(angleRad) * arrowLen]} rotation={[0, -angleRad + Math.PI / 2, 0]}>
-                      <coneGeometry args={[0.25, 0.6, 4]} /><meshBasicMaterial color="#00aaff" transparent opacity={0.6} />
-                    </mesh>
-                  </group>
-                );
-              })}
-            </group>
-          )}
+          {showWindProfile && <WindProfileViz config={physicsConfig} />}
 
           {showPressureMap && obstacles.map((obs, i) => {
             if (obs.type === 'wind_generator') return null;
