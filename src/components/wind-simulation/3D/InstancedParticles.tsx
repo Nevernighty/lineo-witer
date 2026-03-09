@@ -134,33 +134,22 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
   const time = Date.now() * 0.001;
 
   if (absorbed) {
-    // 3-phase progressive absorption VFX using absorbProgress (0→1)
     const p = absorbProgress;
-    
-    if (p < 0.2) {
-      // Phase 1: Intense WHITE-GREEN flash — bright highlight impact
-      const flash = 1.0 + (0.2 - p) * 3;
-      c.setRGB(flash * 1.2, flash * 1.5, flash * 1.0);
-    } else if (p < 0.6) {
-      // Phase 2: Saturated EMERALD GREEN with strong glow pulsation
-      const p2 = (p - 0.2) / 0.4;
-      const pulse = 0.8 + Math.sin(time * 20 + p2 * 12) * 0.4;
-      c.setRGB(
-        0.05 + p2 * 0.05,
-        Math.min(2.0, (1.6 + Math.sin(time * 28) * 0.4) * pulse),
-        0.15 + p2 * 0.15
-      );
+
+    if (p < 0.15) {
+      const p1 = p / 0.15;
+      const flash = 1.2 - p1 * 0.2;
+      c.setRGB(0.8 * flash, 1.8 * flash, 0.6 * flash);
+    } else if (p < 0.7) {
+      const p2 = (p - 0.15) / 0.55;
+      const pulse = 1.0 + Math.sin(time * 14 + p2 * 8) * 0.18;
+      c.setRGB(0.1 * pulse, 1.5 * pulse, 0.2 * pulse);
     } else {
-      // Phase 3: Fade to CYAN-GREEN sparks with high-frequency flicker
-      const p3 = (p - 0.6) / 0.4;
-      const flicker = Math.sin(time * 45 + p3 * 20) > 0 ? 1.0 : 0.4;
-      const fade = 1.0 - p3 * 0.6;
-      c.setRGB(
-        0.0,
-        (1.0 + Math.sin(time * 30) * 0.3) * fade * flicker,
-        (0.5 + p3 * 0.3) * fade * flicker
-      );
+      const p3 = (p - 0.7) / 0.3;
+      const fade = 1.0 - p3;
+      c.setRGB(0.0, 0.8 * fade, 0.1 * fade);
     }
+
     return;
   }
 
