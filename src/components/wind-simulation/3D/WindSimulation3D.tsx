@@ -702,7 +702,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       </div>
 
       {activeAnalysisCount > 0 && (
-        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-20" style={{ pointerEvents: 'none' }}>
+        <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40" style={{ pointerEvents: 'none' }}>
           <div className="px-3 py-1 rounded-full bg-background/80 border border-orange-500/40 text-[9px] font-mono text-orange-400/80 tracking-wide">
             {t('vizWarning', lang)}
           </div>
