@@ -128,25 +128,37 @@ const PRESET_CONFIG: Record<string, { baseSizeMul: number; opacity: number; tail
   streams:  { baseSizeMul: 0.9, opacity: 0.8, tailScale: 1.2 },
 };
 
-const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number) => {
+const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, absorbed: boolean, impactMul: number, glow: number, absorbProgress: number) => {
   const maxSpeed = 18;
   const t = Math.min(speed / maxSpeed, 1);
   const time = Date.now() * 0.001;
 
   if (absorbed) {
-    // Bright WHITE flash (first 30%) → vivid GREEN glow dissolve
-    const phase = (Math.sin(time * 12) + 1) * 0.5;
-    if (phase < 0.3) {
-      // Pure white flash
-      const w = 1.0 + (0.3 - phase) * 1.5;
-      c.setRGB(w, w, w);
-    } else {
-      // Vivid saturated green with strong pulsation
-      const gPulse = 0.85 + Math.sin(time * 18) * 0.35;
+    // 3-phase progressive absorption VFX using absorbProgress (0→1)
+    const p = absorbProgress;
+    
+    if (p < 0.2) {
+      // Phase 1: Intense WHITE-GREEN flash — bright highlight impact
+      const flash = 1.0 + (0.2 - p) * 3;
+      c.setRGB(flash * 1.2, flash * 1.5, flash * 1.0);
+    } else if (p < 0.6) {
+      // Phase 2: Saturated EMERALD GREEN with strong glow pulsation
+      const p2 = (p - 0.2) / 0.4;
+      const pulse = 0.8 + Math.sin(time * 20 + p2 * 12) * 0.4;
       c.setRGB(
-        0.05,
-        Math.min(1.5, (1.1 + Math.sin(time * 24) * 0.2) * gPulse),
-        0.1
+        0.05 + p2 * 0.05,
+        Math.min(2.0, (1.6 + Math.sin(time * 28) * 0.4) * pulse),
+        0.15 + p2 * 0.15
+      );
+    } else {
+      // Phase 3: Fade to CYAN-GREEN sparks with high-frequency flicker
+      const p3 = (p - 0.6) / 0.4;
+      const flicker = Math.sin(time * 45 + p3 * 20) > 0 ? 1.0 : 0.4;
+      const fade = 1.0 - p3 * 0.6;
+      c.setRGB(
+        0.0,
+        (1.0 + Math.sin(time * 30) * 0.3) * fade * flicker,
+        (0.5 + p3 * 0.3) * fade * flicker
       );
     }
     return;
@@ -165,8 +177,8 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
   }
 
   // Default wind: white-grey transparent, subtle speed shift
-  const base = 0.55 + t * 0.25; // 0.55 → 0.80
-  const blueShift = 0.6 + t * 0.2; // slightly cooler tone
+  const base = 0.55 + t * 0.25;
+  const blueShift = 0.6 + t * 0.2;
   c.setRGB(base * 0.95, base * 0.95, blueShift);
 };
 
