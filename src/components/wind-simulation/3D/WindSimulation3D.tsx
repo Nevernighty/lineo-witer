@@ -439,32 +439,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
           {showWindProfile && <WindProfileViz config={physicsConfig} />}
 
-          {showPressureMap && obstacles.map((obs, i) => {
-            if (obs.type === 'wind_generator') return null;
-            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
-            const angleRad = (physicsConfig.windAngle * Math.PI) / 180;
-            const hpX = cx - Math.cos(angleRad) * obs.width, hpZ = cz - Math.sin(angleRad) * obs.depth;
-            const lpX = cx + Math.cos(angleRad) * obs.width * 1.5, lpZ = cz + Math.sin(angleRad) * obs.depth * 1.5;
-            const pi = Math.min(physicsConfig.windSpeed / 15, 1);
-            return (
-              <group key={`pressure-${i}`}>
-                <mesh position={[hpX, obs.height * 0.5, hpZ]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <circleGeometry args={[obs.width * 0.5 * (0.5 + pi * 0.5), 20]} /><meshBasicMaterial color="#ff4444" transparent opacity={0.15 + pi * 0.1} side={THREE.DoubleSide} />
-                </mesh>
-                <Html position={[hpX, obs.height * 0.7, hpZ]} center style={{ pointerEvents: 'none' }}>
-                  <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(255,50,50,0.3)', color: '#ff6666' }}>
-                    H+ {(0.5 * physicsConfig.airDensity * physicsConfig.windSpeed * physicsConfig.windSpeed).toFixed(0)} Pa
-                  </div>
-                </Html>
-                <mesh position={[lpX, obs.height * 0.5, lpZ]} rotation={[-Math.PI / 2, 0, 0]}>
-                  <circleGeometry args={[obs.width * 0.6 * (0.5 + pi * 0.5), 20]} /><meshBasicMaterial color="#4444ff" transparent opacity={0.12 + pi * 0.08} side={THREE.DoubleSide} />
-                </mesh>
-                <Html position={[lpX, obs.height * 0.7, lpZ]} center style={{ pointerEvents: 'none' }}>
-                  <div className="text-[7px] font-mono px-1 rounded" style={{ backgroundColor: 'rgba(50,50,255,0.3)', color: '#6666ff' }}>L-</div>
-                </Html>
-              </group>
-            );
-          })}
+          {showPressureMap && <PressureMapViz config={physicsConfig} obstacles={obstacles} />}
 
           {showEnergyDensity && (
             <group position={[48, 0, 48]}>
