@@ -419,7 +419,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </div>
       )}
 
-      <Canvas camera={{ position: [70, 45, 70], fov: 50 }} className="!absolute inset-0" style={{ pointerEvents: 'auto' }}
+      <Canvas camera={{ position: [70, 45, 70], fov: 50 }} className="!absolute inset-0" style={{ pointerEvents: 'auto', zIndex: 0 }}
         onPointerDown={handleCanvasPointerDown} onPointerMove={handleCanvasPointerMove} onPointerUp={handleCanvasPointerUp}>
         <Suspense fallback={null}>
           <ambientLight intensity={0.35} />
