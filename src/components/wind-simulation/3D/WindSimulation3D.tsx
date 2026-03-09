@@ -695,7 +695,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           particlePreset={particlePreset} onParticlePresetChange={handlePresetChange} />
       </div>
 
-      <div style={{ pointerEvents: 'auto', overflow: 'visible' }}>
+      <div className="z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedMeasurementPanel config={physicsConfig} particleCount={particleCount}
           obstacles={obstacles} collisionEnergy={collisionEnergy}
           activeCollisions={obstacles.length} generatorPower={generatorPower} lang={lang} />
