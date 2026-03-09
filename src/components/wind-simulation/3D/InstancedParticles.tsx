@@ -288,7 +288,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       meshRef.current!.setMatrixAt(i, dummy.matrix);
 
       if (meshRef.current!.instanceColor) {
-        getSpeedColor(tempColor, speed, hasCollided, isAbsorbed, impactMultiplier, glowIntensity);
+        getSpeedColor(tempColor, speed, hasCollided, isAbsorbed, impactMultiplier, glowIntensity, ap);
         meshRef.current!.instanceColor.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
       }
     }

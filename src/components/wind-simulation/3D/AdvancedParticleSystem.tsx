@@ -574,6 +574,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       buf.velocities[i3 + 2] = particle.speedZ;
       buf.sizes[i] = particle.size;
       buf.flags[i] = (particle.hasCollided ? 1 : 0) | (particle.absorbed ? 2 : 0);
+      buf.absorbProgress[i] = particle.absorbed ? 1 - (particle.absorptionTimer / 28) : 0;
     }
 
     collisionEnergyRef.current *= 0.995;
