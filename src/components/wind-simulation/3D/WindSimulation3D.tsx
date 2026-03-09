@@ -530,31 +530,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           {showCapacityFactor && <CapacityFactorViz config={physicsConfig} obstacles={obstacles} />}
 
           {/* Betz Zones for generators */}
-          {showBetzOverlay && obstacles.filter(o => o.type === 'wind_generator').map((obs, i) => {
-            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
-            const cy = obs.y + obs.height * 0.7;
-            const rotorR = obs.width * 0.9 * (obs.scale || 1);
-            const power = calculateGeneratorPower(physicsConfig.airDensity, obs.width * 1.8, physicsConfig.windSpeed, obs.height + obs.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness, obs.generatorSubtype || 'hawt3');
-            const totalWind = 0.5 * physicsConfig.airDensity * Math.PI * rotorR * rotorR * Math.pow(physicsConfig.windSpeed, 3);
-            const actualPct = totalWind > 0 ? ((power / totalWind) * 100).toFixed(0) : '0';
-            return (
-              <group key={`betz-${i}`} position={[cx, cy, cz]}>
-                {/* Outer: total wind energy */}
-                <mesh><sphereGeometry args={[rotorR * 1.5, 16, 12]} /><meshBasicMaterial color="#4488ff" transparent opacity={0.04} wireframe /></mesh>
-                {/* Middle: Betz limit 59.3% */}
-                <mesh><sphereGeometry args={[rotorR * 1.1, 16, 12]} /><meshBasicMaterial color="#ffaa00" transparent opacity={0.06} wireframe /></mesh>
-                {/* Inner: actual extraction */}
-                <mesh><sphereGeometry args={[rotorR * 0.7, 16, 12]} /><meshBasicMaterial color="#44ff44" transparent opacity={0.08} wireframe /></mesh>
-                <Html position={[rotorR * 1.6, rotorR * 0.5, 0]} center style={{ pointerEvents: 'none' }}>
-                  <div className="text-[7px] font-mono leading-tight px-1 rounded" style={{ backgroundColor: 'rgba(0,0,0,0.85)', color: '#aaddff', border: '1px solid rgba(68,136,255,0.3)' }}>
-                    <div style={{ color: '#4488ff' }}>100% total</div>
-                    <div style={{ color: '#ffaa00' }}>59.3% Betz</div>
-                    <div style={{ color: '#44ff44' }}>{actualPct}% actual</div>
-                  </div>
-                </Html>
-              </group>
-            );
-          })}
+          {showBetzOverlay && <BetzOverlayViz config={physicsConfig} obstacles={obstacles} />}
 
           <group>
             {interactionMode === 'place' && ghostPosition && (
