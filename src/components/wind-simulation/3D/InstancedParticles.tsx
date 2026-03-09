@@ -135,17 +135,25 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
   const glowBoost = glow > 1.0 ? 1.0 + (glow - 1.0) * 0.6 : glowFloor;
 
   if (absorbed) {
-    // Bright WHITE flash → vivid GREEN dissolve
-    const t2 = Date.now() * 0.008;
+    // Bright WHITE flash (first 30%) → vivid GREEN dissolve (rest)
+    const t2 = Date.now() * 0.012;
     const phase = (Math.sin(t2) + 1) * 0.5; // 0→1 oscillation
-    // Start white, transition to bright green
-    const whiteness = Math.max(0, 1 - phase * 0.85);
-    const gPulse = 0.7 + Math.sin(t2 * 3) * 0.3;
-    c.setRGB(
-      (0.2 + whiteness * 0.8) * glowFloor,
-      (0.8 + whiteness * 0.2) * gPulse * glowFloor,
-      (0.15 + whiteness * 0.85) * glowFloor
-    );
+    // First 30%: nearly pure white, then transition to bright green
+    const whiteness = Math.max(0, 1 - phase * 0.7);
+    const isEarlyPhase = phase < 0.3;
+    if (isEarlyPhase) {
+      // Bright white flash
+      const w = 0.8 + (0.3 - phase) * 0.67;
+      c.setRGB(w * glowFloor, w * glowFloor, w * glowFloor);
+    } else {
+      // Vivid green dissolve with pulsation
+      const gPulse = 0.8 + Math.sin(t2 * 4) * 0.2;
+      c.setRGB(
+        0.1 * glowFloor,
+        (0.9 + Math.sin(t2 * 6) * 0.1) * gPulse * glowFloor,
+        0.15 * glowFloor
+      );
+    }
     return;
   }
 
