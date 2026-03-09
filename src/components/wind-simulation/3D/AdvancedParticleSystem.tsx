@@ -385,14 +385,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               );
             }
             
-            if (onCollisionEvent && Math.random() < 0.60) {
-              onCollisionEvent({
-                id: `absorb-${Date.now()}-${Math.random()}`,
-                position: [particle.x, particle.y, particle.z],
-                intensity: Math.min(Math.sqrt(particle.speedX ** 2 + particle.speedZ ** 2) * 0.12, 1.8),
-                deflection: [-windDirection.x, 0.3, -windDirection.z],
-              });
-            }
+            // No red collision effect for generators — only green absorption popups
           }
         }
       }
