@@ -437,11 +437,22 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       if (particle.absorptionTimer > 0) {
         particle.absorptionTimer--;
         const progress = 1 - particle.absorptionTimer / 28; // 0→1
-        // Scale spike at start (frames 0-3), then rapid oscillating shrink
-        const initialSpike = progress < 0.1 ? 1.5 + (0.1 - progress) * 8 : 1;
-        const dissolvePulse = Math.sin(progress * Math.PI * 8) * 0.5 * (1 - progress);
-        particle.size = Math.max(0.05, (1 - progress * progress) * 1.2 * initialSpike + dissolvePulse);
-        // Spiral inward: stronger tangential swirl for VAWT
+        
+        // Phase 1 (0-20%): big spike
+        // Phase 2 (20-60%): oscillating shrink with stretch
+        // Phase 3 (60-100%): dissolve with jitter
+        if (progress < 0.2) {
+          particle.size = Math.max(0.1, 2.5 * (1 - progress * 2));
+        } else if (progress < 0.6) {
+          const p2 = (progress - 0.2) / 0.4;
+          particle.size = Math.max(0.08, (1.2 - p2 * 0.7) + Math.sin(p2 * Math.PI * 6) * 0.3);
+        } else {
+          // Final dissolve with size jitter — "splitting into sparks"
+          const p3 = (progress - 0.6) / 0.4;
+          particle.size = Math.max(0.03, (0.5 - p3 * 0.45) * (0.85 + Math.random() * 0.3));
+        }
+        
+        // Spiral inward with aggressive end-fling
         const nearGen = generators.find(g => {
           const ddx = g.cx - particle.x;
           const ddz = g.cz - particle.z;
@@ -452,7 +463,9 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
           const ddy = nearGen.cy - particle.y;
           const ddz = nearGen.cz - particle.z;
           const dd = Math.sqrt(ddx*ddx + ddy*ddy + ddz*ddz) || 1;
-          const swirlStrength = nearGen.isVAWT ? progress * 5 : progress * 3;
+          // Stronger tangential fling in final frames
+          const flingBoost = progress > 0.7 ? 1 + (progress - 0.7) * 8 : 1;
+          const swirlStrength = (nearGen.isVAWT ? progress * 5 : progress * 3) * flingBoost;
           const inwardPull = nearGen.isVAWT ? 1.5 : 2.5;
           particle.speedX += (ddx / dd * inwardPull + (-ddz / dd) * swirlStrength) * delta * 8;
           particle.speedY += (ddy / dd * 1.5) * delta * 8;
@@ -461,7 +474,6 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         if (particle.absorptionTimer === 0) {
           particle.absorbed = false;
           particle.size = 0.8;
-          // Respawn far away
           particle.x = (Math.random() - 0.5) * width;
           particle.y = height * (0.15 + Math.random() * 0.65);
           particle.z = (Math.random() - 0.5) * depth;
