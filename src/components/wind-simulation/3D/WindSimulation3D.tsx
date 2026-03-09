@@ -341,7 +341,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const activeAnalysisCount = analysisItems.filter(i => i.checked).length;
 
   return (
-    <div className="relative w-full h-full">
+    <div className="relative w-full h-full" style={{ isolation: 'isolate' }}>
       {/* Mode toggle + Scenario + Analysis buttons */}
       <div className="absolute top-3 left-[195px] z-20 flex gap-1" style={{ pointerEvents: 'auto' }}>
         <button onClick={() => { setInteractionMode('place'); setSelectedObstacleIndex(null); }}
