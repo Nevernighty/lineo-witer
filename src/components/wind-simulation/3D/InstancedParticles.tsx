@@ -245,20 +245,22 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       let lateralMul = 1.0;
       
       if (isAbsorbed && ap > 0) {
-        // 3-phase scale animation
-        if (ap < 0.2) {
-          // Phase 1: Big spike expansion
-          baseScale *= 2.5 - ap * 5;
-        } else if (ap < 0.6) {
-          // Phase 2: Elongated stretch — Z grows, X/Y shrinks (splitting look)
-          const p2 = (ap - 0.2) / 0.4;
-          baseScale *= 1.2 + Math.sin(p2 * Math.PI * 6) * 0.3;
-          lateralMul = 0.4 + (1 - p2) * 0.3;
+        if (ap < 0.15) {
+          const p1 = ap / 0.15;
+          const easeOut = 1 - Math.pow(1 - p1, 2);
+          baseScale *= 1 + 0.5 * easeOut;
+          lateralMul = 0.95;
+        } else if (ap < 0.7) {
+          const p2 = (ap - 0.15) / 0.55;
+          const pulse = 1 + Math.sin(time * 8 + i * 0.35) * 0.06;
+          baseScale *= pulse * (1.05 - p2 * 0.08);
+          lateralMul = 0.7;
         } else {
-          // Phase 3: Rapid dissolve with jitter
-          const p3 = (ap - 0.6) / 0.4;
-          baseScale *= (0.6 - p3 * 0.5) * (0.85 + Math.random() * 0.3);
-          lateralMul = 0.3 + Math.random() * 0.2;
+          const p3 = (ap - 0.7) / 0.3;
+          const shrink = 1 - p3 * 0.8;
+          const microJitter = 1 + Math.sin(time * 22 + i * 0.9) * 0.04;
+          baseScale *= Math.max(0.2, shrink) * microJitter;
+          lateralMul = 0.7 - p3 * 0.2;
         }
       }
 

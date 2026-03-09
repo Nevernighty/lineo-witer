@@ -34,6 +34,7 @@ const LocalHitPopup: React.FC<LocalHitPopupProps> = ({ hit, onExpire }) => {
 
   const progress = Math.min(hit.age / hit.maxAge, 1);
   const opacity = 1 - progress;
+  const energyScale = Math.max(0.5, Math.min(1.5, 0.5 + hit.energy * 4));
 
   if (opacity <= 0) return null;
 
@@ -49,8 +50,10 @@ const LocalHitPopup: React.FC<LocalHitPopupProps> = ({ hit, onExpire }) => {
           backgroundColor: `rgba(0,0,0,${0.8 * opacity})`,
           borderColor: `${color}${Math.round(opacity * 99).toString().padStart(2, '0')}`,
           color,
+          fontSize: `${10 * energyScale}px`,
+          padding: `${0.125 * energyScale}rem ${0.375 * energyScale}rem`,
           opacity,
-          transform: `scale(${0.8 + (1 - progress) * 0.4})`,
+          transform: `scale(${(0.8 + (1 - progress) * 0.4) * energyScale})`,
           transition: 'none',
           whiteSpace: 'nowrap',
           boxShadow: hit.isAbsorption ? `0 0 8px ${color}${Math.round(opacity * 60).toString().padStart(2, '0')}` : undefined,
