@@ -394,7 +394,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
       {/* Scenario picker */}
       {showScenarios && (
-        <div className="absolute top-12 left-[195px] z-30 w-80 bg-background/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
+        <div className="absolute top-12 left-[195px] z-50 w-80 bg-background/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
           <div className="px-3 py-2 border-b border-cyan-500/20 flex items-center gap-2">
             <MapIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">{t('scenarios', lang)}</span>
