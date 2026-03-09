@@ -709,7 +709,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </div>
       )}
 
-      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-10" style={{ pointerEvents: 'none' }}>
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-40" style={{ pointerEvents: 'none' }}>
         <p className="text-[9px] text-muted-foreground/70 text-center font-mono bg-background/60 px-3 py-1 rounded-full">
           {interactionMode === 'select' ? t('footerHintSelect', lang) : t('footerHint', lang)}
         </p>
