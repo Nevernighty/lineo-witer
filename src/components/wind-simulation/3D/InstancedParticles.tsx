@@ -135,13 +135,16 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
   const glowBoost = glow > 1.0 ? 1.0 + (glow - 1.0) * 0.6 : glowFloor;
 
   if (absorbed) {
-    // Bright WHITE → GREEN transition — energy extracted
-    const pulse = 0.6 + Math.sin(Date.now() * 0.012) * 0.4;
-    const whiteness = Math.max(0, 1 - pulse * 0.7);
+    // Bright WHITE flash → vivid GREEN dissolve
+    const t2 = Date.now() * 0.008;
+    const phase = (Math.sin(t2) + 1) * 0.5; // 0→1 oscillation
+    // Start white, transition to bright green
+    const whiteness = Math.max(0, 1 - phase * 0.85);
+    const gPulse = 0.7 + Math.sin(t2 * 3) * 0.3;
     c.setRGB(
-      0.3 + whiteness * 0.7,
-      0.85 + whiteness * 0.15,
-      0.2 + whiteness * 0.6
+      (0.2 + whiteness * 0.8) * glowFloor,
+      (0.8 + whiteness * 0.2) * gPulse * glowFloor,
+      (0.15 + whiteness * 0.85) * glowFloor
     );
     return;
   }
