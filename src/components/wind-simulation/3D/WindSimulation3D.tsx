@@ -527,27 +527,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           })}
 
           {/* Capacity Factor for generators */}
-          {showCapacityFactor && obstacles.filter(o => o.type === 'wind_generator').map((obs, i) => {
-            const cx = obs.x + obs.width / 2, cz = obs.z + obs.depth / 2;
-            const power = calculateGeneratorPower(physicsConfig.airDensity, obs.width * 1.8, physicsConfig.windSpeed, obs.height + obs.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness, obs.generatorSubtype || 'hawt3');
-            const ratedPower = 0.5 * physicsConfig.airDensity * Math.PI * Math.pow(obs.width * 0.9, 2) * Math.pow(12, 3) * 0.45;
-            const cf = ratedPower > 0 ? Math.min(power / ratedPower, 0.6) : 0;
-            const cfPct = (cf * 100).toFixed(0);
-            const cfColor = cf < 0.2 ? '#ff4444' : cf < 0.35 ? '#ffaa00' : '#44ff44';
-            return (
-              <Html key={`cf-${i}`} position={[cx, obs.height + obs.y + 8, cz]} center style={{ pointerEvents: 'none' }}>
-                <div className="flex flex-col items-center">
-                  <svg width="44" height="28" viewBox="0 0 44 28">
-                    <path d="M 4 24 A 18 18 0 0 1 40 24" fill="none" stroke="#333" strokeWidth="3" />
-                    <path d="M 4 24 A 18 18 0 0 1 40 24" fill="none" stroke={cfColor} strokeWidth="3"
-                      strokeDasharray={`${cf / 0.6 * 56.5} 56.5`} strokeLinecap="round" />
-                    <text x="22" y="22" textAnchor="middle" fill={cfColor} fontSize="9" fontFamily="monospace" fontWeight="bold">{cfPct}%</text>
-                  </svg>
-                  <div className="text-[7px] font-mono mt-0.5" style={{ color: cfColor }}>Cf</div>
-                </div>
-              </Html>
-            );
-          })}
+          {showCapacityFactor && <CapacityFactorViz config={physicsConfig} obstacles={obstacles} />}
 
           {/* Betz Zones for generators */}
           {showBetzOverlay && obstacles.filter(o => o.type === 'wind_generator').map((obs, i) => {
