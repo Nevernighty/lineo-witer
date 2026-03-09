@@ -8,6 +8,7 @@ import { AdvancedMeasurementPanel } from './AdvancedMeasurementPanel';
 import { AdvancedWindControls } from './AdvancedWindControls';
 import { GhostObstacle } from './GhostObstacle';
 import { CollisionEffectsManager } from './CollisionEffect';
+import { WindProfileViz, PressureMapViz, TurbulenceFieldViz, CapacityFactorViz, BetzOverlayViz } from './AnalysisVisualizations';
 import { CollisionHotspotManager } from './CollisionHotspot';
 import { LocalHitManager } from './LocalHitPopup';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateWindShear } from './WindPhysicsEngine';
