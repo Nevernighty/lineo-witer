@@ -1,9 +1,11 @@
 import { motion } from "framer-motion";
 import { Wind, Recycle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { t, type Lang } from "@/utils/i18n";
 
 interface LoadingScreenProps {
   onComplete: () => void;
+  lang?: Lang;
 }
 
 export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
