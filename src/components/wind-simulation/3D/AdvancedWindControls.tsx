@@ -196,7 +196,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           {onParticlePresetChange && (
             <div className="pt-2 border-t border-primary/15">
               <Label className="text-[9px] text-primary/80 uppercase tracking-wide mb-1.5 block">{t('particlePreset', lang)}</Label>
-              <div className="grid grid-cols-5 gap-0.5">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-0.5">
                 {[
                   { id: 'standard', label: t('presetStandard', lang), emoji: '💨' },
                   { id: 'smoke', label: t('presetSmoke', lang), emoji: '🌫️' },

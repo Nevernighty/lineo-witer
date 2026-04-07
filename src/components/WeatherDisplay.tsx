@@ -498,7 +498,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
 
       {/* Ring Gauges Row */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-        className="flex items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+        className="flex items-center justify-center sm:justify-between flex-wrap gap-3 p-3 sm:p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
         <RingGauge value={weather.windSpeed} max={25} label={lang === 'ua' ? 'Вітер' : 'Wind'} unit="m/s" color="hsl(120 100% 54%)" />
         <WindRoseCompass angle={weather.windAngle} speed={weather.windSpeed} lang={lang} />
         <RingGauge value={weather.temperature} max={45} label={lang === 'ua' ? 'Темп.' : 'Temp'} unit="°C" color="hsl(25 90% 55%)" />

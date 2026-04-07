@@ -78,44 +78,44 @@ const Index = () => {
       {/* Simulation View */}
       {appState === 'simulation' && (
         <>
-          <header className="flex-shrink-0 px-4 py-2 border-b border-border/50 bg-card/80 backdrop-blur-sm z-20">
-            <div className="flex items-center justify-between gap-4">
+          <header className="flex-shrink-0 px-2 sm:px-4 py-2 border-b border-border/50 bg-card/80 backdrop-blur-sm z-20">
+            <div className="flex items-center justify-between gap-2 sm:gap-4 flex-wrap">
               <div className="flex items-center gap-2">
                 <button onClick={() => setAppState('menu')} className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors">
                   <ArrowLeft className="w-5 h-5" />
                 </button>
-                <Recycle className="text-primary w-5 h-5 animate-[spin_6s_linear_infinite]" />
-                <h1 className="text-lg font-bold tracking-tight">
+                <Recycle className="text-primary w-5 h-5 animate-[spin_6s_linear_infinite] hidden sm:block" />
+                <h1 className="text-base sm:text-lg font-bold tracking-tight">
                   <span className="text-foreground">LINE-O</span>
                   <Wind className="inline-block text-primary w-4 h-4 mx-1 animate-wiggle-slow" />
                   <span className="text-foreground">WITER</span>
                 </h1>
               </div>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-2 px-3 py-1 bg-background/50 rounded-lg border border-border/30">
-                  <Wind className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-mono text-primary">{windSpeed.toFixed(1)}</span>
-                  <span className="text-xs text-muted-foreground">m/s</span>
+              <div className="flex items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 bg-background/50 rounded-lg border border-border/30">
+                  <Wind className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-primary" />
+                  <span className="text-xs sm:text-sm font-mono text-primary">{windSpeed.toFixed(1)}</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">m/s</span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1 bg-background/50 rounded-lg border border-border/30">
-                  <Zap className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-mono text-primary">{power}</span>
-                  <span className="text-xs text-muted-foreground">W</span>
+                <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1 bg-background/50 rounded-lg border border-border/30">
+                  <Zap className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-primary" />
+                  <span className="text-xs sm:text-sm font-mono text-primary">{power}</span>
+                  <span className="text-[10px] sm:text-xs text-muted-foreground">W</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1.5 sm:gap-2">
                 <div className="flex bg-background/50 rounded-lg border border-border/30 p-0.5">
                   <button onClick={() => setLang('ua')}
-                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
+                    className={`px-1.5 sm:px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
                     UA
                   </button>
                   <button onClick={() => setLang('en')}
-                    className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
+                    className={`px-1.5 sm:px-2 py-1 rounded text-xs font-semibold transition-colors ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
                     EN
                   </button>
                 </div>
                 {location && (
-                  <div className="flex items-center gap-2 px-2 py-1 bg-background/50 rounded-lg border border-border/30">
+                  <div className="hidden sm:flex items-center gap-2 px-2 py-1 bg-background/50 rounded-lg border border-border/30">
                     <MapPin className="w-3 h-3 text-primary" />
                     <span className="text-xs font-mono text-muted-foreground">
                       {showCoords ? `${location.lat.toFixed(2)}°, ${location.lon.toFixed(2)}°` : '••.••°'}

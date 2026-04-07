@@ -62,7 +62,7 @@ export const LoadingScreen = ({ onComplete, lang = 'ua' }: LoadingScreenProps) =
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
       >
-        Wind Energy Simulation
+        {t('windEnergySimulation', lang)}
       </motion.p>
 
       {/* Progress bar */}

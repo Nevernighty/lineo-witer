@@ -167,11 +167,11 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
 
       {/* Pressure labels */}
       <g transform={`rotate(${-attackAngle}, 190, 85)`}>
-        <text x="160" y={55 - attackAngle * 0.5} fontSize="10" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
-          − {attackAngle > 10 ? 'LOW' : 'Low'} P
+      <text x="160" y={55 - attackAngle * 0.5} fontSize="10" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
+          − {attackAngle > 10 ? 'LOW P' : 'Low P'}
         </text>
         <text x="160" y={120 + attackAngle * 0.3} fontSize="10" fill="hsl(0 80% 55%)" fontWeight="600" opacity="0.7">
-          + {attackAngle > 10 ? 'HIGH' : 'High'} P
+          + {attackAngle > 10 ? 'HIGH P' : 'High P'}
         </text>
       </g>
 

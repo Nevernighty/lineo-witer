@@ -83,7 +83,7 @@ export const MainMenu = ({
         </button>
       </div>
 
-      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 flex flex-col items-center max-w-lg w-full px-4">
+      <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 flex flex-col items-center max-w-lg w-full px-3 sm:px-4">
         {/* Logo */}
         <motion.div variants={itemVariants} className="flex items-center gap-3 mb-10">
           <Recycle className="text-primary w-7 h-7 animate-[spin_6s_linear_infinite]" />
