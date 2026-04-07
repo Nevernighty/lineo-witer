@@ -57,7 +57,7 @@ const Index = () => {
       <AnimatePresence mode="wait">
         {/* Loading Screen */}
         {appState === 'loading' && (
-          <LoadingScreen key="loading" onComplete={handleLoadingComplete} />
+          <LoadingScreen key="loading" onComplete={handleLoadingComplete} lang={lang} />
         )}
 
         {/* Main Menu */}
