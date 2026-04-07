@@ -377,7 +377,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
 
       {/* Windy.com Map — larger */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-        className="relative rounded-xl overflow-hidden border border-primary/20" style={{ height: '420px' }}>
+        className="relative rounded-xl overflow-hidden border border-primary/20" style={{ height: 'clamp(280px, 50vw, 420px)' }}>
         <iframe
           src={windyUrl}
           className="w-full h-full border-0"
@@ -420,7 +420,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
             <Layers className="w-3.5 h-3.5 text-primary" />
             <span className="text-[11px] font-semibold text-foreground">{lang === 'ua' ? 'Шари карти' : 'Map Layers'}</span>
           </div>
-          <div className="grid grid-cols-6 gap-1">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
             {windyOverlays.map(overlay => {
               const isActive = windyOverlay === overlay.id;
               return (
@@ -498,7 +498,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
 
       {/* Ring Gauges Row */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-        className="flex items-center justify-between p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
+        className="flex items-center justify-center sm:justify-between flex-wrap gap-3 p-3 sm:p-4 rounded-xl border" style={{ backgroundColor: 'hsl(222 28% 10%)', borderColor: 'hsl(var(--border) / 0.3)' }}>
         <RingGauge value={weather.windSpeed} max={25} label={lang === 'ua' ? 'Вітер' : 'Wind'} unit="m/s" color="hsl(120 100% 54%)" />
         <WindRoseCompass angle={weather.windAngle} speed={weather.windSpeed} lang={lang} />
         <RingGauge value={weather.temperature} max={45} label={lang === 'ua' ? 'Темп.' : 'Temp'} unit="°C" color="hsl(25 90% 55%)" />

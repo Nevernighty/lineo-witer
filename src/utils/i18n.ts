@@ -253,6 +253,24 @@ const translations: Record<string, Record<Lang, string>> = {
   
   // More info link
   moreInfo: { ua: '📖 Детальніше', en: '📖 More Info' },
+
+  // Loading screen
+  windEnergySimulation: { ua: 'Симуляція вітрової енергії', en: 'Wind Energy Simulation' },
+
+  // LCOE ratings
+  lcoeExcellent: { ua: '✓ Відмінно', en: '✓ Excellent' },
+  lcoeAverage: { ua: '◐ Середнє', en: '◐ Average' },
+  lcoeHigh: { ua: '✗ Високе', en: '✗ High' },
+
+  // Electrical labels
+  powerFactor: { ua: 'Коеф. потужності', en: 'Power Factor' },
+  reactive: { ua: 'Реактивна', en: 'Reactive' },
+
+  // Blade profile labels
+  lowPressure: { ua: '− Низький P', en: '− Low P' },
+  highPressure: { ua: '+ Високий P', en: '+ High P' },
+  liftCoeff: { ua: 'Піднімальна (Cl)', en: 'Cl (Lift)' },
+  dragCoeff: { ua: 'Опір (Cd)', en: 'Cd (Drag)' },
 };
 
 export function t(key: string, lang: Lang): string {

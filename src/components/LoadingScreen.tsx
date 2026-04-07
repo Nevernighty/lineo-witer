@@ -1,12 +1,14 @@
 import { motion } from "framer-motion";
 import { Wind, Recycle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { t, type Lang } from "@/utils/i18n";
 
 interface LoadingScreenProps {
   onComplete: () => void;
+  lang?: Lang;
 }
 
-export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
+export const LoadingScreen = ({ onComplete, lang = 'ua' }: LoadingScreenProps) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.6, delay: 0.4 }}
       >
-        Wind Energy Simulation
+        {t('windEnergySimulation', lang)}
       </motion.p>
 
       {/* Progress bar */}

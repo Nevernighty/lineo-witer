@@ -167,11 +167,11 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
 
       {/* Pressure labels */}
       <g transform={`rotate(${-attackAngle}, 190, 85)`}>
-        <text x="160" y={55 - attackAngle * 0.5} fontSize="10" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
-          − {attackAngle > 10 ? 'LOW' : 'Low'} P
+      <text x="160" y={55 - attackAngle * 0.5} fontSize="10" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
+          − {attackAngle > 10 ? 'LOW P' : 'Low P'}
         </text>
         <text x="160" y={120 + attackAngle * 0.3} fontSize="10" fill="hsl(0 80% 55%)" fontWeight="600" opacity="0.7">
-          + {attackAngle > 10 ? 'HIGH' : 'High'} P
+          + {attackAngle > 10 ? 'HIGH P' : 'High P'}
         </text>
       </g>
 
@@ -828,7 +828,7 @@ export const GeneratorSettings = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-hidden border-primary/30 p-0" style={{ backgroundColor: '#080c12' }}>
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[95vh] sm:max-h-[92vh] overflow-hidden border-primary/30 p-0" style={{ backgroundColor: '#080c12' }}>
         <div className="p-5 pb-0">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2.5 text-foreground text-lg">
@@ -843,7 +843,7 @@ export const GeneratorSettings = ({
           </DialogHeader>
 
           {/* ─── Status Bar ─── */}
-          <div className="flex items-center gap-3 mt-3 p-2.5 rounded-xl" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', border: '1px solid hsl(var(--border) / 0.2)' }}>
+          <div className="flex items-center gap-2 sm:gap-3 mt-3 p-2 sm:p-2.5 rounded-xl flex-wrap" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', border: '1px solid hsl(var(--border) / 0.2)' }}>
             {[
               { icon: Wind, label: 'V', value: `${windSpeed.toFixed(1)} m/s`, color: 'hsl(210 90% 60%)' },
               { icon: Zap, label: 'P', value: formatP(liveCalc.P), color: 'hsl(120 100% 54%)' },
@@ -907,7 +907,7 @@ export const GeneratorSettings = ({
                     <BladeProfileSVG profile={profile} attackAngle={attackAngle} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs font-semibold">{label('Профіль лопаті (NACA)', 'Blade Profile (NACA)')}</Label>
                       <Select value={bladeProfile} onValueChange={setBladeProfile}>
@@ -969,7 +969,7 @@ export const GeneratorSettings = ({
                     </motion.div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <GlowSlider value={currentSettings.bladeLength} onChange={v => onSettingsChange({ ...currentSettings, bladeLength: v })}
                       min={5} max={120} step={1} label={label('Довжина лопаті', 'Blade Length')} displayValue={`${currentSettings.bladeLength}m`}
                       infoText={label('A = πR². Подвоєння R → 4x потужність', 'A = πR². Double R → 4x power')} color="hsl(210 90% 60%)" />
@@ -1037,7 +1037,7 @@ export const GeneratorSettings = ({
                     <RadarChartSVG materials={materials} selectedIdx={selectedMaterialIdx} onSelect={setSelectedMaterialIdx} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {materials.map((mat, i) => (
                       <motion.div key={i}
                         onClick={() => setSelectedMaterialIdx(i)}
@@ -1191,7 +1191,7 @@ export const GeneratorSettings = ({
                     <FrequencyWaveform frequency={50} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <GlowSlider value={poleCount} onChange={setPoleCount} min={4} max={96} step={2}
                       label={label('Кількість полюсів', 'Pole Count')} displayValue={`${poleCount}`}
                       infoText={`n_sync = ${(60 * 50 / (poleCount / 2)).toFixed(0)} RPM @ 50Hz`}
@@ -1302,7 +1302,7 @@ export const GeneratorSettings = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="col-span-1 p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
                       <PowerGaugeSVG value={liveCalc.P} max={currentSettings.ratedPower} label={label('Потужність', 'Power')} />
                       <p className="text-lg font-mono font-bold text-primary mt-1">{formatP(liveCalc.P)}</p>
@@ -1370,7 +1370,7 @@ export const GeneratorSettings = ({
                         color: liveCalc.lcoe < 50 ? 'hsl(120 100% 54%)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55%)' : 'hsl(0 60% 55%)',
                         background: liveCalc.lcoe < 50 ? 'hsl(120 100% 54% / 0.08)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55% / 0.08)' : 'hsl(0 60% 55% / 0.08)',
                       }}>
-                        {liveCalc.lcoe < 50 ? '✓ Excellent' : liveCalc.lcoe < 100 ? '◐ Average' : '✗ High'}
+                        {liveCalc.lcoe < 50 ? label('✓ Відмінно', '✓ Excellent') : liveCalc.lcoe < 100 ? label('◐ Середнє', '◐ Average') : label('✗ Високе', '✗ High')}
                       </div>
                     </div>
                     <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--border) / 0.3)' }}>
@@ -1390,7 +1390,7 @@ export const GeneratorSettings = ({
                   {/* Industry comparison */}
                   <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--primary) / 0.15)' }}>
                     <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Ваша турбіна vs індустрія', 'Your turbine vs industry')}</span>
-                    <div className="grid grid-cols-3 gap-4 mt-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-3">
                       {[
                         { metric: 'Cp', yours: currentSettings.efficiency.toFixed(2), avg: '0.40', good: currentSettings.efficiency >= 0.40 },
                         { metric: 'CF', yours: `${(liveCalc.capacityFactor * 100).toFixed(0)}%`, avg: '25-35%', good: liveCalc.capacityFactor >= 0.25 },
