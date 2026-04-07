@@ -420,7 +420,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
             <Layers className="w-3.5 h-3.5 text-primary" />
             <span className="text-[11px] font-semibold text-foreground">{lang === 'ua' ? 'Шари карти' : 'Map Layers'}</span>
           </div>
-          <div className="grid grid-cols-6 gap-1">
+          <div className="grid grid-cols-3 sm:grid-cols-6 gap-1">
             {windyOverlays.map(overlay => {
               const isActive = windyOverlay === overlay.id;
               return (
