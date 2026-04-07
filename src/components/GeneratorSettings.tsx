@@ -1302,7 +1302,7 @@ export const GeneratorSettings = ({
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="col-span-1 p-3 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--primary) / 0.04)', borderColor: 'hsl(var(--primary) / 0.2)' }}>
                       <PowerGaugeSVG value={liveCalc.P} max={currentSettings.ratedPower} label={label('Потужність', 'Power')} />
                       <p className="text-lg font-mono font-bold text-primary mt-1">{formatP(liveCalc.P)}</p>
