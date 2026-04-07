@@ -1370,7 +1370,7 @@ export const GeneratorSettings = ({
                         color: liveCalc.lcoe < 50 ? 'hsl(120 100% 54%)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55%)' : 'hsl(0 60% 55%)',
                         background: liveCalc.lcoe < 50 ? 'hsl(120 100% 54% / 0.08)' : liveCalc.lcoe < 100 ? 'hsl(50 90% 55% / 0.08)' : 'hsl(0 60% 55% / 0.08)',
                       }}>
-                        {liveCalc.lcoe < 50 ? '✓ Excellent' : liveCalc.lcoe < 100 ? '◐ Average' : '✗ High'}
+                        {liveCalc.lcoe < 50 ? label('✓ Відмінно', '✓ Excellent') : liveCalc.lcoe < 100 ? label('◐ Середнє', '◐ Average') : label('✗ Високе', '✗ High')}
                       </div>
                     </div>
                     <div className="p-4 rounded-xl border text-center" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--border) / 0.3)' }}>
