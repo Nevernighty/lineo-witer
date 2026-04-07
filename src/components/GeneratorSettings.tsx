@@ -828,7 +828,7 @@ export const GeneratorSettings = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[92vh] overflow-hidden border-primary/30 p-0" style={{ backgroundColor: '#080c12' }}>
+      <DialogContent className="max-w-[95vw] sm:max-w-4xl max-h-[95vh] sm:max-h-[92vh] overflow-hidden border-primary/30 p-0" style={{ backgroundColor: '#080c12' }}>
         <div className="p-5 pb-0">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2.5 text-foreground text-lg">
