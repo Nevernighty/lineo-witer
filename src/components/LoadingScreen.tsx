@@ -8,7 +8,7 @@ interface LoadingScreenProps {
   lang?: Lang;
 }
 
-export const LoadingScreen = ({ onComplete }: LoadingScreenProps) => {
+export const LoadingScreen = ({ onComplete, lang = 'ua' }: LoadingScreenProps) => {
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
