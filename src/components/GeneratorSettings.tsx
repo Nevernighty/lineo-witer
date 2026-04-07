@@ -907,7 +907,7 @@ export const GeneratorSettings = ({
                     <BladeProfileSVG profile={profile} attackAngle={attackAngle} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs font-semibold">{label('Профіль лопаті (NACA)', 'Blade Profile (NACA)')}</Label>
                       <Select value={bladeProfile} onValueChange={setBladeProfile}>
