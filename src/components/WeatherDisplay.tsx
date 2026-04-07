@@ -377,7 +377,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
 
       {/* Windy.com Map — larger */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
-        className="relative rounded-xl overflow-hidden border border-primary/20" style={{ height: '420px' }}>
+        className="relative rounded-xl overflow-hidden border border-primary/20" style={{ height: 'clamp(280px, 50vw, 420px)' }}>
         <iframe
           src={windyUrl}
           className="w-full h-full border-0"
