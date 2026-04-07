@@ -1191,7 +1191,7 @@ export const GeneratorSettings = ({
                     <FrequencyWaveform frequency={50} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <GlowSlider value={poleCount} onChange={setPoleCount} min={4} max={96} step={2}
                       label={label('Кількість полюсів', 'Pole Count')} displayValue={`${poleCount}`}
                       infoText={`n_sync = ${(60 * 50 / (poleCount / 2)).toFixed(0)} RPM @ 50Hz`}
