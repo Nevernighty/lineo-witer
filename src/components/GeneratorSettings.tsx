@@ -1037,7 +1037,7 @@ export const GeneratorSettings = ({
                     <RadarChartSVG materials={materials} selectedIdx={selectedMaterialIdx} onSelect={setSelectedMaterialIdx} />
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {materials.map((mat, i) => (
                       <motion.div key={i}
                         onClick={() => setSelectedMaterialIdx(i)}
