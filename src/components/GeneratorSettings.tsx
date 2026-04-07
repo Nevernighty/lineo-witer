@@ -1390,7 +1390,7 @@ export const GeneratorSettings = ({
                   {/* Industry comparison */}
                   <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(var(--background) / 0.3)', borderColor: 'hsl(var(--primary) / 0.15)' }}>
                     <span className="text-[11px] text-muted-foreground uppercase font-semibold">{label('Ваша турбіна vs індустрія', 'Your turbine vs industry')}</span>
-                    <div className="grid grid-cols-3 gap-4 mt-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mt-3">
                       {[
                         { metric: 'Cp', yours: currentSettings.efficiency.toFixed(2), avg: '0.40', good: currentSettings.efficiency >= 0.40 },
                         { metric: 'CF', yours: `${(liveCalc.capacityFactor * 100).toFixed(0)}%`, avg: '25-35%', good: liveCalc.capacityFactor >= 0.25 },
