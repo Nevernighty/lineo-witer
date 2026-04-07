@@ -969,7 +969,7 @@ export const GeneratorSettings = ({
                     </motion.div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <GlowSlider value={currentSettings.bladeLength} onChange={v => onSettingsChange({ ...currentSettings, bladeLength: v })}
                       min={5} max={120} step={1} label={label('Довжина лопаті', 'Blade Length')} displayValue={`${currentSettings.bladeLength}m`}
                       infoText={label('A = πR². Подвоєння R → 4x потужність', 'A = πR². Double R → 4x power')} color="hsl(210 90% 60%)" />
