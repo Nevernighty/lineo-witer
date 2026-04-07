@@ -113,7 +113,7 @@ export const MainMenu = ({
         </motion.button>
 
         {/* Secondary buttons grid */}
-        <div className="grid grid-cols-3 gap-3 w-full mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 w-full mb-8">
           {/* Weather */}
           <motion.button
             variants={itemVariants}
