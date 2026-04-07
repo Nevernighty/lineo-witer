@@ -843,7 +843,7 @@ export const GeneratorSettings = ({
           </DialogHeader>
 
           {/* ─── Status Bar ─── */}
-          <div className="flex items-center gap-3 mt-3 p-2.5 rounded-xl" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', border: '1px solid hsl(var(--border) / 0.2)' }}>
+          <div className="flex items-center gap-2 sm:gap-3 mt-3 p-2 sm:p-2.5 rounded-xl flex-wrap" style={{ backgroundColor: 'hsl(var(--background) / 0.5)', border: '1px solid hsl(var(--border) / 0.2)' }}>
             {[
               { icon: Wind, label: 'V', value: `${windSpeed.toFixed(1)} m/s`, color: 'hsl(210 90% 60%)' },
               { icon: Zap, label: 'P', value: formatP(liveCalc.P), color: 'hsl(120 100% 54%)' },
