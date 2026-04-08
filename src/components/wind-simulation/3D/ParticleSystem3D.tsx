@@ -206,6 +206,6 @@ export const ParticleSystem3D: React.FC<ParticleSystem3DProps> = ({
   });
 
   return (
-    <InstancedParticles bufferRef={bufferRef as any} />
+    <InstancedParticles bufferRef={{ current: null } as any} />
   );
 };
