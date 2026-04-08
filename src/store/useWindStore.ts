@@ -138,8 +138,8 @@ export function setWindState<K extends keyof WindStoreState>(
   updater: Partial<WindStoreState[K]> | ((prev: WindStoreState[K]) => Partial<WindStoreState[K]>)
 ) {
   const prev = state[group];
-  const patch = typeof updater === 'function' ? updater(prev) : updater;
-  state = { ...state, [group]: { ...prev, ...patch } };
+  const patch = typeof updater === 'function' ? (updater as (p: WindStoreState[K]) => Partial<WindStoreState[K]>)(prev) : updater;
+  state = { ...state, [group]: { ...(prev as object), ...(patch as object) } } as WindStoreState;
   emitChange();
 }
 
