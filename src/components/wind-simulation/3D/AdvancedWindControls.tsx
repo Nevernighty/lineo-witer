@@ -11,6 +11,32 @@ import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateAirDensity, calculate
 import { OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype, GENERATOR_SUBTYPES } from '../types';
 import { t, getObstacleLabel, type Lang } from '@/utils/i18n';
 
+// Scientific wind type presets
+export type WindTypeId = 'custom' | 'trade' | 'katabatic' | 'seaBreeze' | 'foehn' | 'mountainWave' | 'mistral';
+
+export interface WindTypePreset {
+  id: WindTypeId;
+  nameKey: string;
+  descKey: string;
+  emoji: string;
+  config: Partial<WindPhysicsConfig>;
+}
+
+export const WIND_TYPE_PRESETS: WindTypePreset[] = [
+  { id: 'trade', nameKey: 'tradeWind', descKey: 'tradeWindDesc', emoji: '🌴',
+    config: { windSpeed: 7, windAngle: 45, windElevation: 0, turbulenceIntensity: 0.1, turbulenceScale: 0.8, gustFrequency: 2, gustIntensity: 0.1, temperature: 28, humidity: 70, surfaceRoughness: 0.01 } },
+  { id: 'katabatic', nameKey: 'katabatic', descKey: 'katabaticDesc', emoji: '🏔️',
+    config: { windSpeed: 5, windAngle: 180, windElevation: -25, turbulenceIntensity: 0.15, turbulenceScale: 0.6, gustFrequency: 3, gustIntensity: 0.15, temperature: -5, humidity: 30, surfaceRoughness: 0.1, terrainSlopeX: -15 } },
+  { id: 'seaBreeze', nameKey: 'seaBreeze', descKey: 'seaBreezeDesc', emoji: '🌊',
+    config: { windSpeed: 6, windAngle: 270, windElevation: 5, turbulenceIntensity: 0.2, turbulenceScale: 1.2, gustFrequency: 5, gustIntensity: 0.2, temperature: 22, humidity: 80, surfaceRoughness: 0.002 } },
+  { id: 'foehn', nameKey: 'foehn', descKey: 'foehnDesc', emoji: '🔥',
+    config: { windSpeed: 14, windAngle: 0, windElevation: -10, turbulenceIntensity: 0.35, turbulenceScale: 1.5, gustFrequency: 10, gustIntensity: 0.4, temperature: 30, humidity: 15, surfaceRoughness: 0.3, terrainSlopeX: 20 } },
+  { id: 'mountainWave', nameKey: 'mountainWave', descKey: 'mountainWaveDesc', emoji: '〰️',
+    config: { windSpeed: 12, windAngle: 90, windElevation: 10, turbulenceIntensity: 0.5, turbulenceScale: 2.5, gustFrequency: 8, gustIntensity: 0.3, temperature: 5, humidity: 40, altitude: 2000, surfaceRoughness: 0.5 } },
+  { id: 'mistral', nameKey: 'mistral', descKey: 'mistralDesc', emoji: '💨',
+    config: { windSpeed: 20, windAngle: 315, windElevation: 0, turbulenceIntensity: 0.25, turbulenceScale: 1.0, gustFrequency: 6, gustIntensity: 0.25, temperature: 10, humidity: 20, surfaceRoughness: 0.05 } },
+];
+
 interface AdvancedWindControlsProps {
   config: WindPhysicsConfig;
   onConfigChange: (config: WindPhysicsConfig) => void;
