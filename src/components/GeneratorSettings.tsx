@@ -1198,8 +1198,8 @@ export const GeneratorSettings = ({
                   </div>
 
                   <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 10% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
-                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('Частотна форма хвилі', 'Frequency Waveform')}</span>
-                    <FrequencyWaveform frequency={50} />
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('Частотна форма хвилі', 'Frequency Waveform')} — {liveCalc.elecFreq.toFixed(1)} Hz</span>
+                    <FrequencyWaveform frequency={liveCalc.elecFreq} />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
