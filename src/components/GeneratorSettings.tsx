@@ -904,7 +904,7 @@ export const GeneratorSettings = ({
                         {label('Візуалізація профілю', 'Profile Visualization')}
                       </span>
                     </div>
-                    <BladeProfileSVG profile={profile} attackAngle={attackAngle} />
+                    <BladeProfileSVG profile={profile} attackAngle={attackAngle} label={label} />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
