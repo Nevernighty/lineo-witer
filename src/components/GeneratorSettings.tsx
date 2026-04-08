@@ -426,6 +426,11 @@ const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
     { offset: 240, color: 'hsl(210 80% 55%)', label: 'C' },
   ];
 
+  // Dynamic wavelength: higher frequency = more cycles visible
+  const wavelength = Math.max(20, 3500 / Math.max(frequency, 1));
+  // Dynamic scroll speed: higher frequency = faster animation
+  const animDuration = Math.max(0.3, 10 / Math.max(frequency, 1));
+
   return (
     <svg viewBox="0 0 280 70" className="w-full h-16 overflow-hidden">
       <defs>
@@ -435,11 +440,11 @@ const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
         {phases.map((phase, pi) => {
           const points: string[] = [];
           for (let x = 0; x <= 280; x += 2) {
-            const y = 30 + Math.sin((x / 70) * Math.PI * 2 + (phase.offset * Math.PI / 180)) * 20;
+            const y = 30 + Math.sin((x / wavelength) * Math.PI * 2 + (phase.offset * Math.PI / 180)) * 20;
             points.push(`${x},${y}`);
           }
           return (
-            <g key={pi} className="animate-sine-scroll">
+            <g key={pi} style={{ animation: `sine-scroll ${animDuration}s linear infinite` }}>
               <polyline points={points.join(' ')} fill="none" stroke={phase.color} strokeWidth="1.8" opacity="0.7" />
               <polyline points={points.map(p => { const [x, y] = p.split(','); return `${Number(x) + 280},${y}`; }).join(' ')}
                 fill="none" stroke={phase.color} strokeWidth="1.8" opacity="0.7" />
@@ -455,7 +460,7 @@ const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
           </g>
         ))}
       </g>
-      <text x="140" y="68" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency} Hz · 3φ AC</text>
+      <text x="140" y="68" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency.toFixed(1)} Hz · 3φ AC</text>
     </svg>
   );
 };
