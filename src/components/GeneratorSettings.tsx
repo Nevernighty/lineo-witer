@@ -1135,10 +1135,15 @@ export const GeneratorSettings = ({
                     <GeneratorSchematicSVG genType={genType} poleCount={poleCount} label={label} />
                   </div>
 
-                  {/* 3-Phase Diagram */}
+                  {/* 3-Phase Diagram — dynamic frequency */}
                   <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 10% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
-                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('3-фазна діаграма', '3-Phase AC Diagram')}</span>
-                    <PhaseDiagramSVG frequency={50} />
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label('3-фазна діаграма', '3-Phase AC Diagram')}</span>
+                      <span className="text-[9px] font-mono" style={{ color: 'hsl(50 90% 55%)' }}>
+                        {label('Генератор', 'Generator')}: {liveCalc.elecFreq.toFixed(1)} Hz │ {label('Мережа', 'Grid')}: 50 Hz
+                      </span>
+                    </div>
+                    <PhaseDiagramSVG frequency={liveCalc.elecFreq} />
                   </div>
 
                   {/* Generator type cards — clickable */}
