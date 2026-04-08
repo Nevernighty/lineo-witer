@@ -66,6 +66,8 @@ interface AdvancedWindControlsProps {
   onPulsationChange?: (v: number) => void;
   particlePreset?: string;
   onParticlePresetChange?: (preset: string) => void;
+  windType?: WindTypeId;
+  onWindTypeChange?: (type: WindTypeId) => void;
 }
 
 const GlowSlider: React.FC<{
