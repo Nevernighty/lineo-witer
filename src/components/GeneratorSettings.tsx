@@ -941,7 +941,7 @@ export const GeneratorSettings = ({
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between text-[11px] mb-1">
-                          <span className="font-semibold" style={{ color: 'hsl(120 100% 54%)' }}>Cl (Lift)</span>
+                          <span className="font-semibold" style={{ color: 'hsl(120 100% 54%)' }}>{label('Піднімальна (Cl)', 'Cl (Lift)')}</span>
                           <span className="font-mono font-bold" style={{ color: 'hsl(120 100% 54%)' }}>{profile.lift}</span>
                         </div>
                         <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
