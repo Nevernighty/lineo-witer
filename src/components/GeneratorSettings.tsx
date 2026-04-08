@@ -806,7 +806,13 @@ export const GeneratorSettings = ({
     const lcoe = aep > 0 ? ((capex + opex * 20) / (aep * 20 / 1000)) : 0;
     const co2Offset = aep * 0.5 / 1000;
 
-    return { P, omega, torque, Fc, rps, capacityFactor, aep, Re, tsr, fatigueCycles, deflection, lcoe, co2Offset };
+    // Electrical frequency: f = (RPM * poles) / 120
+    const rpm = rps * 60;
+    const elecFreqRaw = (rpm * poleCount) / 120;
+    // DFIG uses gearbox to target ~50Hz; PMSG is direct-drive low freq
+    const elecFreq = genType === 'DFIG' ? Math.min(elecFreqRaw * 50, 55) : elecFreqRaw;
+
+    return { P, omega, torque, Fc, rps, capacityFactor, aep, Re, tsr, fatigueCycles, deflection, lcoe, co2Offset, elecFreq };
   }, [currentSettings, windSpeed, weibullK, weibullC]);
 
   // Generate sparkline data for various wind speeds
