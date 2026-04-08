@@ -175,6 +175,55 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <GlowSlider value={config.windElevation} onChange={(v) => updateConfig('windElevation', v)}
             min={-45} max={45} step={5} label={t('elevation', lang)} displayValue={`${config.windElevation}°`}
             infoText={t('infoElevation', lang)} />
+
+          {/* Scientific Wind Type Selector */}
+          {onWindTypeChange && (
+            <div className="pt-2 border-t border-primary/15">
+              <div className="flex items-center justify-between mb-1.5">
+                <Label className="text-[9px] text-primary/80 uppercase tracking-wide">{t('windType', lang)}</Label>
+                {windType !== 'custom' && (
+                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30">
+                    {t(WIND_TYPE_PRESETS.find(w => w.id === windType)?.nameKey || '', lang)}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-0.5">
+                {WIND_TYPE_PRESETS.map(wt => (
+                  <TooltipProvider key={wt.id} delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => {
+                            onWindTypeChange(wt.id);
+                            const newConfig = { ...config, ...wt.config };
+                            if (wt.config.altitude !== undefined || wt.config.temperature !== undefined) {
+                              newConfig.airDensity = parseFloat(calculateAirDensity(
+                                wt.config.altitude ?? config.altitude,
+                                wt.config.temperature ?? config.temperature
+                              ).toFixed(3));
+                            }
+                            onConfigChange(newConfig);
+                          }}
+                          className={`flex flex-col items-center px-1 py-1.5 rounded text-[7px] font-mono border transition-all ${
+                            windType === wt.id
+                              ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_6px_hsl(var(--primary)/0.3)]'
+                              : 'bg-background/30 border-primary/15 text-muted-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          <span className="text-[10px]">{wt.emoji}</span>
+                          <span className="mt-0.5 leading-none">{t(wt.nameKey, lang)}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-[#0d1117] border-primary/40 text-[10px] z-50 max-w-[200px]">
+                        <p>{t(wt.descKey, lang)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+              </div>
+            </div>
+          )}
+
           {onParticleCountChange && (
             <GlowSlider value={particleCount} onChange={(v) => onParticleCountChange(v)}
               min={50} max={2000} step={50} label={t('particleCount', lang)} displayValue={`${particleCount}`}
