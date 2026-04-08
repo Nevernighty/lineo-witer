@@ -813,7 +813,7 @@ export const GeneratorSettings = ({
     const elecFreq = genType === 'DFIG' ? Math.min(elecFreqRaw * 50, 55) : elecFreqRaw;
 
     return { P, omega, torque, Fc, rps, capacityFactor, aep, Re, tsr, fatigueCycles, deflection, lcoe, co2Offset, elecFreq };
-  }, [currentSettings, windSpeed, weibullK, weibullC]);
+  }, [currentSettings, windSpeed, weibullK, weibullC, poleCount, genType]);
 
   // Generate sparkline data for various wind speeds
   const sparkData = useMemo(() => {
