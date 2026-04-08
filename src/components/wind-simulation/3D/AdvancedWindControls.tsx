@@ -126,7 +126,8 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   wobbliness = 1.0, onWobblinessChange,
   particleGlow = 1.0, onParticleGlowChange,
   pulsation = 0, onPulsationChange,
-  particlePreset = 'standard', onParticlePresetChange
+  particlePreset = 'standard', onParticlePresetChange,
+  windType = 'custom', onWindTypeChange
 }) => {
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
     const newConfig = { ...config, [key]: value };
