@@ -95,7 +95,7 @@ const tabItems = [
 ];
 
 // ─── Enhanced Blade Profile SVG ───
-const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfiles[0]; attackAngle: number }) => {
+const BladeProfileSVG = ({ profile, attackAngle, label }: { profile: typeof bladeProfiles[0]; attackAngle: number; label: (ua: string, en: string) => string }) => {
   const isStall = attackAngle > 15;
   const t = profile.thickness;
   const camber = profile.camber;
