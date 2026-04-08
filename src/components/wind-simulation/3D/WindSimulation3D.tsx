@@ -5,7 +5,7 @@ import { AdvancedParticleSystem } from './AdvancedParticleSystem';
 import { Obstacle3D } from './Obstacle3D';
 import { WindGenerator3D, calculateGeneratorPower } from './WindGenerator3D';
 import { AdvancedMeasurementPanel } from './AdvancedMeasurementPanel';
-import { AdvancedWindControls } from './AdvancedWindControls';
+import { AdvancedWindControls, type WindTypeId } from './AdvancedWindControls';
 import { GhostObstacle } from './GhostObstacle';
 import { CollisionEffectsManager } from './CollisionEffect';
 import { WindProfileViz, PressureMapViz, TurbulenceFieldViz, CapacityFactorViz, BetzOverlayViz } from './AnalysisVisualizations';
