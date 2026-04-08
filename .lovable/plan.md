@@ -1,94 +1,80 @@
 
-# Виправлення UI, фізики частинок та візуалізації
 
-## 1. Кнопки "Встановити/Вибрати" перекривають статистику
+## Continue Overhauls: Dynamic Waveforms + Scientific Wind Types + Remaining Responsiveness/i18n
 
-**Проблема:** Обидва елементи (`top-3 left-3`) в одній позиції — кнопки режиму та `AdvancedMeasurementPanel`.
+### Part 1: Dynamic Waveform & Curve Animations (GeneratorSettings.tsx)
 
-**Рішення (WindSimulation3D.tsx):**
-- Перемістити кнопки Place/Select з `top-3 left-3` на `top-3 left-48` (або зробити їх частиною measurement panel зверху)
-- Альтернативно: зробити кнопки Place/Select в одному рядку з measurement panel, додавши їх як перший елемент всередину `AdvancedMeasurementPanel` або зверху нього з offset `top-3 left-[190px]`
+**Problem:** PhaseDiagramSVG and FrequencyWaveform always render at hardcoded `frequency=50`, ignoring pole count, RPM, and generator type. Animation speeds are static.
 
-## 2. Нахил X/Z (terrainSlope) спотворює об'єкти
+**Changes in `GeneratorSettings.tsx`:**
 
-**Проблема:** `Obstacle3D` та `GhostObstacle` застосовують `rotationX` та `rotationZ` через `<group rotation={[rotX, rotationY, rotZ]}>`, що нахиляє всю модель. Крім того, `getTerrainYOffset` використовує `tan()` що дає екстремальні значення при великих кутах.
+1. **Compute actual electrical frequency** in `liveCalc`:
+   - `elecFreq = (rps * 60 * poleCount) / 120`
+   - For DFIG: apply gearbox ratio (~50×) so frequency approaches 50Hz grid
+   - For PMSG: show raw low frequency (direct drive)
 
-**Рішення:**
-- **Obstacle3D.tsx:** Прибрати `rotationX` та `rotationZ` з обертання group. Об'єкти повинні обертатися тільки по Y. Прибрати рядки `rotX` та `rotZ` з `rotation` prop. Залишити тільки `rotation={[0, rotationY, 0]}`.
-- **GhostObstacle.tsx:** Аналогічно — `rotation={[0, rotationY, 0]}`.
-- **WindSimulation3D.tsx:** Прибрати клавіші A/D та Z/C з keydown handler. Прибрати `currentGhostRotationX`, `currentGhostRotationZ` states. Прибрати `rotationX`/`rotationZ` з `addObstacle`.
-- Обмежити `getTerrainYOffset` щоб `tan()` не давав безкінечних значень: `Math.max(-10, Math.min(10, offset))`.
-- Об'єкти просто стоять на нахиленій площині (Y-offset), без власного нахилу.
+2. **PhaseDiagramSVG** (line 1135): pass `elecFreq` instead of `50`
+   - Scale sine wavelength by frequency: `x / (3500 / frequency)` instead of fixed `/70`
+   - Add dynamic CSS animation speed: `animationDuration: ${Math.max(0.3, 10/frequency)}s`
+   - Show label: "Generator: X Hz" + "Grid: 50 Hz" comparison
 
-## 3. "Слід" (Trail) налаштування не працює
+3. **FrequencyWaveform** (line 1191): pass `elecFreq` instead of `50`
+   - Already uses `frequency / 10` for cycles — auto-adjusts
+   - Add dynamic animation speed matching frequency
 
-**Проблема:** В `InstancedParticles.tsx` trail — це просто один додатковий instanced mesh позаду частинки. При `trailLengthMultiplier` > 0 він малюється, але візуально майже невидимий (opacity 0.2, масштаб 0.3).
+4. **GeneratorSchematicSVG**: scale `animateMotion dur` inversely with RPM
+   - `dur={Math.max(0.5, 3 / (1 + rps))}s`
 
-**Рішення (InstancedParticles.tsx):**
-- Замість одного trail mesh, додати 3-4 trail segments (окремі instancedMesh), кожен зі зменшуючимся opacity та розміром
-- Зберігати позиції попередніх кадрів для кожної частинки в `useRef` (circular buffer з 4 позицій)
-- Trail segment 1: позиція 1 кадр назад, opacity 0.4, scale 0.8
-- Trail segment 2: позиція 2 кадри назад, opacity 0.25, scale 0.5
-- Trail segment 3: позиція 3 кадри назад, opacity 0.12, scale 0.3
-- Всі сегменти масштабуються `trailLengthMultiplier` — при 0 вони невидимі, при 2.0 вони довші та яскравіші
-- Колір trail segments = колір частинки з зниженою яскравістю
+5. **EfficiencyChainSVG**: scale animation speed by power output ratio for visual energy flow feedback
 
-## 4. Реалістичніші частинки та оптимізація
+### Part 2: Scientific Wind Types in Simulation
 
-**AdvancedParticleSystem.tsx:**
-- Збільшити `lerpFactor` з 0.08 до 0.12 для швидшої реакції на вітер
-- Додати плавний drag: `speed *= 0.998` кожен кадр (запобігає нескінченному прискоренню)
-- Throttle `forceUpdate` — замість кожен кадр, робити `forceUpdate` кожні 2 кадри: `if (renderCountRef.current % 2 === 0) forceUpdate(...)`
-- Прибрати `useState` для forceUpdate, використати лише `renderCountRef` + пряме оновлення instancedMesh через ref
-- Обмежити `collisionEffects` максимально 20 одночасно (зараз без ліміту — може лагати)
+**Add a "Wind Type" selector** to AdvancedWindControls Wind tab that auto-configures physics parameters to match real meteorological wind phenomena.
 
-**InstancedParticles.tsx:**
-- Прибрати `glowMeshRef` (третій instancedMesh) — це зайвий overhead. Замість цього збільшити розмір частинки при колізії
-- Залишити 2 instanced meshes: particles + trails (замість 3)
+**New wind types** (added to `scenarios.ts` as wind type presets, or inline in AdvancedWindControls):
 
-## 5. Генератори всмоктують частинки — візуалізація
+| Wind Type | UA | Key Physics |
+|-----------|----|----|
+| Trade Wind | Пасатний | Steady, low turbulence, moderate speed, elevation 0° |
+| Katabatic | Катабатичний | Downslope, cold, negative elevation, low TI |
+| Sea Breeze | Бризовий | Cyclic, moderate, from sea, high humidity |
+| Foehn | Фен | Warm, dry, strong gusts, terrain speedup |
+| Mountain Wave | Гірська хвиля | High altitude oscillations, high turb scale |
+| Mistral | Містраль | Very strong, channeled, low humidity |
 
-**AdvancedParticleSystem.tsx:**
-- Збільшити `attractK` з 2.0 до 4.0 для помітнішого ефекту
-- Додати `absorbed` стан для частинок: коли частинка проходить через ротор (dist < rotorRadius), вона стає яскраво-жовтою на 15 кадрів (`absorptionTimer`)
-- Передати `absorbed` стан в InstancedParticles як окреме поле
+**Implementation:**
+- Add `windType` state to `WindSimulation3D.tsx`
+- Add wind type selector buttons in AdvancedWindControls Wind tab (below speed slider)
+- Each wind type sets: windSpeed, windAngle, windElevation, turbulenceIntensity, turbulenceScale, gustFrequency, gustIntensity, temperature, humidity, surfaceRoughness
+- Add i18n keys for all wind type names and descriptions
+- Cross-influence: changing individual sliders after selecting a type shows "Custom" badge
 
-**InstancedParticles.tsx:**
-- Для absorbed частинок: яскравий жовто-білий колір (`#ffee00`), збільшений розмір на 1.5x
-- Pulse ефект: scale = 1.5 + sin(time * 10) * 0.3
+### Part 3: Remaining Responsiveness & i18n
 
-**WindGenerator3D.tsx:**
-- Зробити конус перед ротором більш видимим: opacity 0.15 -> 0.25, додати пульсацію
+**Already done in previous commit:** Index.tsx header flex-wrap, MainMenu grid, GeneratorSettings dialog sizing, WeatherDisplay responsive, WindSimulation3D panel widths, AdvancedWindControls preset grid, LoadingScreen lang prop, i18n keys for LCOE/powerFactor/reactive/blade labels.
 
-## 6. Стрілки напрямку вітру після колізії
+**Still needed:**
 
-**CollisionEffect.tsx:**
-- Додати параметр `deflectionDirection: [number, number, number]` до `CollisionEffectProps`
-- Після flash ефекту, показати 2-3 маленькі стрілки (cone + cylinder) що вказують напрямок відбиття вітру
-- Стрілки з'являються на 0.3с пізніше ніж flash і тримаються ще 0.5с
+1. **GeneratorSettings.tsx Elec tab** — hardcoded strings remain:
+   - Line 931: `"Cl (Lift)"` and line 942: `"Cd (Drag)"` — replace with `label()` using existing i18n keys `liftCoeff`/`dragCoeff`
+   - Line 952: `"Cl/Cd = "` — add i18n key
+   - SVG labels in BladeProfileSVG: "LOW P"/"HIGH P" — use existing `lowPressure`/`highPressure` keys
 
-**AdvancedParticleSystem.tsx:**
-- При генерації `CollisionEvent`, додати поле `deflection: [nx, ny, nz]` — нормалізований вектор напрямку відбиття (обчислюється з surface normal)
-- Передати в `CollisionEffectsManager`
+2. **GeneratorSettings.tsx** — SVG text labels that remain English-only:
+   - Line 415: `n_sync = ... RPM @ 50Hz` — translate
+   - Lines 581-584: "OFF", "RAMP", "RATED" in PowerCurveSVG — add i18n
 
-**WindSimulation3D.tsx:**
-- Оновити тип `collisionEffects` щоб включити `deflection`
+3. **i18n.ts** — add missing keys:
+   - `clCdRatio`, `syncSpeed`, `off`, `ramp`, `rated`, `generatorFreq`, `gridFreq`
+   - Wind type keys: `tradeWind`, `katabatic`, `seaBreeze`, `foehn`, `mountainWave`, `mistral` + descriptions
+   - `windType`, `custom` (for modified preset indicator)
 
-## 7. Кращі impact ефекти
+### Files Modified
 
-**CollisionEffect.tsx:**
-- Замінити 6 cylinderGeometry rays на shockwave ring: `ringGeometry` що розширюється
-- Додати spark particles: 4-6 маленьких sphere що розлітаються від точки колізії
-- Колір залежить від intensity: слабкий = зелений, середній = жовтий, сильний = червоно-помаранчевий
-- Тривалість збільшити з 0.5с до 0.8с
+| File | Changes |
+|------|---------|
+| `GeneratorSettings.tsx` | Dynamic frequency in waveforms, responsive animation speeds, remaining i18n fixes for SVG labels |
+| `AdvancedWindControls.tsx` | Wind type selector in Wind tab with science-based presets |
+| `WindSimulation3D.tsx` | Wind type state, pass to controls |
+| `i18n.ts` | All new translation keys for wind types, waveform labels, SVG text |
 
----
-
-## Технічна послідовність
-
-1. `WindSimulation3D.tsx` — зсунути кнопки, прибрати rotationX/Z, обмежити terrain offset, ліміт collision effects, додати deflection до collision type
-2. `Obstacle3D.tsx` — rotation тільки по Y
-3. `GhostObstacle.tsx` — rotation тільки по Y
-4. `AdvancedParticleSystem.tsx` — оптимізація, посилити suction, додати absorption state, deflection в collision events, кращий drag
-5. `InstancedParticles.tsx` — багато-сегментний trail, прибрати glow mesh, absorption візуалізація
-6. `CollisionEffect.tsx` — shockwave ring, spark particles, deflection arrows, кращі кольори
