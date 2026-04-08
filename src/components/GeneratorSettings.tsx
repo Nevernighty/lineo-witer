@@ -95,7 +95,7 @@ const tabItems = [
 ];
 
 // ─── Enhanced Blade Profile SVG ───
-const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfiles[0]; attackAngle: number }) => {
+const BladeProfileSVG = ({ profile, attackAngle, label }: { profile: typeof bladeProfiles[0]; attackAngle: number; label: (ua: string, en: string) => string }) => {
   const isStall = attackAngle > 15;
   const t = profile.thickness;
   const camber = profile.camber;
@@ -168,10 +168,10 @@ const BladeProfileSVG = ({ profile, attackAngle }: { profile: typeof bladeProfil
       {/* Pressure labels */}
       <g transform={`rotate(${-attackAngle}, 190, 85)`}>
       <text x="160" y={55 - attackAngle * 0.5} fontSize="10" fill="hsl(210 90% 60%)" fontWeight="600" opacity="0.7">
-          − {attackAngle > 10 ? 'LOW P' : 'Low P'}
+          {label('− Низький P', '− Low P')}
         </text>
         <text x="160" y={120 + attackAngle * 0.3} fontSize="10" fill="hsl(0 80% 55%)" fontWeight="600" opacity="0.7">
-          + {attackAngle > 10 ? 'HIGH P' : 'High P'}
+          {label('+ Високий P', '+ High P')}
         </text>
       </g>
 
@@ -370,14 +370,14 @@ const FatigueRingSVG = ({ fatigueCycles }: { fatigueCycles: number }) => {
 };
 
 // ─── Generator Schematic SVG ───
-const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCount: number }) => {
+const GeneratorSchematicSVG = ({ genType, poleCount, label }: { genType: string; poleCount: number; label: (ua: string, en: string) => string }) => {
   const syncSpeed = (60 * 50 / (poleCount / 2));
   const nodes = [
-    { x: 30, label: '🌬️', sub: 'Wind', color: 'hsl(210 90% 60%)' },
-    { x: 90, label: '⚡', sub: 'Rotor', color: 'hsl(120 100% 54%)' },
-    ...(genType === 'DFIG' ? [{ x: 155, label: '⚙️', sub: 'Gearbox', color: 'hsl(40 80% 60%)' }] : []),
+    { x: 30, label: '🌬️', sub: label('Вітер', 'Wind'), color: 'hsl(210 90% 60%)' },
+    { x: 90, label: '⚡', sub: label('Ротор', 'Rotor'), color: 'hsl(120 100% 54%)' },
+    ...(genType === 'DFIG' ? [{ x: 155, label: '⚙️', sub: label('Редуктор', 'Gearbox'), color: 'hsl(40 80% 60%)' }] : []),
     { x: genType === 'DFIG' ? 220 : 170, label: genType === 'PMSG' ? '🧲' : genType === 'DFIG' ? '🔌' : '🔄', sub: genType, color: 'hsl(50 90% 55%)' },
-    { x: genType === 'DFIG' ? 285 : 250, label: '🔋', sub: 'Grid', color: 'hsl(var(--primary))' },
+    { x: genType === 'DFIG' ? 285 : 250, label: '🔋', sub: label('Мережа', 'Grid'), color: 'hsl(var(--primary))' },
   ];
 
   return (
@@ -412,7 +412,7 @@ const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCo
       ))}
 
       <text x="160" y="94" textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
-        n_sync = {syncSpeed.toFixed(0)} RPM @ 50Hz │ {poleCount} poles
+        n_sync = {syncSpeed.toFixed(0)} RPM @ 50Hz │ {poleCount} {label('полюсів', 'poles')}
       </text>
     </svg>
   );
@@ -426,6 +426,11 @@ const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
     { offset: 240, color: 'hsl(210 80% 55%)', label: 'C' },
   ];
 
+  // Dynamic wavelength: higher frequency = more cycles visible
+  const wavelength = Math.max(20, 3500 / Math.max(frequency, 1));
+  // Dynamic scroll speed: higher frequency = faster animation
+  const animDuration = Math.max(0.3, 10 / Math.max(frequency, 1));
+
   return (
     <svg viewBox="0 0 280 70" className="w-full h-16 overflow-hidden">
       <defs>
@@ -435,11 +440,11 @@ const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
         {phases.map((phase, pi) => {
           const points: string[] = [];
           for (let x = 0; x <= 280; x += 2) {
-            const y = 30 + Math.sin((x / 70) * Math.PI * 2 + (phase.offset * Math.PI / 180)) * 20;
+            const y = 30 + Math.sin((x / wavelength) * Math.PI * 2 + (phase.offset * Math.PI / 180)) * 20;
             points.push(`${x},${y}`);
           }
           return (
-            <g key={pi} className="animate-sine-scroll">
+            <g key={pi} style={{ animation: `sine-scroll ${animDuration}s linear infinite` }}>
               <polyline points={points.join(' ')} fill="none" stroke={phase.color} strokeWidth="1.8" opacity="0.7" />
               <polyline points={points.map(p => { const [x, y] = p.split(','); return `${Number(x) + 280},${y}`; }).join(' ')}
                 fill="none" stroke={phase.color} strokeWidth="1.8" opacity="0.7" />
@@ -455,26 +460,28 @@ const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
           </g>
         ))}
       </g>
-      <text x="140" y="68" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency} Hz · 3φ AC</text>
+      <text x="140" y="68" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency.toFixed(1)} Hz · 3φ AC</text>
     </svg>
   );
 };
 
 // ─── Frequency Waveform SVG ───
 const FrequencyWaveform = ({ frequency }: { frequency: number }) => {
+  const cycles = Math.max(1, frequency / 10);
+  const animDuration = Math.max(0.3, 10 / Math.max(frequency, 1));
   const points: string[] = [];
   for (let x = 0; x <= 200; x++) {
-    const y = 20 + Math.sin((x / 200) * Math.PI * 2 * (frequency / 10)) * 15;
+    const y = 20 + Math.sin((x / 200) * Math.PI * 2 * cycles) * 15;
     points.push(`${x},${y}`);
   }
   return (
     <svg viewBox="0 0 200 40" className="w-full h-10 overflow-hidden">
-      <g className="animate-sine-scroll">
+      <g style={{ animation: `sine-scroll ${animDuration}s linear infinite` }}>
         <polyline points={points.join(' ')} fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
         <polyline points={points.map(p => { const [x, y] = p.split(','); return `${Number(x) + 200},${y}`; }).join(' ')}
           fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
       </g>
-      <text x="100" y="38" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency} Hz</text>
+      <text x="100" y="38" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency.toFixed(1)} Hz</text>
     </svg>
   );
 };
@@ -578,10 +585,10 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
       <rect x={cutInX} y={chartTop} width={ratedX - cutInX} height={chartH} fill="hsl(210 90% 60%)" opacity="0.03" />
       <rect x={ratedX} y={chartTop} width={cutOutX - ratedX} height={chartH} fill="hsl(120 100% 54%)" opacity="0.03" />
 
-      <text x={(chartLeft + cutInX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
-      <text x={(cutInX + ratedX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(210 90% 60%)" opacity="0.6">RAMP</text>
-      <text x={(ratedX + cutOutX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(120 100% 54%)" opacity="0.6">RATED</text>
-      <text x={(cutOutX + chartRight) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
+      <text x={(chartLeft + cutInX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">{lang === 'ua' ? 'ВИМК' : 'OFF'}</text>
+      <text x={(cutInX + ratedX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(210 90% 60%)" opacity="0.6">{lang === 'ua' ? 'РОЗГІН' : 'RAMP'}</text>
+      <text x={(ratedX + cutOutX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(120 100% 54%)" opacity="0.6">{lang === 'ua' ? 'НОМІН' : 'RATED'}</text>
+      <text x={(cutOutX + chartRight) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">{lang === 'ua' ? 'ВИМК' : 'OFF'}</text>
 
       <line x1={cutInX} y1={chartTop} x2={cutInX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
       <line x1={cutOutX} y1={chartTop} x2={cutOutX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
@@ -806,8 +813,14 @@ export const GeneratorSettings = ({
     const lcoe = aep > 0 ? ((capex + opex * 20) / (aep * 20 / 1000)) : 0;
     const co2Offset = aep * 0.5 / 1000;
 
-    return { P, omega, torque, Fc, rps, capacityFactor, aep, Re, tsr, fatigueCycles, deflection, lcoe, co2Offset };
-  }, [currentSettings, windSpeed, weibullK, weibullC]);
+    // Electrical frequency: f = (RPM * poles) / 120
+    const rpm = rps * 60;
+    const elecFreqRaw = (rpm * poleCount) / 120;
+    // DFIG uses gearbox to target ~50Hz; PMSG is direct-drive low freq
+    const elecFreq = genType === 'DFIG' ? Math.min(elecFreqRaw * 50, 55) : elecFreqRaw;
+
+    return { P, omega, torque, Fc, rps, capacityFactor, aep, Re, tsr, fatigueCycles, deflection, lcoe, co2Offset, elecFreq };
+  }, [currentSettings, windSpeed, weibullK, weibullC, poleCount, genType]);
 
   // Generate sparkline data for various wind speeds
   const sparkData = useMemo(() => {
@@ -904,7 +917,7 @@ export const GeneratorSettings = ({
                         {label('Візуалізація профілю', 'Profile Visualization')}
                       </span>
                     </div>
-                    <BladeProfileSVG profile={profile} attackAngle={attackAngle} />
+                    <BladeProfileSVG profile={profile} attackAngle={attackAngle} label={label} />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -928,7 +941,7 @@ export const GeneratorSettings = ({
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between text-[11px] mb-1">
-                          <span className="font-semibold" style={{ color: 'hsl(120 100% 54%)' }}>Cl (Lift)</span>
+                          <span className="font-semibold" style={{ color: 'hsl(120 100% 54%)' }}>{label('Піднімальна (Cl)', 'Cl (Lift)')}</span>
                           <span className="font-mono font-bold" style={{ color: 'hsl(120 100% 54%)' }}>{profile.lift}</span>
                         </div>
                         <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
@@ -939,7 +952,7 @@ export const GeneratorSettings = ({
                       </div>
                       <div>
                         <div className="flex justify-between text-[11px] mb-1">
-                          <span className="font-semibold" style={{ color: 'hsl(0 60% 55%)' }}>Cd (Drag)</span>
+                          <span className="font-semibold" style={{ color: 'hsl(0 60% 55%)' }}>{label('Опір (Cd)', 'Cd (Drag)')}</span>
                           <span className="font-mono font-bold" style={{ color: 'hsl(0 60% 55%)' }}>{profile.drag}</span>
                         </div>
                         <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
@@ -949,7 +962,7 @@ export const GeneratorSettings = ({
                         </div>
                       </div>
                       <div className="text-center p-1.5 rounded-lg" style={{ background: 'hsl(210 90% 60% / 0.08)', border: '1px solid hsl(210 90% 60% / 0.15)' }}>
-                        <span className="text-[10px] text-muted-foreground">Cl/Cd = </span>
+                        <span className="text-[10px] text-muted-foreground">{label('Cl/Cd = ', 'Cl/Cd = ')}</span>
                         <span className="text-sm font-mono font-bold" style={{ color: 'hsl(210 90% 60%)' }}>{profile.clcd}</span>
                       </div>
                     </div>
@@ -1126,13 +1139,18 @@ export const GeneratorSettings = ({
 
                   <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
                     <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label('Топологія', 'Topology')}</span>
-                    <GeneratorSchematicSVG genType={genType} poleCount={poleCount} />
+                    <GeneratorSchematicSVG genType={genType} poleCount={poleCount} label={label} />
                   </div>
 
-                  {/* 3-Phase Diagram */}
+                  {/* 3-Phase Diagram — dynamic frequency */}
                   <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 10% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
-                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('3-фазна діаграма', '3-Phase AC Diagram')}</span>
-                    <PhaseDiagramSVG frequency={50} />
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label('3-фазна діаграма', '3-Phase AC Diagram')}</span>
+                      <span className="text-[9px] font-mono" style={{ color: 'hsl(50 90% 55%)' }}>
+                        {label('Генератор', 'Generator')}: {liveCalc.elecFreq.toFixed(1)} Hz │ {label('Мережа', 'Grid')}: 50 Hz
+                      </span>
+                    </div>
+                    <PhaseDiagramSVG frequency={liveCalc.elecFreq} />
                   </div>
 
                   {/* Generator type cards — clickable */}
@@ -1187,8 +1205,8 @@ export const GeneratorSettings = ({
                   </div>
 
                   <div className="p-3 rounded-xl border" style={{ backgroundColor: 'hsl(50 10% 6%)', borderColor: 'hsl(50 90% 55% / 0.15)' }}>
-                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('Частотна форма хвилі', 'Frequency Waveform')}</span>
-                    <FrequencyWaveform frequency={50} />
+                    <span className="text-[10px] text-muted-foreground uppercase font-semibold mb-1 block">{label('Частотна форма хвилі', 'Frequency Waveform')} — {liveCalc.elecFreq.toFixed(1)} Hz</span>
+                    <FrequencyWaveform frequency={liveCalc.elecFreq} />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

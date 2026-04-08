@@ -11,6 +11,32 @@ import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateAirDensity, calculate
 import { OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype, GENERATOR_SUBTYPES } from '../types';
 import { t, getObstacleLabel, type Lang } from '@/utils/i18n';
 
+// Scientific wind type presets
+export type WindTypeId = 'custom' | 'trade' | 'katabatic' | 'seaBreeze' | 'foehn' | 'mountainWave' | 'mistral';
+
+export interface WindTypePreset {
+  id: WindTypeId;
+  nameKey: string;
+  descKey: string;
+  emoji: string;
+  config: Partial<WindPhysicsConfig>;
+}
+
+export const WIND_TYPE_PRESETS: WindTypePreset[] = [
+  { id: 'trade', nameKey: 'tradeWind', descKey: 'tradeWindDesc', emoji: '🌴',
+    config: { windSpeed: 7, windAngle: 45, windElevation: 0, turbulenceIntensity: 0.1, turbulenceScale: 0.8, gustFrequency: 2, gustIntensity: 0.1, temperature: 28, humidity: 70, surfaceRoughness: 0.01 } },
+  { id: 'katabatic', nameKey: 'katabatic', descKey: 'katabaticDesc', emoji: '🏔️',
+    config: { windSpeed: 5, windAngle: 180, windElevation: -25, turbulenceIntensity: 0.15, turbulenceScale: 0.6, gustFrequency: 3, gustIntensity: 0.15, temperature: -5, humidity: 30, surfaceRoughness: 0.1, terrainSlopeX: -15 } },
+  { id: 'seaBreeze', nameKey: 'seaBreeze', descKey: 'seaBreezeDesc', emoji: '🌊',
+    config: { windSpeed: 6, windAngle: 270, windElevation: 5, turbulenceIntensity: 0.2, turbulenceScale: 1.2, gustFrequency: 5, gustIntensity: 0.2, temperature: 22, humidity: 80, surfaceRoughness: 0.002 } },
+  { id: 'foehn', nameKey: 'foehn', descKey: 'foehnDesc', emoji: '🔥',
+    config: { windSpeed: 14, windAngle: 0, windElevation: -10, turbulenceIntensity: 0.35, turbulenceScale: 1.5, gustFrequency: 10, gustIntensity: 0.4, temperature: 30, humidity: 15, surfaceRoughness: 0.3, terrainSlopeX: 20 } },
+  { id: 'mountainWave', nameKey: 'mountainWave', descKey: 'mountainWaveDesc', emoji: '〰️',
+    config: { windSpeed: 12, windAngle: 90, windElevation: 10, turbulenceIntensity: 0.5, turbulenceScale: 2.5, gustFrequency: 8, gustIntensity: 0.3, temperature: 5, humidity: 40, altitude: 2000, surfaceRoughness: 0.5 } },
+  { id: 'mistral', nameKey: 'mistral', descKey: 'mistralDesc', emoji: '💨',
+    config: { windSpeed: 20, windAngle: 315, windElevation: 0, turbulenceIntensity: 0.25, turbulenceScale: 1.0, gustFrequency: 6, gustIntensity: 0.25, temperature: 10, humidity: 20, surfaceRoughness: 0.05 } },
+];
+
 interface AdvancedWindControlsProps {
   config: WindPhysicsConfig;
   onConfigChange: (config: WindPhysicsConfig) => void;
@@ -40,6 +66,8 @@ interface AdvancedWindControlsProps {
   onPulsationChange?: (v: number) => void;
   particlePreset?: string;
   onParticlePresetChange?: (preset: string) => void;
+  windType?: WindTypeId;
+  onWindTypeChange?: (type: WindTypeId) => void;
 }
 
 const GlowSlider: React.FC<{
@@ -98,7 +126,8 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   wobbliness = 1.0, onWobblinessChange,
   particleGlow = 1.0, onParticleGlowChange,
   pulsation = 0, onPulsationChange,
-  particlePreset = 'standard', onParticlePresetChange
+  particlePreset = 'standard', onParticlePresetChange,
+  windType = 'custom', onWindTypeChange
 }) => {
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
     const newConfig = { ...config, [key]: value };
@@ -146,6 +175,55 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <GlowSlider value={config.windElevation} onChange={(v) => updateConfig('windElevation', v)}
             min={-45} max={45} step={5} label={t('elevation', lang)} displayValue={`${config.windElevation}°`}
             infoText={t('infoElevation', lang)} />
+
+          {/* Scientific Wind Type Selector */}
+          {onWindTypeChange && (
+            <div className="pt-2 border-t border-primary/15">
+              <div className="flex items-center justify-between mb-1.5">
+                <Label className="text-[9px] text-primary/80 uppercase tracking-wide">{t('windType', lang)}</Label>
+                {windType !== 'custom' && (
+                  <span className="text-[8px] font-mono px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/30">
+                    {t(WIND_TYPE_PRESETS.find(w => w.id === windType)?.nameKey || '', lang)}
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-0.5">
+                {WIND_TYPE_PRESETS.map(wt => (
+                  <TooltipProvider key={wt.id} delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => {
+                            onWindTypeChange(wt.id);
+                            const newConfig = { ...config, ...wt.config };
+                            if (wt.config.altitude !== undefined || wt.config.temperature !== undefined) {
+                              newConfig.airDensity = parseFloat(calculateAirDensity(
+                                wt.config.altitude ?? config.altitude,
+                                wt.config.temperature ?? config.temperature
+                              ).toFixed(3));
+                            }
+                            onConfigChange(newConfig);
+                          }}
+                          className={`flex flex-col items-center px-1 py-1.5 rounded text-[7px] font-mono border transition-all ${
+                            windType === wt.id
+                              ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_6px_hsl(var(--primary)/0.3)]'
+                              : 'bg-background/30 border-primary/15 text-muted-foreground hover:border-primary/40'
+                          }`}
+                        >
+                          <span className="text-[10px]">{wt.emoji}</span>
+                          <span className="mt-0.5 leading-none">{t(wt.nameKey, lang)}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-[#0d1117] border-primary/40 text-[10px] z-50 max-w-[200px]">
+                        <p>{t(wt.descKey, lang)}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                ))}
+              </div>
+            </div>
+          )}
+
           {onParticleCountChange && (
             <GlowSlider value={particleCount} onChange={(v) => onParticleCountChange(v)}
               min={50} max={2000} step={50} label={t('particleCount', lang)} displayValue={`${particleCount}`}

@@ -5,7 +5,7 @@ import { AdvancedParticleSystem } from './AdvancedParticleSystem';
 import { Obstacle3D } from './Obstacle3D';
 import { WindGenerator3D, calculateGeneratorPower } from './WindGenerator3D';
 import { AdvancedMeasurementPanel } from './AdvancedMeasurementPanel';
-import { AdvancedWindControls } from './AdvancedWindControls';
+import { AdvancedWindControls, type WindTypeId } from './AdvancedWindControls';
 import { GhostObstacle } from './GhostObstacle';
 import { CollisionEffectsManager } from './CollisionEffect';
 import { WindProfileViz, PressureMapViz, TurbulenceFieldViz, CapacityFactorViz, BetzOverlayViz } from './AnalysisVisualizations';
@@ -149,6 +149,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const dragStartRef = useRef<{ x: number; z: number } | null>(null);
   const [showScenarios, setShowScenarios] = useState(false);
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
+  const [windType, setWindType] = useState<WindTypeId>('custom');
 
   // Apply particle presets
   const handlePresetChange = useCallback((preset: string) => {
@@ -591,7 +592,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           wobbliness={wobbliness} onWobblinessChange={setWobbliness}
           particleGlow={particleGlow} onParticleGlowChange={setParticleGlow}
           pulsation={pulsation} onPulsationChange={setPulsation}
-          particlePreset={particlePreset} onParticlePresetChange={handlePresetChange} />
+          particlePreset={particlePreset} onParticlePresetChange={handlePresetChange}
+          windType={windType} onWindTypeChange={setWindType} />
       </div>
 
       <div className="z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>

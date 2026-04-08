@@ -271,6 +271,29 @@ const translations: Record<string, Record<Lang, string>> = {
   highPressure: { ua: '+ Високий P', en: '+ High P' },
   liftCoeff: { ua: 'Піднімальна (Cl)', en: 'Cl (Lift)' },
   dragCoeff: { ua: 'Опір (Cd)', en: 'Cd (Drag)' },
+  clCdRatio: { ua: 'Cl/Cd = ', en: 'Cl/Cd = ' },
+  syncSpeed: { ua: 'n_sync', en: 'n_sync' },
+  off: { ua: 'ВИМК', en: 'OFF' },
+  ramp: { ua: 'РОЗГІН', en: 'RAMP' },
+  rated: { ua: 'НОМІН', en: 'RATED' },
+  generatorFreq: { ua: 'Генератор', en: 'Generator' },
+  gridFreq: { ua: 'Мережа', en: 'Grid' },
+
+  // Scientific wind types
+  windType: { ua: 'Тип вітру', en: 'Wind Type' },
+  custom: { ua: 'Власний', en: 'Custom' },
+  tradeWind: { ua: 'Пасатний', en: 'Trade Wind' },
+  tradeWindDesc: { ua: 'Стійкий тропічний потік. Низька турбулентність, помірна швидкість.', en: 'Steady tropical flow. Low turbulence, moderate speed.' },
+  katabatic: { ua: 'Катабатичний', en: 'Katabatic' },
+  katabaticDesc: { ua: 'Холодне повітря стікає вниз по схилу. Нічний вітер, від\'ємний кут підйому.', en: 'Cold air drains downslope. Night wind, negative elevation angle.' },
+  seaBreeze: { ua: 'Бризовий', en: 'Sea Breeze' },
+  seaBreezeDesc: { ua: 'Циклічний прибережний потік. Помірна швидкість, висока вологість.', en: 'Cyclic coastal flow. Moderate speed, high humidity.' },
+  foehn: { ua: 'Фен', en: 'Foehn' },
+  foehnDesc: { ua: 'Теплий сухий потік з гір. Сильні пориви, нагрівання при спуску.', en: 'Warm dry mountain downwind. Strong gusts, descending warmth.' },
+  mountainWave: { ua: 'Гірська хвиля', en: 'Mountain Wave' },
+  mountainWaveDesc: { ua: 'Висотні коливання над хребтами. Великий масштаб турбулентності.', en: 'High altitude oscillations over ridges. Large turbulence scale.' },
+  mistral: { ua: 'Містраль', en: 'Mistral' },
+  mistralDesc: { ua: 'Дуже сильний канальний вітер. Низька вологість, стабільний напрямок.', en: 'Very strong channeled wind. Low humidity, stable direction.' },
 };
 
 export function t(key: string, lang: Lang): string {
