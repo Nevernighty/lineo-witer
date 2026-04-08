@@ -467,19 +467,21 @@ const PhaseDiagramSVG = ({ frequency }: { frequency: number }) => {
 
 // ─── Frequency Waveform SVG ───
 const FrequencyWaveform = ({ frequency }: { frequency: number }) => {
+  const cycles = Math.max(1, frequency / 10);
+  const animDuration = Math.max(0.3, 10 / Math.max(frequency, 1));
   const points: string[] = [];
   for (let x = 0; x <= 200; x++) {
-    const y = 20 + Math.sin((x / 200) * Math.PI * 2 * (frequency / 10)) * 15;
+    const y = 20 + Math.sin((x / 200) * Math.PI * 2 * cycles) * 15;
     points.push(`${x},${y}`);
   }
   return (
     <svg viewBox="0 0 200 40" className="w-full h-10 overflow-hidden">
-      <g className="animate-sine-scroll">
+      <g style={{ animation: `sine-scroll ${animDuration}s linear infinite` }}>
         <polyline points={points.join(' ')} fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
         <polyline points={points.map(p => { const [x, y] = p.split(','); return `${Number(x) + 200},${y}`; }).join(' ')}
           fill="none" stroke="hsl(50 90% 55%)" strokeWidth="1.5" opacity="0.6" />
       </g>
-      <text x="100" y="38" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency} Hz</text>
+      <text x="100" y="38" textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))">{frequency.toFixed(1)} Hz</text>
     </svg>
   );
 };
