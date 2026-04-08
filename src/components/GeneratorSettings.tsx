@@ -412,7 +412,7 @@ const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCo
       ))}
 
       <text x="160" y="94" textAnchor="middle" fontSize="9" fill="hsl(var(--muted-foreground))" fontFamily="monospace">
-        n_sync = {syncSpeed.toFixed(0)} RPM @ 50Hz │ {poleCount} poles
+        n_sync = {syncSpeed.toFixed(0)} RPM @ 50Hz │ {poleCount} {label('полюсів', 'poles')}
       </text>
     </svg>
   );
