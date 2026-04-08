@@ -962,7 +962,7 @@ export const GeneratorSettings = ({
                         </div>
                       </div>
                       <div className="text-center p-1.5 rounded-lg" style={{ background: 'hsl(210 90% 60% / 0.08)', border: '1px solid hsl(210 90% 60% / 0.15)' }}>
-                        <span className="text-[10px] text-muted-foreground">Cl/Cd = </span>
+                        <span className="text-[10px] text-muted-foreground">{label('Cl/Cd = ', 'Cl/Cd = ')}</span>
                         <span className="text-sm font-mono font-bold" style={{ color: 'hsl(210 90% 60%)' }}>{profile.clcd}</span>
                       </div>
                     </div>
