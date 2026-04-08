@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { Obstacle } from '../types';
-import { InstancedParticles } from './InstancedParticles';
+import { InstancedParticles, type ParticleBuffer } from './InstancedParticles';
 import * as THREE from 'three';
 
 interface WindParticle {
