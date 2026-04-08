@@ -1126,7 +1126,7 @@ export const GeneratorSettings = ({
 
                   <div className="p-4 rounded-xl border" style={{ backgroundColor: 'hsl(50 15% 6%)', borderColor: 'hsl(50 90% 55% / 0.2)' }}>
                     <span className="text-[10px] text-muted-foreground uppercase font-semibold">{label('Топологія', 'Topology')}</span>
-                    <GeneratorSchematicSVG genType={genType} poleCount={poleCount} />
+                    <GeneratorSchematicSVG genType={genType} poleCount={poleCount} label={label} />
                   </div>
 
                   {/* 3-Phase Diagram */}
