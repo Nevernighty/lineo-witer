@@ -95,6 +95,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
     velocities: new Float32Array(0),
     sizes: new Float32Array(0),
     flags: new Uint8Array(0),
+    absorbProgress: new Float32Array(0),
     count: 0,
   });
 
