@@ -952,7 +952,7 @@ export const GeneratorSettings = ({
                       </div>
                       <div>
                         <div className="flex justify-between text-[11px] mb-1">
-                          <span className="font-semibold" style={{ color: 'hsl(0 60% 55%)' }}>Cd (Drag)</span>
+                          <span className="font-semibold" style={{ color: 'hsl(0 60% 55%)' }}>{label('Опір (Cd)', 'Cd (Drag)')}</span>
                           <span className="font-mono font-bold" style={{ color: 'hsl(0 60% 55%)' }}>{profile.drag}</span>
                         </div>
                         <div className="h-2.5 rounded-full overflow-hidden" style={{ backgroundColor: 'hsl(var(--background) / 0.6)' }}>
