@@ -585,10 +585,10 @@ const PowerCurveSVG = ({ currentSettings, windSpeed, lang, weibullK, weibullC }:
       <rect x={cutInX} y={chartTop} width={ratedX - cutInX} height={chartH} fill="hsl(210 90% 60%)" opacity="0.03" />
       <rect x={ratedX} y={chartTop} width={cutOutX - ratedX} height={chartH} fill="hsl(120 100% 54%)" opacity="0.03" />
 
-      <text x={(chartLeft + cutInX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
-      <text x={(cutInX + ratedX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(210 90% 60%)" opacity="0.6">RAMP</text>
-      <text x={(ratedX + cutOutX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(120 100% 54%)" opacity="0.6">RATED</text>
-      <text x={(cutOutX + chartRight) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">OFF</text>
+      <text x={(chartLeft + cutInX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">{lang === 'ua' ? 'ВИМК' : 'OFF'}</text>
+      <text x={(cutInX + ratedX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(210 90% 60%)" opacity="0.6">{lang === 'ua' ? 'РОЗГІН' : 'RAMP'}</text>
+      <text x={(ratedX + cutOutX) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(120 100% 54%)" opacity="0.6">{lang === 'ua' ? 'НОМІН' : 'RATED'}</text>
+      <text x={(cutOutX + chartRight) / 2} y={chartTop + 12} textAnchor="middle" fontSize="8" fill="hsl(var(--muted-foreground))" opacity="0.5">{lang === 'ua' ? 'ВИМК' : 'OFF'}</text>
 
       <line x1={cutInX} y1={chartTop} x2={cutInX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
       <line x1={cutOutX} y1={chartTop} x2={cutOutX} y2={chartBottom} stroke="hsl(var(--destructive))" strokeWidth="0.8" strokeDasharray="4,3" opacity="0.4" />
