@@ -592,7 +592,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           wobbliness={wobbliness} onWobblinessChange={setWobbliness}
           particleGlow={particleGlow} onParticleGlowChange={setParticleGlow}
           pulsation={pulsation} onPulsationChange={setPulsation}
-          particlePreset={particlePreset} onParticlePresetChange={handlePresetChange} />
+          particlePreset={particlePreset} onParticlePresetChange={handlePresetChange}
+          windType={windType} onWindTypeChange={setWindType} />
       </div>
 
       <div className="z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
