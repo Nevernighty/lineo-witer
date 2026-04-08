@@ -370,14 +370,14 @@ const FatigueRingSVG = ({ fatigueCycles }: { fatigueCycles: number }) => {
 };
 
 // ─── Generator Schematic SVG ───
-const GeneratorSchematicSVG = ({ genType, poleCount }: { genType: string; poleCount: number }) => {
+const GeneratorSchematicSVG = ({ genType, poleCount, label }: { genType: string; poleCount: number; label: (ua: string, en: string) => string }) => {
   const syncSpeed = (60 * 50 / (poleCount / 2));
   const nodes = [
-    { x: 30, label: '🌬️', sub: 'Wind', color: 'hsl(210 90% 60%)' },
-    { x: 90, label: '⚡', sub: 'Rotor', color: 'hsl(120 100% 54%)' },
-    ...(genType === 'DFIG' ? [{ x: 155, label: '⚙️', sub: 'Gearbox', color: 'hsl(40 80% 60%)' }] : []),
+    { x: 30, label: '🌬️', sub: label('Вітер', 'Wind'), color: 'hsl(210 90% 60%)' },
+    { x: 90, label: '⚡', sub: label('Ротор', 'Rotor'), color: 'hsl(120 100% 54%)' },
+    ...(genType === 'DFIG' ? [{ x: 155, label: '⚙️', sub: label('Редуктор', 'Gearbox'), color: 'hsl(40 80% 60%)' }] : []),
     { x: genType === 'DFIG' ? 220 : 170, label: genType === 'PMSG' ? '🧲' : genType === 'DFIG' ? '🔌' : '🔄', sub: genType, color: 'hsl(50 90% 55%)' },
-    { x: genType === 'DFIG' ? 285 : 250, label: '🔋', sub: 'Grid', color: 'hsl(var(--primary))' },
+    { x: genType === 'DFIG' ? 285 : 250, label: '🔋', sub: label('Мережа', 'Grid'), color: 'hsl(var(--primary))' },
   ];
 
   return (
