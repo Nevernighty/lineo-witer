@@ -149,6 +149,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const dragStartRef = useRef<{ x: number; z: number } | null>(null);
   const [showScenarios, setShowScenarios] = useState(false);
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
+  const [windType, setWindType] = useState<WindTypeId>('custom');
 
   // Apply particle presets
   const handlePresetChange = useCallback((preset: string) => {
