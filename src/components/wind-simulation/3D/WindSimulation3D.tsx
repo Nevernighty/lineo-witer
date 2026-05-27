@@ -147,6 +147,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [selectedObstacleIndex, setSelectedObstacleIndex] = useState<number | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ x: number; z: number } | null>(null);
+  const orbitRef = useRef<any>(null);
   const [showScenarios, setShowScenarios] = useState(false);
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
   const [windType, setWindType] = useState<WindTypeId>('custom');
@@ -213,7 +214,20 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const releaseDrag = () => {
+      if (dragStartRef.current) {
+        dragStartRef.current = null;
+        isDraggingRef.current = false;
+        if (orbitRef.current) orbitRef.current.enabled = true;
+      }
+    };
+    window.addEventListener('pointerup', releaseDrag);
+    window.addEventListener('pointercancel', releaseDrag);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerup', releaseDrag);
+      window.removeEventListener('pointercancel', releaseDrag);
+    };
   }, [obstacles, interactionMode, selectedObstacleIndex]);
 
   const addObstacle = useCallback((x: number, y: number, z: number) => {
@@ -303,9 +317,11 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         });
 
         if (clickedIdx >= 0 && clickedIdx === selectedObstacleIndex) {
-          // Second click on already-selected → start drag
+          // Second click on already-selected → start drag, LOCK camera
           dragStartRef.current = { x: ghostPosition[0], z: ghostPosition[2] };
           isDraggingRef.current = false;
+          if (orbitRef.current) orbitRef.current.enabled = false;
+          (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
         } else {
           // First click or different object → just select
           setSelectedObstacleIndex(clickedIdx >= 0 ? clickedIdx : null);
@@ -322,7 +338,12 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     }
   }, [interactionMode, selectedObstacleIndex, ghostPosition]);
 
-  const handleCanvasPointerUp = useCallback(() => { dragStartRef.current = null; isDraggingRef.current = false; }, []);
+  const handleCanvasPointerUp = useCallback((e?: React.PointerEvent) => {
+    dragStartRef.current = null;
+    isDraggingRef.current = false;
+    if (orbitRef.current) orbitRef.current.enabled = true;
+    if (e && e.currentTarget) (e.currentTarget as HTMLElement).style.cursor = '';
+  }, []);
 
   // Analysis items config with confidence badges
   type ConfidenceBadge = 'visualization' | 'estimate' | 'theoretical';
@@ -567,7 +588,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             })}
           </group>
 
-          <OrbitControls enablePan enableZoom enableRotate minDistance={25} maxDistance={180} maxPolarAngle={Math.PI / 2.1} enableDamping dampingFactor={0.1} rotateSpeed={0.6} />
+          <OrbitControls ref={orbitRef} enablePan enableZoom enableRotate minDistance={25} maxDistance={180} maxPolarAngle={Math.PI / 2.1} enableDamping dampingFactor={0.1} rotateSpeed={0.6} />
         </Suspense>
       </Canvas>
 
