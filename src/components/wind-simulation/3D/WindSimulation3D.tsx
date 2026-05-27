@@ -147,6 +147,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const [selectedObstacleIndex, setSelectedObstacleIndex] = useState<number | null>(null);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ x: number; z: number } | null>(null);
+  const orbitRef = useRef<any>(null);
   const [showScenarios, setShowScenarios] = useState(false);
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
   const [windType, setWindType] = useState<WindTypeId>('custom');
