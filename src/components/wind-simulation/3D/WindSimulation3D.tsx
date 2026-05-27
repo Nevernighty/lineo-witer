@@ -304,9 +304,11 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         });
 
         if (clickedIdx >= 0 && clickedIdx === selectedObstacleIndex) {
-          // Second click on already-selected → start drag
+          // Second click on already-selected → start drag, LOCK camera
           dragStartRef.current = { x: ghostPosition[0], z: ghostPosition[2] };
           isDraggingRef.current = false;
+          if (orbitRef.current) orbitRef.current.enabled = false;
+          (e.currentTarget as HTMLElement).style.cursor = 'grabbing';
         } else {
           // First click or different object → just select
           setSelectedObstacleIndex(clickedIdx >= 0 ? clickedIdx : null);
@@ -323,7 +325,12 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     }
   }, [interactionMode, selectedObstacleIndex, ghostPosition]);
 
-  const handleCanvasPointerUp = useCallback(() => { dragStartRef.current = null; isDraggingRef.current = false; }, []);
+  const handleCanvasPointerUp = useCallback((e?: React.PointerEvent) => {
+    dragStartRef.current = null;
+    isDraggingRef.current = false;
+    if (orbitRef.current) orbitRef.current.enabled = true;
+    if (e && e.currentTarget) (e.currentTarget as HTMLElement).style.cursor = '';
+  }, []);
 
   // Analysis items config with confidence badges
   type ConfidenceBadge = 'visualization' | 'estimate' | 'theoretical';
