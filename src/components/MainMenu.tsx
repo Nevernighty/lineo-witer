@@ -94,6 +94,25 @@ export const MainMenu = ({
           </h1>
         </motion.div>
 
+        {/* Geometry / Form lab tile (half-transparent, premium) */}
+        <motion.div variants={itemVariants} className="w-full mb-3">
+          <Link to="/blade-lab"
+            className="group block relative overflow-hidden rounded-xl border border-primary/20 bg-card/30 backdrop-blur-md p-4 transition-all duration-300 hover:border-primary/50 hover:bg-card/40">
+            <div className="flex items-center gap-3">
+              <svg viewBox="0 0 64 32" className="w-12 h-6 text-primary/80 flex-shrink-0">
+                <path d="M2,18 C12,4 40,4 62,14 C40,20 12,24 2,18 Z" fill="currentColor" opacity="0.4" />
+                <path d="M2,18 C12,4 40,4 62,14" stroke="currentColor" strokeWidth="1" fill="none" />
+              </svg>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-foreground">{lang === 'ua' ? 'ФОРМА' : 'GEOMETRY'} <span className="text-primary/60 font-normal">· Blade Lab</span></div>
+                <div className="text-[9px] text-muted-foreground/70 tracking-[0.18em] uppercase truncate mt-0.5">
+                  AEROFOIL · PROFILE · PLANFORM · CAMBER · CHORD · TWIST · SOLIDITY · MORPHOLOGY · TOPOLOGY
+                </div>
+              </div>
+            </div>
+          </Link>
+        </motion.div>
+
         {/* Primary button — 3D Simulation */}
         <motion.button
           variants={itemVariants}
