@@ -214,7 +214,20 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
       }
     };
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    const releaseDrag = () => {
+      if (dragStartRef.current) {
+        dragStartRef.current = null;
+        isDraggingRef.current = false;
+        if (orbitRef.current) orbitRef.current.enabled = true;
+      }
+    };
+    window.addEventListener('pointerup', releaseDrag);
+    window.addEventListener('pointercancel', releaseDrag);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('pointerup', releaseDrag);
+      window.removeEventListener('pointercancel', releaseDrag);
+    };
   }, [obstacles, interactionMode, selectedObstacleIndex]);
 
   const addObstacle = useCallback((x: number, y: number, z: number) => {
