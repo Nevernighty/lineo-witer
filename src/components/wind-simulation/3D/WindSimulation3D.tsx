@@ -575,7 +575,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
             })}
           </group>
 
-          <OrbitControls enablePan enableZoom enableRotate minDistance={25} maxDistance={180} maxPolarAngle={Math.PI / 2.1} enableDamping dampingFactor={0.1} rotateSpeed={0.6} />
+          <OrbitControls ref={orbitRef} enablePan enableZoom enableRotate minDistance={25} maxDistance={180} maxPolarAngle={Math.PI / 2.1} enableDamping dampingFactor={0.1} rotateSpeed={0.6} />
         </Suspense>
       </Canvas>
 
