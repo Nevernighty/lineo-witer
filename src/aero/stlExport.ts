@@ -14,7 +14,7 @@ export interface ExportOptions {
 }
 
 export function exportBladeSTL(g: BladeGeometry, opts: ExportOptions): string {
-  const built = buildBladeGeometry(g, 'solid', opts.windSpeed, opts.tsr, { helical: opts.helical, vawt: opts.vawt });
+  const built = buildBladeGeometry(g, 'solid', opts.windSpeed, opts.tsr, { helicalTwist: opts.helical, vawt: opts.vawt });
   const group = new THREE.Group();
   const baseMat = new THREE.MeshBasicMaterial();
 
