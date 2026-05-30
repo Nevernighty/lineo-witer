@@ -8,6 +8,14 @@ import { clOf, cdOf } from './airfoils';
 
 export type ViewMode = 'solid' | 'wireframe' | 'pressure' | 'stall' | 'stress' | 'chord' | 'reynolds' | 'xray';
 
+// Rotor topology — drives mesh placement and which solver/visuals are used.
+//   hawt           — horizontal-axis (spin axis = Z = wind axis, blades span +Y radially)
+//   vawt-h         — H-Darrieus straight vertical blades (spin axis = Y, wind = +X)
+//   vawt-helical   — Gorlov / QuietRevolution helical blades
+//   vawt-tropo     — Phi/eggbeater Darrieus (troposkein-shaped blades)
+//   vawt-savonius  — drag-type S-rotor with two half-cylinder buckets
+export type RotorType = 'hawt' | 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius';
+
 export interface StationSample {
   r: number; chord: number; twistDeg: number;
   alpha: number; cl: number; cd: number; cp: number;
@@ -190,4 +198,172 @@ export function buildBladeGeometry(
   const volume = 0.685 * (g.airfoil.thickness / 100) * avgChord * avgChord * span * 0.35; // hollow shell factor
 
   return { geometry: geom, stations, volume, helicalTwistDeg: helical };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// VAWT geometry builders
+// All VAWT meshes use:  spin axis = +Y (vertical),  wind direction = +X.
+// The "tipRadius" field is reused as the rotor radius; "rootRadius" as half-height
+// (we use chordRoot/chordTip for blade chord; twistRoot/twistTip become preset/pitch).
+// ─────────────────────────────────────────────────────────────────────────────
+
+function vawtColorAt(viewMode: ViewMode, tNorm: number, stalled: boolean, cp: number): THREE.Color {
+  switch (viewMode) {
+    case 'pressure':  return new THREE.Color().setHSL(0.66 * ((cp + 3) / 4), 1, 0.55);
+    case 'stall':     return new THREE.Color(stalled ? 0xff7a00 : 0x2a8a3a);
+    case 'stress':    return new THREE.Color().setHSL(Math.max(0, 0.55 - tNorm * 0.55), 1, 0.55);
+    case 'chord':     return new THREE.Color().setHSL(0.55 - tNorm * 0.55, 0.95, 0.55);
+    case 'reynolds':  return new THREE.Color().setHSL(0.6 - tNorm * 0.4, 0.95, 0.55);
+    case 'wireframe': return new THREE.Color(0x66e8ff);
+    case 'xray':      return new THREE.Color(0x39ff14);
+    default:          return new THREE.Color(0xdfe7f1);
+  }
+}
+
+/** One vertical airfoil blade for an H-Darrieus / helical VAWT. Returned geometry
+ *  is centred at the rotor axis: chord lies tangentially (in X-Z plane) and span
+ *  is along +Y. Caller rotates a single blade clone around +Y to fan them out. */
+export function buildVAWTBladeGeometry(
+  g: BladeGeometry,
+  viewMode: ViewMode,
+  type: 'vawt-h' | 'vawt-helical' | 'vawt-tropo',
+  opts: { nStations?: number; helicalTwist?: number; height?: number } = {}
+): BuiltBlade {
+  const nStations = opts.nStations ?? 32;
+  const height = opts.height ?? (g.tipRadius * 2);  // sensible default: H = D
+  const helical = opts.helicalTwist ?? 0;            // total wrap (deg) over full span
+  const R = g.tipRadius;
+  const chord = (g.chordRoot + g.chordTip) / 2;
+  const pitch = g.pitch * Math.PI / 180;             // collective pitch toe-in
+  const camber = g.airfoil.cl0 > 0 ? Math.min(6, 100 * g.airfoil.cl0 / 4) : 0;
+  const profile = naca4Coords(Math.max(2, g.airfoil.thickness), camber, 0.4, 22);
+  const profN = profile.length;
+
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+  const stations: StationSample[] = [];
+
+  for (let s = 0; s < nStations; s++) {
+    const tN = s / (nStations - 1);
+    const y = -height / 2 + tN * height;
+
+    // Local radius: H-Darrieus + helical are constant R, troposkein follows a sin profile.
+    let rLocal = R;
+    if (type === 'vawt-tropo') rLocal = R * Math.max(0.08, Math.sin(Math.PI * tN));
+    const chordHere = chord * (type === 'vawt-tropo' ? Math.max(0.4, Math.sin(Math.PI * tN)) : 1);
+
+    // Helical rotation (about Y) for Gorlov / QuietRevolution.
+    const helAng = (helical * Math.PI / 180) * tN + pitch;
+
+    // Aerodynamic colouring sample (representative; not a full DMS solve).
+    const Vrel = 1; // unit ref so colours don't depend on freestream slider noise
+    const stalled = false;
+    const cp = -0.5;
+
+    const col = vawtColorAt(viewMode, tN, stalled, cp);
+    stations.push({ r: rLocal, chord: chordHere, twistDeg: helAng * 180 / Math.PI, alpha: 0, cl: 0, cd: 0, cp, reynolds: 0, stress: 0, stalled });
+
+    // Section is placed at (+rLocal, y, 0), chord runs tangentially along local Z (rotated by helAng).
+    // Build ring of profN vertices in world space directly so caps stay closed.
+    const cosA = Math.cos(helAng), sinA = Math.sin(helAng);
+    for (let p = 0; p < profN; p++) {
+      const [px, py] = profile[p];
+      // local chord (tangential) and thickness (radial)
+      const xLocal = (px - 0.25) * chordHere;     // chord direction in local frame
+      const yLocal = py * chordHere;              // thickness in local frame
+      // rotate around vertical by helAng so chord vector follows helix
+      const tangential = xLocal * cosA - yLocal * sinA;
+      const radialIn   = xLocal * sinA + yLocal * cosA;
+      const X = rLocal + radialIn;
+      const Z = tangential;
+      positions.push(X, y, Z);
+      colors.push(col.r, col.g, col.b);
+    }
+  }
+
+  // Side panels
+  for (let s = 0; s < nStations - 1; s++) {
+    for (let p = 0; p < profN; p++) {
+      const a = s * profN + p;
+      const b = s * profN + ((p + 1) % profN);
+      const c = (s + 1) * profN + p;
+      const d = (s + 1) * profN + ((p + 1) % profN);
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  // Caps top & bottom
+  const addCap = (sIdx: number, flip: boolean) => {
+    const base = sIdx * profN;
+    let cx = 0, cy = 0, cz = 0;
+    for (let p = 0; p < profN; p++) {
+      cx += positions[(base + p) * 3];
+      cy += positions[(base + p) * 3 + 1];
+      cz += positions[(base + p) * 3 + 2];
+    }
+    cx /= profN; cy /= profN; cz /= profN;
+    const centerIdx = positions.length / 3;
+    positions.push(cx, cy, cz);
+    const cs = colors.slice(base * 3, (base + 1) * 3);
+    colors.push(cs[0] ?? 1, cs[1] ?? 1, cs[2] ?? 1);
+    for (let p = 0; p < profN; p++) {
+      const a = base + p;
+      const b = base + ((p + 1) % profN);
+      if (flip) indices.push(centerIdx, b, a); else indices.push(centerIdx, a, b);
+    }
+  };
+  addCap(0, true);
+  addCap(nStations - 1, false);
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+
+  const volume = 0.685 * (g.airfoil.thickness / 100) * chord * chord * height * 0.35;
+  return { geometry: geom, stations, volume, helicalTwistDeg: helical };
+}
+
+/** Savonius half-cylinder bucket. Generates one bucket centred on +X; caller mirrors it. */
+export function buildSavoniusBucketGeometry(
+  g: BladeGeometry, viewMode: ViewMode, opts: { height?: number; segments?: number } = {}
+): BuiltBlade {
+  const height = opts.height ?? g.tipRadius * 2.2;
+  const segments = opts.segments ?? 24;
+  const R = g.tipRadius;
+  const shellT = Math.max(0.02, R * 0.04);
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+
+  const col = vawtColorAt(viewMode, 0.5, false, -0.4);
+  const ringCount = 14;
+  for (let yi = 0; yi <= ringCount; yi++) {
+    const y = -height / 2 + (yi / ringCount) * height;
+    for (let i = 0; i <= segments; i++) {
+      const ang = -Math.PI / 2 + (i / segments) * Math.PI; // half circle
+      const xOut = (R * 0.55) + Math.cos(ang) * (R * 0.5);
+      const zOut = Math.sin(ang) * (R * 0.5);
+      // shell outer
+      positions.push(xOut, y, zOut);
+      colors.push(col.r, col.g, col.b);
+    }
+  }
+  const rowLen = segments + 1;
+  for (let yi = 0; yi < ringCount; yi++) {
+    for (let i = 0; i < segments; i++) {
+      const a = yi * rowLen + i;
+      const b = a + 1;
+      const c = a + rowLen;
+      const d = c + 1;
+      indices.push(a, c, b, b, c, d);
+    }
+  }
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  return { geometry: geom, stations: [], volume: Math.PI * R * R * shellT * height * 0.5, helicalTwistDeg: 0 };
 }

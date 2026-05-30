@@ -2,6 +2,7 @@
 // All numbers are published nominal values or analytic-ideal shapes; clamp to slider ranges before applying.
 
 import type { BladeGeometry } from './bem';
+import type { RotorType } from './buildBladeGeometry';
 
 export interface RotorPreset {
   id: string;
@@ -9,6 +10,9 @@ export interface RotorPreset {
   nameEN: string;
   category: 'utility' | 'small' | 'diy' | 'vawt' | 'reference';
   materialId: string;
+  rotorType?: RotorType;       // defaults to 'hawt' when unset
+  helicalTwistDeg?: number;    // total wrap for helical VAWT, deg
+  heightOverDiameter?: number; // VAWT only: H/D, used by geometry builder
   geometry: Omit<BladeGeometry, 'airfoil'> & { airfoilId: string };
   descUA: string;
   descEN: string;
@@ -60,13 +64,27 @@ export const PRESETS: RotorPreset[] = [
     geometry: { airfoilId: 'du96w180', rootRadius: 0.10, tipRadius: 0.9, chordRoot: 0.13, chordTip: 0.04, twistRoot: 18, twistTip: 2, pitch: 0, nBlades: 3, twistLaw: 'optimal' },
     descUA: 'Найміцніший FDM-варіант.', descEN: 'Strongest FDM variant.' },
 
-  // ---------------- VAWT (visual approximation as straight blades) ----------------
+  // ---------------- VAWT (true vertical-axis topology) ----------------
   { id: 'darrieus', nameUA: 'Darrieus H 3 м', nameEN: 'Darrieus H 3 m', category: 'vawt', materialId: 'alu',
-    geometry: { airfoilId: 'naca0012', rootRadius: 1.5, tipRadius: 1.5, chordRoot: 0.25, chordTip: 0.25, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 3, twistLaw: 'linear' },
-    descUA: 'H-Дарье; прямі симетричні лопаті.', descEN: 'H-Darrieus; straight symmetric blades.' },
-  { id: 'gorlov',   nameUA: 'Gorlov helical', nameEN: 'Gorlov helical', category: 'vawt', materialId: 'alu',
-    geometry: { airfoilId: 'naca0012', rootRadius: 1.0, tipRadius: 1.0, chordRoot: 0.20, chordTip: 0.20, twistRoot: 0, twistTip: 30, pitch: 0, nBlades: 3, twistLaw: 'linear' },
-    descUA: 'Спіральний VAWT (низькі пульсації).', descEN: 'Helical VAWT (low pulsation).' },
+    rotorType: 'vawt-h', heightOverDiameter: 1.0,
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.1, tipRadius: 1.5, chordRoot: 0.25, chordTip: 0.25, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 3, twistLaw: 'linear' },
+    descUA: 'H-Дарьє; прямі симетричні лопаті, вертикальна вісь.', descEN: 'H-Darrieus; straight symmetric blades, vertical axis.' },
+  { id: 'gorlov', nameUA: 'Gorlov helical 2 м', nameEN: 'Gorlov helical 2 m', category: 'vawt', materialId: 'alu',
+    rotorType: 'vawt-helical', helicalTwistDeg: 60, heightOverDiameter: 1.3,
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.1, tipRadius: 1.0, chordRoot: 0.20, chordTip: 0.20, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 3, twistLaw: 'linear' },
+    descUA: 'Спіральний VAWT; низькі пульсації крутного моменту.', descEN: 'Helical VAWT; low torque ripple.' },
+  { id: 'qr5', nameUA: 'QuietRevolution QR5', nameEN: 'QuietRevolution QR5', category: 'vawt', materialId: 'cfrp',
+    rotorType: 'vawt-helical', helicalTwistDeg: 120, heightOverDiameter: 1.65,
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.15, tipRadius: 1.55, chordRoot: 0.30, chordTip: 0.30, twistRoot: 0, twistTip: 0, pitch: 2, nBlades: 3, twistLaw: 'linear' },
+    descUA: 'Комерційний 5 м S-helix; міський VAWT.', descEN: 'Commercial 5 m S-helix; urban VAWT.' },
+  { id: 'eggbeater', nameUA: 'Phi Darrieus (eggbeater)', nameEN: 'Phi Darrieus (eggbeater)', category: 'vawt', materialId: 'alu',
+    rotorType: 'vawt-tropo', heightOverDiameter: 1.7,
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.1, tipRadius: 2.0, chordRoot: 0.22, chordTip: 0.22, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 2, twistLaw: 'linear' },
+    descUA: 'Класичний троposkein Φ-Дарьє; стрічкова лопать.', descEN: 'Classic troposkein Φ-Darrieus; ribbon blade.' },
+  { id: 'savonius', nameUA: 'Savonius S 1 м', nameEN: 'Savonius S 1 m', category: 'vawt', materialId: 'alu',
+    rotorType: 'vawt-savonius', heightOverDiameter: 2.0,
+    geometry: { airfoilId: 'flat', rootRadius: 0.05, tipRadius: 0.5, chordRoot: 0.5, chordTip: 0.5, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 2, twistLaw: 'linear' },
+    descUA: 'Опірний S-ротор; самостартує, низький Cp.', descEN: 'Drag-type S-rotor; self-starting, low Cp.' },
 
   // ---------------- Reference / ideal ----------------
   { id: 'betz',    nameUA: 'Betz-ideal', nameEN: 'Betz-ideal', category: 'reference', materialId: 'cfrp',

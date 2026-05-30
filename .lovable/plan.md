@@ -1,101 +1,103 @@
-## Blade Lab v2 — Scientific Rework, Polish & STL Export
+## Blade Lab v3 + Simulation Integration + Impact UX Cleanup
 
-The current viewer renders an absurd blob because of a real geometry bug, the slider ranges clamp the big presets, and the UI is under-detailed. This pass fixes the math, redesigns the studio UI, expands presets (including DIY/3D-printable rotors), adds advanced view modes + post-FX, and ships STL export for every blade.
+Non-destructive — only add/refine. No file deletions.
 
-### Part 1 — Fix the 3D blade math (root cause of the "blob")
+### 1. Blade Lab — mobile layout & overlap fixes
 
-In `BladeMesh.tsx`, span runs along **+Z** (`positions.push(x, y, sd.r)`), but blades are cloned with `rotation={[0, 0, rot]}` — a rotation **around Z** just spins the airfoil in its own cross-section, so all N blades stack on top of each other along +Z. That's exactly what the screenshot shows.
+`src/pages/BladeLab.tsx`
+- Replace flex-wrap header with two-row header on `<md`: row 1 = back + title + lang, row 2 = horizontally scrollable chip-bar for preset select + STL buttons + scale switch + reset. Header height stays bounded; no overflow into 3D.
+- Truncate title at `xs`, drop subtitle below `sm`.
+- Mobile tabs: change 4-tab strip to a sticky bottom bar (`fixed bottom-0 inset-x-0`, safe-area padding) so tabs don't collide with viewer overlays. Add `pb-14` on tab content.
+- `ViewerControls`: collapse into a single collapsible "Сцена / Scene" sheet on `<md` (Sheet from `ui/sheet`) triggered by a small floating button in the top-left of the viewer — removes the giant overlay seen in screenshot 2. Toggle labels go full text inside the sheet (no `...` ellipsis).
+- `HUD`: on `<md`, switch to a single-line compact strip pinned top-right under the header (`text-[9px]`, horizontal), so it doesn't overlap the view-mode panel.
+- Viewer min-height on mobile: `min-h-[55vh]` so 3D isn't squashed under controls.
 
-Fixes:
-- Build the blade along **+Y** (span on Y, airfoil chord/thickness in X/Z), then clone with `rotation={[0, 0, k·2π/N]}` so blades fan out radially around the spin axis (Z = wind).
-- Hub becomes a short cylinder on Z (nacelle stub), sized to `rootRadius`, not `rootRadius*0.9` sphere (which currently dominates small rotors).
-- Add a real **nacelle + tower stub** (cylinder + cone) so the rotor reads as a turbine, not a flower.
-- Camera framing: auto-fit on geometry change (`fitToObject(tipRadius)`), reset button.
-- Grid offset = `-tipRadius*0.05` (was `*1.2`, pushing it off-screen for large rotors).
+### 2. True VAWT geometry (fix Darrieus showing as horizontal rotor)
 
-### Part 2 — Geometry panel: ranges, units, DIY support
+Root cause: VAWT presets reuse HAWT mesh — blades fan around +Z (wind axis) as a horizontal disc.
 
-- Extend slider ranges so all presets stay in bounds: span 0.3–130 m, chord root 0.05–8 m, chord tip 0.02–4 m, pitch −15 to +45°, blade count 1–7 (allow 1-bladed counterweighted designs).
-- Add fields: **solidity σ** (read-out, computed), **aspect ratio AR**, **swept area A**, **rotor mass estimate** (using blade volume × material density).
-- Add **Material** select (GFRP, CFRP, PLA-3D, PETG-3D, PA-CF, wood-laminate) → drives density, max tip speed, Young's modulus chip used in stress proxy.
-- Add **planform shape**: rectangular / tapered-linear / tapered-optimal / Schmitz / inverse-taper (DIY VAWT-style straight blade).
-- "Custom DIY" toggle: caps span at 3 m, hides industrial-only fields, surfaces print-bed warnings.
+`src/aero/presets.ts`
+- Add `isVAWT?: boolean` and `helicalTwist?: number` fields on `RotorPreset`. Mark `darrieus`, `gorlov` as VAWT; gorlov gets `helicalTwist: 60`.
+- Add 3 more VAWT presets: `savonius` (drag-type 2-bucket), `darrieus-eggbeater` (curved troposkein), `quietrevolution-qr5` (helical 5 m).
 
-### Part 3 — Preset library (rework + DIY)
+`src/aero/buildBladeGeometry.ts` — extend
+- New builder branch `buildVAWTGeometry(g, viewMode, helical, type)` returning the same `BuiltBlade` interface.
+  - Straight H-Darrieus: blades extruded along **+Z** (vertical), placed at radius `g.tipRadius` from the spin axis, chord tangential.
+  - Helical (Gorlov / QR5): same but each station rotated about Z by `helical * (z / span)`.
+  - Troposkein (eggbeater): blade follows `r(z) = R · sin(π z / H)` (catenary-like) along Z.
+  - Savonius: two half-cylinder shells in S layout.
+- Single export `buildRotorGeometry(g, viewMode, …, { type: 'hawt'|'vawt-h'|'vawt-helical'|'vawt-tropo'|'savonius' })` dispatches.
 
-Replace the 4 broken presets with a 16-preset library, organized:
-- **Utility HAWT**: NREL 5-MW (R=63), IEA 15-MW (R=120), Vestas V90 (R=45), Enercon E-126 (R=63), Siemens SWT-3.6-107, GE 1.5-MW.
-- **Small commercial**: Bergey Excel 10, Aeolos H-10kW, SD6 (Wood/Sunderland).
-- **Residential / DIY**: PicoTurbine 1.2 m, Hugh Piggott 2.4 m (classic DIY plans), Open-Source 1.6 m PLA.
-- **VAWT/experimental**: Darrieus-H 3 m (rendered with straight blades, σ shown), Gorlov helical (visual approximation).
-- **Reference**: Betz-ideal & Schmitz-ideal (analytic shapes).
+`src/components/blade-lab/BladeMesh.tsx`
+- Accept `rotorType` prop. For VAWT types: spin axis = +Z vertical, clones rotate around **+Z** but blades already live offset on +X with span on +Z (no radial fan — they're parallel uprights).
+- Hub: vertical cylinder (axis = Z) sized to rotor height for VAWT; existing horizontal nacelle for HAWT.
+- Auto-fit camera passes `aspectMode: 'tall' | 'wide'` so CameraFit (in `BladeViewer3D.tsx`) frames a tall VAWT correctly (no more close-up of inner shell as in screenshot 3).
 
-Each preset writes **all** geometry fields **plus** airfoil + twist law. Bounds-check in `applyPreset()` to clamp into slider ranges. Add a **Reset to default** action.
+`BladeViewer3D.tsx`
+- TipVortex + WindArrows: when VAWT, wind blows along +X horizontally past the vertical rotor; vortices shed downstream along +X instead of along +Z.
+- Ground disc sits at `z = -height/2` for VAWT.
 
-### Part 4 — Viewer modes & VFX
+`BladeLab.tsx` — auto-set viewer `rotorType` from preset (`isVAWT` + `helicalTwist`) and pipe through `viewerProps`.
 
-Expand `VIEW_MODES` from 5 to 8:
-- Solid · Wireframe · Pressure Cp · Stall zones · Stress · **Chord/twist heatmap** · **Reynolds number** · **X-ray (translucent + inner spar)**.
+`src/aero/bem.ts`
+- Add `solveVAWT(g, flow)` using double-multiple-streamtube (DMS) approximation — closed-form Cp(λ) with cubic fit calibrated to published Darrieus/Savonius curves. AeroAnalysis switches solver based on `rotorType` so power numbers stop showing NaN.
 
-VFX additions (HIGH quality only, toggleable):
-- HDRI `Environment preset="city"` (drei) with low intensity for PBR reflections.
-- `EffectComposer` from `@react-three/postprocessing@^2.16.x`: Bloom (subtle), SSAO, Vignette, ChromaticAberration.
-- Wind-direction arrow band ahead of rotor; ground shadow disc.
-- Selection halo around the rotor + corner-bracket frame in cinematic mode.
-- Replace flat tip vortex tube with **animated helical Cp-colored ribbons** per blade (already partly there, but recolored by current view mode).
+`src/components/blade-lab/AeroAnalysis.tsx`
+- Branch metrics for VAWT (no AoA-at-tip, show λ_opt and σ instead). Replace `NaN kW` (screenshot 3) with graceful fallback + units.
 
-### Part 5 — STL export
+### 3. Bridge presets into main simulation (Blade Lab → 3D sim)
 
-New util `src/aero/stlExport.ts`:
-- Reuses `BladeMesh` buffer geometry generator (extracted into a pure `buildBladeGeometry(g)` function so export and render share code).
-- Uses `three/examples/jsm/exporters/STLExporter` to emit ASCII STL.
-- Header button **⤓ STL** with options: **single blade**, **full rotor (N blades + hub)**, **scale to mm** (×1000 for 3D printing).
-- Browser download via Blob.
+New `src/store/useBladePresetStore.ts` (same `useSyncExternalStore` pattern as `useWindStore.ts`):
+- Holds: `activeBladePreset: { id, nameUA, nameEN, geometry, materialId, rotorType } | null`
+- Persists to `localStorage` ("lineo.bladePreset.v1") so it survives navigation between `/blade-lab` and `/`.
 
-### Part 6 — Analysis panel additions
+`src/pages/BladeLab.tsx`
+- Add header button "**Застосувати в симуляції / Use in simulation**" → writes current geometry+material+rotorType to the store, toasts confirmation, optionally `navigate('/')`.
 
-- Add **Reynolds at 70%R**, **Mach tip**, **solidity σ**, **rotor mass (kg)**, **first flap frequency (Hz)** rough estimate.
-- AoA distribution sparkline along span.
-- Color-coded warnings: tip Mach > 0.3, AoA > stall on > 30% of span, σ < 0.03, etc.
-- Replace recharts default tooltip styling with token-themed (`hsl(var(--card))`).
+`src/components/wind-simulation/3D/WindGenerator3D.tsx` (and/or `WindTurbine.tsx`)
+- Read `activeBladePreset`. When present:
+  - Scale visual turbine blade length/chord to match `geometry.tipRadius` and `chordRoot`.
+  - For VAWT presets, swap the 3D model to a vertical-axis variant (new `VerticalAxisTurbine3D.tsx` — small parametric mesh reusing `buildRotorGeometry`).
+  - Surface a small badge "Custom blade · NREL 5-MW" near the turbine.
 
-### Part 7 — UI/UX polish (no ugly scrollbars)
+`src/components/wind-simulation/EnergyCalculator.ts` (or `windCalculations.ts`)
+- Add `computePowerFromBladeGeometry(geometry, rotorType, windSpeed, airDensity)` calling `solveBEM`/`solveVAWT` and returning instantaneous power. Falls back to existing formula when no preset is active.
 
-- Global custom scrollbar utility in `index.css` (`.scrollbar-thin`, dark track, primary thumb) applied to all Blade Lab panels.
-- Convert left panel to **sticky-headed scrollable groups** with collapsible sections (Geometry / Twist / Pitch / Material / DIY).
-- Right panel: single scrollable column with semantic spacing and proper sticky tab list.
-- Viewer overlay: glassmorphism cards with `backdrop-blur-xl`, primary-tinted borders, reduced opacity (clearer 3D underneath).
-- Add a top-right HUD showing **live ω, RPM, tip-speed, Re, Cp** as small monospace chips.
-- Mobile: bottom drawer for controls (existing tabs reused), STL button stays in header.
+`src/components/wind-simulation/WindControls.tsx` (settings panel)
+- Add an "Aero source" toggle: `Built-in` / `Blade Lab geometry`. When Blade Lab is selected, expose read-only summary (R, c, N, airfoil) + "Open Blade Lab" link.
 
-### Part 8 — i18n
+### 4. Impact / energy-popup spam cleanup in main sim
 
-Add UA/EN keys for: all new presets, new view modes, materials, planform shapes, STL menu, all new analysis metrics and warnings.
+Files: `src/components/wind-simulation/3D/LocalHitPopup.tsx`, `CollisionHotspot.tsx`, `CollisionEffect.tsx`, `WindSimulation3D.tsx`, `NewParticleSystem.ts`.
 
-### Files
+- Add a global rate-limiter inside `WindSimulation3D.tsx`:
+  - Per-obstacle popup cooldown (default 350 ms), max 8 popups on screen, FIFO replacement.
+  - Aggregate impacts within 200 ms window into a single popup showing `Σ J` and a small counter `×N` instead of stacking.
+- `LocalHitPopup.tsx`: shorter lifetime (700 ms), float upward and fade, compact `text-[10px]` chip; auto-place with collision-avoidance against existing popups (track active rects).
+- `CollisionHotspot.tsx`: switch from per-impact pulse to a smoothed heat ring whose intensity decays exponentially — no flicker spam.
+- `CollisionEffect.tsx`: cap concurrent ripples to 6; reuse from a pool.
+- Add a `useWindStore.particles.impactDensity` slider (0–1, default 0.5) wired to the rate-limiter so user can dial spam down further.
+- Ensure popups respect the `visual.showLocalHits` toggle (already in store) and hide instantly when off.
 
-**New**
-- `src/aero/stlExport.ts`
-- `src/aero/materials.ts` (densities + E, max σ)
-- `src/aero/presets.ts` (16-preset library, typed)
-- `src/aero/buildBladeGeometry.ts` (shared mesh builder; replaces inline logic in BladeMesh)
-- `src/components/blade-lab/ViewerHud.tsx`
-- `src/components/blade-lab/StlExportMenu.tsx`
+### 5. Settings ↔ Blade Lab consistency
 
-**Modified**
-- `src/components/blade-lab/BladeMesh.tsx` — span on +Y, hub cylinder, fan-out rotation fix.
-- `src/components/blade-lab/BladeViewer3D.tsx` — HDRI, post-FX, auto-fit camera, ground disc.
-- `src/components/blade-lab/GeometryPanel.tsx` — extended ranges, material/planform/DIY, collapsibles.
-- `src/components/blade-lab/AeroAnalysis.tsx` — new metrics, AoA sparkline, warnings.
-- `src/components/blade-lab/MacroRegime.tsx` — themed tooltips, fit verdict tuned to material/mass.
-- `src/pages/BladeLab.tsx` — preset loader (full overwrite + clamp), STL button, HUD, scrollbar class.
-- `src/index.css` — `.scrollbar-thin` utility, blade-lab glass tokens.
-- `src/utils/i18n.ts` — new keys.
+`src/components/GeneratorSettings.tsx`
+- When `activeBladePreset` is set, pole-count / generator subtype defaults derive from preset (`materialId`, `tipRadius`) — e.g. small DIY → permanent-magnet 12-pole; utility → DFIG 4-pole. User can still override.
+- Add a "Linked to Blade Lab preset: …" chip with a "Clear" button.
 
-### Dependencies
+### 6. i18n
 
-Add `@react-three/postprocessing@^2.16.3` (compatible with R3F v8). Three's STLExporter is bundled with `three` — no new dep.
+`src/utils/i18n.ts` — add keys for: Apply-in-Simulation, VAWT preset names, impact-density slider, Scene sheet title, Aero source toggle, "Linked to Blade Lab preset".
 
-### Out of scope
+### 7. Files
 
-No changes to wind simulation, generator settings, or store. Macro scenarios list itself stays as-is (already 10 entries); only the verdict logic gets material awareness.
+**New:** `src/store/useBladePresetStore.ts`, `src/components/wind-simulation/3D/VerticalAxisTurbine3D.tsx`
+
+**Modified:** `src/pages/BladeLab.tsx`, `src/components/blade-lab/{BladeMesh,BladeViewer3D,AeroAnalysis,GeometryPanel}.tsx`, `src/aero/{buildBladeGeometry,presets,bem}.ts`, `src/components/wind-simulation/3D/{WindSimulation3D,WindGenerator3D,LocalHitPopup,CollisionHotspot,CollisionEffect}.tsx`, `src/components/wind-simulation/{EnergyCalculator.ts,WindControls.tsx}`, `src/components/WindTurbine.tsx`, `src/components/GeneratorSettings.tsx`, `src/store/useWindStore.ts`, `src/utils/i18n.ts`.
+
+### Technical notes (out-of-scope details)
+
+- VAWT mesh uses the same NACA section builder; only the placement axis changes. Caps stay closed because we re-emit triangle fans at z-min/z-max stations.
+- `solveVAWT` returns the same `BemResult` shape so Recharts panels need no changes.
+- The preset store uses a versioned localStorage key so future schema changes can migrate or clear safely.
+- Rate-limiter uses `performance.now()` and a `Map<obstacleId, lastTime>` kept inside a `useRef`, so it adds zero re-renders.

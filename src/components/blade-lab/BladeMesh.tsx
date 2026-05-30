@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import type { BladeGeometry } from '@/aero/bem';
-import { buildBladeGeometry, ViewMode } from '@/aero/buildBladeGeometry';
+import {
+  buildBladeGeometry,
+  buildVAWTBladeGeometry,
+  buildSavoniusBucketGeometry,
+  ViewMode,
+  RotorType,
+} from '@/aero/buildBladeGeometry';
 
 interface Props {
   geometry: BladeGeometry;
@@ -9,71 +15,100 @@ interface Props {
   windSpeed: number;
   tsr: number;
   helical?: number;
-  vawt?: boolean;
+  rotorType?: RotorType;
+  heightOverDiameter?: number;
 }
 
 /**
- * Span = +Y (built into geometry). Blades fan out by rotating each clone about +Z
- * (the spin / wind axis). This fixes the previous bug where all blades stacked.
+ * Dispatches between HAWT and VAWT mesh builders. HAWT span is +Y (cloned around +Z = wind axis);
+ * VAWT blades are vertical (span +Y, placed at +X radius) and cloned around the vertical +Y axis.
  */
-export function BladeMesh({ geometry: g, viewMode, windSpeed, tsr, helical = 0, vawt = false }: Props) {
-  const built = useMemo(
-    () => buildBladeGeometry(g, viewMode, windSpeed, tsr, { helicalTwist: helical, vawt }),
-    [g, viewMode, windSpeed, tsr, helical, vawt]
-  );
+export function BladeMesh({
+  geometry: g, viewMode, windSpeed, tsr, helical = 0, rotorType = 'hawt', heightOverDiameter,
+}: Props) {
+  const isVAWT = rotorType !== 'hawt';
+  const isSavonius = rotorType === 'vawt-savonius';
+
+  const built = useMemo(() => {
+    if (rotorType === 'vawt-savonius') {
+      return buildSavoniusBucketGeometry(g, viewMode, { height: g.tipRadius * 2 * (heightOverDiameter ?? 2) });
+    }
+    if (isVAWT) {
+      return buildVAWTBladeGeometry(g, viewMode, rotorType as 'vawt-h' | 'vawt-helical' | 'vawt-tropo', {
+        helicalTwist: helical,
+        height: g.tipRadius * 2 * (heightOverDiameter ?? 1),
+      });
+    }
+    return buildBladeGeometry(g, viewMode, windSpeed, tsr, { helicalTwist: helical });
+  }, [g, viewMode, windSpeed, tsr, helical, rotorType, heightOverDiameter, isVAWT]);
 
   const isXray = viewMode === 'xray';
   const isWire = viewMode === 'wireframe';
+  const nClones = isSavonius ? 2 : g.nBlades;
+  // VAWT clones rotate around +Y (vertical); HAWT clones rotate around +Z (wind axis).
+  const cloneRotation = (k: number): [number, number, number] => {
+    const a = (k * 2 * Math.PI) / nClones;
+    if (isVAWT) return [0, a, 0];
+    return [0, 0, a];
+  };
 
   return (
     <group>
-      {Array.from({ length: g.nBlades }).map((_, i) => {
-        const rot = (i * 2 * Math.PI) / g.nBlades;
-        return (
-          <group key={i} rotation={[0, 0, rot]}>
-            <mesh geometry={built.geometry} castShadow receiveShadow>
-              {isWire ? (
-                <meshBasicMaterial vertexColors wireframe />
-              ) : isXray ? (
-                <meshStandardMaterial
-                  vertexColors
-                  transparent
-                  opacity={0.35}
-                  emissive={new THREE.Color(0x39ff14)}
-                  emissiveIntensity={0.6}
-                  metalness={0.1}
-                  roughness={0.6}
-                  side={THREE.DoubleSide}
-                />
-              ) : (
-                <meshStandardMaterial
-                  vertexColors
-                  metalness={0.35}
-                  roughness={0.42}
-                  side={THREE.DoubleSide}
-                />
-              )}
-            </mesh>
-            {isXray && (
-              <mesh geometry={built.geometry}>
-                <meshBasicMaterial color="#39ff14" wireframe transparent opacity={0.25} />
-              </mesh>
+      {Array.from({ length: nClones }).map((_, i) => (
+        <group key={i} rotation={cloneRotation(i)}>
+          <mesh geometry={built.geometry} castShadow receiveShadow>
+            {isWire ? (
+              <meshBasicMaterial vertexColors wireframe />
+            ) : isXray ? (
+              <meshStandardMaterial
+                vertexColors transparent opacity={0.35}
+                emissive={new THREE.Color(0x39ff14)} emissiveIntensity={0.6}
+                metalness={0.1} roughness={0.6} side={THREE.DoubleSide}
+              />
+            ) : (
+              <meshStandardMaterial
+                vertexColors metalness={0.35} roughness={0.42} side={THREE.DoubleSide}
+              />
             )}
-          </group>
-        );
-      })}
+          </mesh>
+          {isXray && (
+            <mesh geometry={built.geometry}>
+              <meshBasicMaterial color="#39ff14" wireframe transparent opacity={0.25} />
+            </mesh>
+          )}
+        </group>
+      ))}
 
-      {/* Hub spinner (nacelle-aligned with wind axis = Z) */}
-      <group rotation={[Math.PI / 2, 0, 0]}>
-        <mesh>
-          <cylinderGeometry args={[g.rootRadius * 0.7, g.rootRadius * 0.85, g.rootRadius * 1.4, 32]} />
-          <meshStandardMaterial color="#1a1f26" metalness={0.7} roughness={0.35} />
-        </mesh>
-        <mesh position={[0, g.rootRadius * 0.95, 0]}>
-          <coneGeometry args={[g.rootRadius * 0.7, g.rootRadius * 0.9, 32]} />
-          <meshStandardMaterial color="#2a3038" metalness={0.6} roughness={0.4} />
-        </mesh>
-      </group>
+      {/* Hub / tower */}
+      {isVAWT ? (
+        <>
+          {/* Vertical spindle */}
+          <mesh>
+            <cylinderGeometry args={[g.tipRadius * 0.08, g.tipRadius * 0.1, g.tipRadius * 2.4 * (heightOverDiameter ?? 1), 16]} />
+            <meshStandardMaterial color="#1a1f26" metalness={0.7} roughness={0.35} />
+          </mesh>
+          {/* Top/bottom mounting plates */}
+          <mesh position={[0, g.tipRadius * (heightOverDiameter ?? 1) * 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[g.tipRadius * 0.18, g.tipRadius * 0.18, g.tipRadius * 0.05, 24]} />
+            <meshStandardMaterial color="#2a3038" metalness={0.6} roughness={0.4} />
+          </mesh>
+          <mesh position={[0, -g.tipRadius * (heightOverDiameter ?? 1) * 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[g.tipRadius * 0.18, g.tipRadius * 0.18, g.tipRadius * 0.05, 24]} />
+            <meshStandardMaterial color="#2a3038" metalness={0.6} roughness={0.4} />
+          </mesh>
+        </>
+      ) : (
+        <group rotation={[Math.PI / 2, 0, 0]}>
+          <mesh>
+            <cylinderGeometry args={[g.rootRadius * 0.7, g.rootRadius * 0.85, g.rootRadius * 1.4, 32]} />
+            <meshStandardMaterial color="#1a1f26" metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, g.rootRadius * 0.95, 0]}>
+            <coneGeometry args={[g.rootRadius * 0.7, g.rootRadius * 0.9, 32]} />
+            <meshStandardMaterial color="#2a3038" metalness={0.6} roughness={0.4} />
+          </mesh>
+        </group>
+      )}
     </group>
   );
 }

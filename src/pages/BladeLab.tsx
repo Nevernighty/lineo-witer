@@ -1,6 +1,9 @@
 import { useState, useMemo, useCallback } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowLeft, Download, RotateCcw } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, Download, RotateCcw, Wind } from 'lucide-react';
+import { toast } from '@/components/ui/use-toast';
+import { setActiveBladePreset } from '@/store/useBladePresetStore';
+import type { RotorType } from '@/aero/buildBladeGeometry';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
@@ -29,8 +32,8 @@ const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
 ];
 
 const T = {
-  ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL', geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', view: 'Режим перегляду', windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори', stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін', utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні', exportSingle: 'Експорт лопаті (STL)', exportRotor: 'Експорт ротора (STL)', scaleMM: 'у міліметрах', reset: 'Скинути' },
-  en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL', geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', view: 'View mode', windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines', postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print', vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Export blade (STL)', exportRotor: 'Export rotor (STL)', scaleMM: 'in mm', reset: 'Reset' },
+  ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL', geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', view: 'Режим перегляду', windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори', stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін', utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні', exportSingle: 'Експорт лопаті (STL)', exportRotor: 'Експорт ротора (STL)', scaleMM: 'у міліметрах', reset: 'Скинути', applySim: 'У симуляцію', appliedToast: 'Лопать застосована до симуляції' },
+  en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL', geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', view: 'View mode', windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines', postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print', vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Export blade (STL)', exportRotor: 'Export rotor (STL)', scaleMM: 'in mm', reset: 'Reset', applySim: 'To simulation', appliedToast: 'Blade applied to simulation' },
 };
 
 const DEFAULT_GEOMETRY: BladeGeometry = {
@@ -55,6 +58,10 @@ export default function BladeLab() {
   const [scenarioId, setScenarioId] = useState('plain');
   const [presetId, setPresetId] = useState('');
   const [exportScaleMM, setExportScaleMM] = useState(true);
+  const [rotorType, setRotorType] = useState<RotorType>('hawt');
+  const [heightOverDiameter, setHeightOverDiameter] = useState<number | undefined>(undefined);
+  const [helicalDeg, setHelicalDeg] = useState<number>(0);
+  const navigate = useNavigate();
 
   const rho = 1.225;
 
@@ -73,9 +80,28 @@ export default function BladeLab() {
     const clamped = clampGeometry(rest);
     setGeometry({ ...clamped, airfoil } as BladeGeometry);
     setMaterialId(p.materialId);
+    setRotorType(p.rotorType ?? 'hawt');
+    setHeightOverDiameter(p.heightOverDiameter);
+    setHelicalDeg(p.helicalTwistDeg ?? 0);
   };
 
-  const resetAll = () => { setGeometry(DEFAULT_GEOMETRY); setMaterialId('gfrp'); setPresetId(''); };
+  const resetAll = () => {
+    setGeometry(DEFAULT_GEOMETRY); setMaterialId('gfrp'); setPresetId('');
+    setRotorType('hawt'); setHeightOverDiameter(undefined); setHelicalDeg(0);
+  };
+
+  const applyToSimulation = () => {
+    const p = PRESETS.find(x => x.id === presetId);
+    setActiveBladePreset({
+      id: presetId || 'custom',
+      nameUA: p?.nameUA || 'Користувацька',
+      nameEN: p?.nameEN || 'Custom',
+      geometry, materialId, rotorType,
+      heightOverDiameter, helicalTwistDeg: helicalDeg,
+    });
+    toast({ title: t.appliedToast });
+    setTimeout(() => navigate('/'), 600);
+  };
 
   const exportSTL = useCallback((mode: 'single' | 'rotor') => {
     const name = presetId ? `${presetId}_${mode}` : `blade_${mode}`;
@@ -86,6 +112,7 @@ export default function BladeLab() {
   const viewerProps = {
     geometry, viewMode, windSpeed, tsr, cinematic, postFX,
     showTipVortex: showVortex, showStreamlines: showStream,
+    rotorType, heightOverDiameter, helical: helicalDeg,
   };
 
   return (
