@@ -2,6 +2,7 @@
 // All numbers are published nominal values or analytic-ideal shapes; clamp to slider ranges before applying.
 
 import type { BladeGeometry } from './bem';
+import type { RotorType } from './buildBladeGeometry';
 
 export interface RotorPreset {
   id: string;
@@ -9,6 +10,9 @@ export interface RotorPreset {
   nameEN: string;
   category: 'utility' | 'small' | 'diy' | 'vawt' | 'reference';
   materialId: string;
+  rotorType?: RotorType;       // defaults to 'hawt' when unset
+  helicalTwistDeg?: number;    // total wrap for helical VAWT, deg
+  heightOverDiameter?: number; // VAWT only: H/D, used by geometry builder
   geometry: Omit<BladeGeometry, 'airfoil'> & { airfoilId: string };
   descUA: string;
   descEN: string;
