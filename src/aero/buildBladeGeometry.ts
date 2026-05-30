@@ -8,6 +8,14 @@ import { clOf, cdOf } from './airfoils';
 
 export type ViewMode = 'solid' | 'wireframe' | 'pressure' | 'stall' | 'stress' | 'chord' | 'reynolds' | 'xray';
 
+// Rotor topology — drives mesh placement and which solver/visuals are used.
+//   hawt           — horizontal-axis (spin axis = Z = wind axis, blades span +Y radially)
+//   vawt-h         — H-Darrieus straight vertical blades (spin axis = Y, wind = +X)
+//   vawt-helical   — Gorlov / QuietRevolution helical blades
+//   vawt-tropo     — Phi/eggbeater Darrieus (troposkein-shaped blades)
+//   vawt-savonius  — drag-type S-rotor with two half-cylinder buckets
+export type RotorType = 'hawt' | 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius';
+
 export interface StationSample {
   r: number; chord: number; twistDeg: number;
   alpha: number; cl: number; cd: number; cp: number;
