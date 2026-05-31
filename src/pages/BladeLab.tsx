@@ -198,7 +198,7 @@ export default function BladeLab() {
               <TabsTrigger value="macro" className="text-[11px]">{t.macro}</TabsTrigger>
             </TabsList>
             <TabsContent value="analysis" className="m-0">
-              <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} />
+              <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} rotorType={rotorType} heightOverDiameter={heightOverDiameter} />
             </TabsContent>
             <TabsContent value="macro" className="m-0">
               <MacroRegime geometry={geometry} scenarioId={scenarioId} onScenarioChange={setScenarioId} lang={lang} />
@@ -209,19 +209,19 @@ export default function BladeLab() {
 
       {/* Mobile */}
       <div className="md:hidden flex-1 min-h-0 flex flex-col">
-        <Tabs defaultValue="viewer" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid grid-cols-4 m-1 mb-0 h-8">
+          <Tabs defaultValue="viewer" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-4 h-10 bg-card/90 backdrop-blur-xl border border-primary/20 shadow-lg pb-[env(safe-area-inset-bottom)]">
             <TabsTrigger value="geo" className="text-[10px]">{t.geometry}</TabsTrigger>
             <TabsTrigger value="viewer" className="text-[10px]">{t.viewer}</TabsTrigger>
             <TabsTrigger value="analysis" className="text-[10px]">{t.analysis}</TabsTrigger>
             <TabsTrigger value="macro" className="text-[10px]">{t.macro}</TabsTrigger>
           </TabsList>
-          <TabsContent value="geo" className="flex-1 overflow-y-auto scrollbar-thin m-0">
+          <TabsContent value="geo" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16">
             <GeometryPanel geometry={geometry} onChange={setGeometry} lang={lang} materialId={materialId} onMaterialChange={setMaterialId} />
           </TabsContent>
-          <TabsContent value="viewer" className="flex-1 m-0 relative min-h-0">
+          <TabsContent value="viewer" className="flex-1 m-0 relative min-h-[55vh] pb-14">
             <BladeViewer3D {...viewerProps} />
-            <ViewerControls
+            <ViewerControls mobile
               t={t} viewMode={viewMode} setViewMode={setViewMode}
               windSpeed={windSpeed} setWindSpeed={setWindSpeed}
               tsr={tsr} setTsr={setTsr}
@@ -231,12 +231,12 @@ export default function BladeLab() {
               postFX={postFX} setPostFX={setPostFX}
               lang={lang}
             />
-            <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} />
+            <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} mobile />
           </TabsContent>
-          <TabsContent value="analysis" className="flex-1 overflow-y-auto scrollbar-thin m-0">
-            <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} />
+          <TabsContent value="analysis" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16">
+            <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} rotorType={rotorType} heightOverDiameter={heightOverDiameter} />
           </TabsContent>
-          <TabsContent value="macro" className="flex-1 overflow-y-auto scrollbar-thin m-0">
+          <TabsContent value="macro" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16">
             <MacroRegime geometry={geometry} scenarioId={scenarioId} onScenarioChange={setScenarioId} lang={lang} />
           </TabsContent>
         </Tabs>
