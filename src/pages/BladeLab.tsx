@@ -246,9 +246,34 @@ export default function BladeLab() {
 }
 
 function ViewerControls(props: any) {
-  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang } = props;
+  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang, mobile } = props;
+  const panel = <ScenePanel {...{ t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang }} />;
+  if (mobile) {
+    return (
+      <div className="absolute top-2 left-2 z-20 pointer-events-auto">
+        <Sheet>
+          <SheetTrigger className="h-9 w-9 rounded-md bg-card/80 border border-primary/30 text-primary backdrop-blur-xl flex items-center justify-center shadow-lg">
+            <SlidersHorizontal className="w-4 h-4" />
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[78dvh] overflow-y-auto scrollbar-thin border-primary/30 bg-background/95 p-3">
+            <SheetHeader className="text-left mb-2"><SheetTitle className="text-sm text-primary">{t.scene}</SheetTitle></SheetHeader>
+            {panel}
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
   return (
     <div className="absolute top-2 left-2 right-2 sm:right-auto sm:w-72 z-10 space-y-2 pointer-events-auto">
+      {panel}
+    </div>
+  );
+}
+
+function ScenePanel(props: any) {
+  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang } = props;
+  return (
+    <>
       <div className="bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md p-2 shadow-lg">
         <div className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wider">{t.view}</div>
         <div className="grid grid-cols-4 gap-1">
@@ -276,7 +301,7 @@ function ViewerControls(props: any) {
           <Toggle label={t.postFX} v={postFX} on={setPostFX} />
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -289,14 +314,14 @@ function Toggle({ label, v, on }: { label: string; v: boolean; on: (b: boolean) 
   );
 }
 
-function HUD({ geometry, windSpeed, tsr }: { geometry: BladeGeometry; windSpeed: number; tsr: number }) {
+function HUD({ geometry, windSpeed, tsr, mobile = false }: { geometry: BladeGeometry; windSpeed: number; tsr: number; mobile?: boolean }) {
   const omega = (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius);
   const rpm = (omega * 60) / (2 * Math.PI);
   const tip = tsr * windSpeed;
   const mach = tip / 343;
   return (
-    <div className="absolute top-2 right-2 z-10 pointer-events-none">
-      <div className="bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md p-2 shadow-lg space-y-0.5 text-[10px] font-mono tabular-nums min-w-[120px]">
+    <div className={`absolute ${mobile ? 'top-2 right-2 left-14' : 'top-2 right-2'} z-10 pointer-events-none`}>
+      <div className={`bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md shadow-lg font-mono tabular-nums ${mobile ? 'px-2 py-1 text-[9px] flex items-center justify-end gap-3 overflow-hidden' : 'p-2 space-y-0.5 text-[10px] min-w-[120px]'}`}>
         <Hud label="ω" value={`${omega.toFixed(2)} rad/s`} />
         <Hud label="RPM" value={rpm.toFixed(1)} />
         <Hud label="V tip" value={`${tip.toFixed(0)} m/s`} />
