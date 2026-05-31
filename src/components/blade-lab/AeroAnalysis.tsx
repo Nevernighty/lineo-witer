@@ -31,9 +31,10 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
-export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId }: Props) {
+export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId, rotorType = 'hawt', heightOverDiameter }: Props) {
   const t = T[lang];
   const material = getMaterial(materialId);
+  const isVAWT = rotorType !== 'hawt';
 
   const polar = useMemo(() => {
     const out = [];
@@ -43,14 +44,17 @@ export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId }
     return out;
   }, [geometry.airfoil]);
 
-  const cpl = useMemo(() => cpLambdaCurve(geometry, windSpeed, rho).map(p => ({ ...p, cp: +p.cp.toFixed(3), ct: +p.ct.toFixed(3) })), [geometry, windSpeed, rho]);
-  const pwr = useMemo(() => powerCurve(geometry, rho, 0, tsr).map(p => ({ V: p.V, P: +(p.P / 1000).toFixed(2), cp: +p.cp.toFixed(3) })), [geometry, rho, tsr]);
-  const op = useMemo(() => solveBEM(geometry, { V: windSpeed, omega: (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius), rho }), [geometry, windSpeed, tsr, rho]);
+  const solverOptions = useMemo(() => ({ rotorType: rotorType as Exclude<RotorType, 'hawt'>, heightOverDiameter }), [rotorType, heightOverDiameter]);
+  const cpl = useMemo(() => (isVAWT ? cpLambdaCurveVAWT(geometry, windSpeed, rho, solverOptions) : cpLambdaCurve(geometry, windSpeed, rho)).map(p => ({ ...p, cp: +p.cp.toFixed(3), ct: +p.ct.toFixed(3) })), [geometry, windSpeed, rho, isVAWT, solverOptions]);
+  const pwr = useMemo(() => (isVAWT ? powerCurveVAWT(geometry, rho, solverOptions, tsr) : powerCurve(geometry, rho, 0, tsr)).map(p => ({ V: p.V, P: +(p.P / 1000).toFixed(2), cp: +p.cp.toFixed(3) })), [geometry, rho, tsr, isVAWT, solverOptions]);
+  const op = useMemo(() => isVAWT
+    ? solveVAWT(geometry, { V: windSpeed, omega: (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius), rho }, solverOptions)
+    : solveBEM(geometry, { V: windSpeed, omega: (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius), rho }), [geometry, windSpeed, tsr, rho, isVAWT, solverOptions]);
 
   const tipSpeed = tsr * windSpeed;
   const stalled = op.elements.filter(e => e.stalled).length;
   const tipAlpha = op.elements[op.elements.length - 1]?.alpha || 0;
-  const aoaDist = op.elements.map(e => ({ rR: +(e.r / geometry.tipRadius).toFixed(2), alpha: +e.alpha.toFixed(1), stall: geometry.airfoil.alphaStall }));
+  const aoaDist = op.elements.map((e, i) => ({ rR: +(isVAWT ? i / Math.max(1, op.elements.length - 1) : e.r / geometry.tipRadius).toFixed(2), alpha: +e.alpha.toFixed(1), stall: geometry.airfoil.alphaStall }));
   const e07 = op.elements[Math.floor(op.elements.length * 0.7)];
   const re70 = e07 ? (Math.sqrt(windSpeed * windSpeed + Math.pow((tsr * windSpeed) * (e07.r / geometry.tipRadius), 2)) * e07.chord) / 1.5e-5 : 0;
   const machTip = tipSpeed / 343;
@@ -73,8 +77,8 @@ export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId }
         <Metric label={t.tipS} value={`${tipSpeed.toFixed(0)} m/s`} accent={tipSpeed > material.maxTipSpeed ? '#ff7a00' : undefined} />
         <Metric label={t.alphaTip} value={`${tipAlpha.toFixed(1)}°`} />
         <Metric label={t.stall} value={`${stalled}/${op.elements.length}`} accent={stalled > op.elements.length * 0.3 ? '#ff7a00' : undefined} />
-        <Metric label={t.re70} value={re70 > 1e6 ? `${(re70 / 1e6).toFixed(2)}M` : `${(re70 / 1e3).toFixed(0)}k`} />
-        <Metric label={t.machTip} value={machTip.toFixed(3)} accent={machTip > 0.3 ? '#ff7a00' : undefined} />
+        <Metric label={isVAWT ? t.swept : t.re70} value={isVAWT ? `${(op.sweptArea ?? Math.PI * geometry.tipRadius ** 2).toFixed(1)} m²` : (re70 > 1e6 ? `${(re70 / 1e6).toFixed(2)}M` : `${(re70 / 1e3).toFixed(0)}k`)} />
+        <Metric label={isVAWT ? t.lambdaOpt : t.machTip} value={isVAWT ? cpl.reduce((best, p) => p.cp > best.cp ? p : best, cpl[0] || { lambda: tsr, cp: 0, ct: 0 }).lambda.toFixed(2) : machTip.toFixed(3)} accent={!isVAWT && machTip > 0.3 ? '#ff7a00' : undefined} />
       </div>
 
       {warnings.length > 0 && (
