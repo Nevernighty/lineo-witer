@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, RotateCcw, Wind } from 'lucide-react';
+import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { setActiveBladePreset } from '@/store/useBladePresetStore';
 import type { RotorType } from '@/aero/buildBladeGeometry';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -32,8 +33,8 @@ const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
 ];
 
 const T = {
-  ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL', geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', view: 'Режим перегляду', windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори', stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін', utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні', exportSingle: 'Експорт лопаті (STL)', exportRotor: 'Експорт ротора (STL)', scaleMM: 'у міліметрах', reset: 'Скинути', applySim: 'У симуляцію', appliedToast: 'Лопать застосована до симуляції' },
-  en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL', geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', view: 'View mode', windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines', postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print', vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Export blade (STL)', exportRotor: 'Export rotor (STL)', scaleMM: 'in mm', reset: 'Reset', applySim: 'To simulation', appliedToast: 'Blade applied to simulation' },
+  ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL', geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', scene: 'Сцена', view: 'Режим перегляду', windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори', stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін', utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні', exportSingle: 'Лопать STL', exportRotor: 'Ротор STL', scaleMM: 'мм', reset: 'Скинути', applySim: 'У симуляцію', appliedToast: 'Лопать застосована до симуляції' },
+  en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL', geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', scene: 'Scene', view: 'View mode', windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines', postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print', vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Blade STL', exportRotor: 'Rotor STL', scaleMM: 'mm', reset: 'Reset', applySim: 'To simulation', appliedToast: 'Blade applied to simulation' },
 };
 
 const DEFAULT_GEOMETRY: BladeGeometry = {
