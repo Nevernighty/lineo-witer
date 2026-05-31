@@ -116,8 +116,8 @@ function CameraFit({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean }) 
   const { camera } = useThree();
   useEffect(() => {
     if (isVAWT) {
-      const reach = Math.max(R * 2.2, H * 1.2);
-      camera.position.set(reach * 1.1, H * 0.35, reach * 1.1);
+      const reach = Math.max(R * 4.2, H * 1.45);
+      camera.position.set(reach * 0.95, H * 0.28, reach * 0.95);
       camera.near = Math.max(0.05, R * 0.01);
       camera.far = Math.max(500, reach * 20);
     } else {
@@ -186,7 +186,7 @@ export function BladeViewer3D({
           cellSize={Math.max(R, H) * 0.2} sectionSize={Math.max(R, H)}
         />
       </Suspense>
-      <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, isVAWT ? 0 : 0, 0]} />
+      <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} />
       <Cinematic enabled={cinematic} R={R} H={H} isVAWT={isVAWT} />
       {postFX && (
         <EffectComposer multisampling={0}>
