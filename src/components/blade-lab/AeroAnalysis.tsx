@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip, CartesianGrid, Area, AreaChart } from 'recharts';
 import type { BladeGeometry } from '@/aero/bem';
-import { cpLambdaCurve, powerCurve, solveBEM } from '@/aero/bem';
+import { cpLambdaCurve, cpLambdaCurveVAWT, powerCurve, powerCurveVAWT, solveBEM, solveVAWT } from '@/aero/bem';
+import type { RotorType } from '@/aero/buildBladeGeometry';
 import { clOf, cdOf } from '@/aero/airfoils';
 import { Lang } from '@/utils/i18n';
 import { getMaterial } from '@/aero/materials';
@@ -13,11 +14,13 @@ interface Props {
   tsr: number;
   rho: number;
   materialId: string;
+  rotorType?: RotorType;
+  heightOverDiameter?: number;
 }
 
 const T = {
-  ua: { polar: 'Полярна крива Cl/Cd', cpl: 'Cp – λ (межа Betz 0.593)', power: 'Крива потужності P(V)', aoaDist: 'Розподіл AoA вздовж розмаху', power_: 'Потужність', cp: 'Cp', ct: 'Ct', tipS: 'Кінцева швидк.', alphaTip: 'AoA кінчик', stall: 'У зриві', re70: 'Re @ 0.7R', machTip: 'Mach кінчик', warn: 'Попередження', warnStall: 'Більше 30% розмаху у зриві', warnMach: 'Mach кінчика > 0.3 (шум, втрати)', warnTip: 'Кінцева швидкість > ліміту матеріалу', warnSig: 'Низька солідність σ < 0.03' },
-  en: { polar: 'Polar Cl/Cd', cpl: 'Cp – λ (Betz 0.593)', power: 'Power curve P(V)', aoaDist: 'AoA distribution along span', power_: 'Power', cp: 'Cp', ct: 'Ct', tipS: 'Tip speed', alphaTip: 'Tip AoA', stall: 'Stalled', re70: 'Re @ 0.7R', machTip: 'Tip Mach', warn: 'Warnings', warnStall: '>30% of span stalled', warnMach: 'Tip Mach > 0.3 (noise, losses)', warnTip: 'Tip speed exceeds material limit', warnSig: 'Low solidity σ < 0.03' },
+  ua: { polar: 'Полярна крива Cl/Cd', cpl: 'Cp – λ (межа Betz 0.593)', power: 'Крива потужності P(V)', aoaDist: 'Розподіл AoA / азимуту', power_: 'Потужність', cp: 'Cp', ct: 'Ct', tipS: 'Кінцева швидк.', alphaTip: 'AoA кінчик', stall: 'У зриві', re70: 'Re @ 0.7R', machTip: 'Mach кінчик', swept: 'Ометена площа', lambdaOpt: 'λ оптимум', warn: 'Попередження', warnStall: 'Більше 30% секцій у зриві', warnMach: 'Mach кінчика > 0.3 (шум, втрати)', warnTip: 'Кінцева швидкість > ліміту матеріалу', warnSig: 'Низька солідність σ < 0.03' },
+  en: { polar: 'Polar Cl/Cd', cpl: 'Cp – λ (Betz 0.593)', power: 'Power curve P(V)', aoaDist: 'AoA / azimuth distribution', power_: 'Power', cp: 'Cp', ct: 'Ct', tipS: 'Tip speed', alphaTip: 'Tip AoA', stall: 'Stalled', re70: 'Re @ 0.7R', machTip: 'Tip Mach', swept: 'Swept area', lambdaOpt: 'λ optimum', warn: 'Warnings', warnStall: '>30% of sections stalled', warnMach: 'Tip Mach > 0.3 (noise, losses)', warnTip: 'Tip speed exceeds material limit', warnSig: 'Low solidity σ < 0.03' },
 };
 
 const tooltipStyle = {
@@ -28,9 +31,10 @@ const tooltipStyle = {
   color: 'hsl(var(--foreground))',
 };
 
-export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId }: Props) {
+export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId, rotorType = 'hawt', heightOverDiameter }: Props) {
   const t = T[lang];
   const material = getMaterial(materialId);
+  const isVAWT = rotorType !== 'hawt';
 
   const polar = useMemo(() => {
     const out = [];
@@ -40,14 +44,17 @@ export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId }
     return out;
   }, [geometry.airfoil]);
 
-  const cpl = useMemo(() => cpLambdaCurve(geometry, windSpeed, rho).map(p => ({ ...p, cp: +p.cp.toFixed(3), ct: +p.ct.toFixed(3) })), [geometry, windSpeed, rho]);
-  const pwr = useMemo(() => powerCurve(geometry, rho, 0, tsr).map(p => ({ V: p.V, P: +(p.P / 1000).toFixed(2), cp: +p.cp.toFixed(3) })), [geometry, rho, tsr]);
-  const op = useMemo(() => solveBEM(geometry, { V: windSpeed, omega: (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius), rho }), [geometry, windSpeed, tsr, rho]);
+  const solverOptions = useMemo(() => ({ rotorType: rotorType as Exclude<RotorType, 'hawt'>, heightOverDiameter }), [rotorType, heightOverDiameter]);
+  const cpl = useMemo(() => (isVAWT ? cpLambdaCurveVAWT(geometry, windSpeed, rho, solverOptions) : cpLambdaCurve(geometry, windSpeed, rho)).map(p => ({ ...p, cp: +p.cp.toFixed(3), ct: +p.ct.toFixed(3) })), [geometry, windSpeed, rho, isVAWT, solverOptions]);
+  const pwr = useMemo(() => (isVAWT ? powerCurveVAWT(geometry, rho, solverOptions, tsr) : powerCurve(geometry, rho, 0, tsr)).map(p => ({ V: p.V, P: +(p.P / 1000).toFixed(2), cp: +p.cp.toFixed(3) })), [geometry, rho, tsr, isVAWT, solverOptions]);
+  const op = useMemo(() => isVAWT
+    ? solveVAWT(geometry, { V: windSpeed, omega: (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius), rho }, solverOptions)
+    : solveBEM(geometry, { V: windSpeed, omega: (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius), rho }), [geometry, windSpeed, tsr, rho, isVAWT, solverOptions]);
 
   const tipSpeed = tsr * windSpeed;
   const stalled = op.elements.filter(e => e.stalled).length;
   const tipAlpha = op.elements[op.elements.length - 1]?.alpha || 0;
-  const aoaDist = op.elements.map(e => ({ rR: +(e.r / geometry.tipRadius).toFixed(2), alpha: +e.alpha.toFixed(1), stall: geometry.airfoil.alphaStall }));
+  const aoaDist = op.elements.map((e, i) => ({ rR: +(isVAWT ? i / Math.max(1, op.elements.length - 1) : e.r / geometry.tipRadius).toFixed(2), alpha: +e.alpha.toFixed(1), stall: geometry.airfoil.alphaStall }));
   const e07 = op.elements[Math.floor(op.elements.length * 0.7)];
   const re70 = e07 ? (Math.sqrt(windSpeed * windSpeed + Math.pow((tsr * windSpeed) * (e07.r / geometry.tipRadius), 2)) * e07.chord) / 1.5e-5 : 0;
   const machTip = tipSpeed / 343;
@@ -70,8 +77,8 @@ export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId }
         <Metric label={t.tipS} value={`${tipSpeed.toFixed(0)} m/s`} accent={tipSpeed > material.maxTipSpeed ? '#ff7a00' : undefined} />
         <Metric label={t.alphaTip} value={`${tipAlpha.toFixed(1)}°`} />
         <Metric label={t.stall} value={`${stalled}/${op.elements.length}`} accent={stalled > op.elements.length * 0.3 ? '#ff7a00' : undefined} />
-        <Metric label={t.re70} value={re70 > 1e6 ? `${(re70 / 1e6).toFixed(2)}M` : `${(re70 / 1e3).toFixed(0)}k`} />
-        <Metric label={t.machTip} value={machTip.toFixed(3)} accent={machTip > 0.3 ? '#ff7a00' : undefined} />
+        <Metric label={isVAWT ? t.swept : t.re70} value={isVAWT ? `${(op.sweptArea ?? Math.PI * geometry.tipRadius ** 2).toFixed(1)} m²` : (re70 > 1e6 ? `${(re70 / 1e6).toFixed(2)}M` : `${(re70 / 1e3).toFixed(0)}k`)} />
+        <Metric label={isVAWT ? t.lambdaOpt : t.machTip} value={isVAWT ? cpl.reduce((best, p) => p.cp > best.cp ? p : best, cpl[0] || { lambda: tsr, cp: 0, ct: 0 }).lambda.toFixed(2) : machTip.toFixed(3)} accent={!isVAWT && machTip > 0.3 ? '#ff7a00' : undefined} />
       </div>
 
       {warnings.length > 0 && (

@@ -4,6 +4,9 @@ import { Html, Cylinder, Box, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
 import { Obstacle, GeneratorSubtype, GENERATOR_SUBTYPES } from '../types';
 import { WindPhysicsConfig, calculateWindShear } from './WindPhysicsEngine';
+import { useActiveBladePreset } from '@/store/useBladePresetStore';
+import { computePowerFromBladeGeometry } from '@/components/wind-simulation/EnergyCalculator';
+import { BladePresetTurbine3D } from './BladePresetTurbine3D';
 
 interface WindGenerator3DProps {
   obstacle: Obstacle;
@@ -22,6 +25,13 @@ export function calculateGeneratorPower(
   if (adjustedSpeed < specs.cutIn || adjustedSpeed > specs.cutOut) return 0;
   const area = Math.PI * Math.pow(rotorDiameter / 2, 2);
   return 0.5 * airDensity * area * Math.pow(adjustedSpeed, 3) * specs.cp;
+}
+
+export function calculateBladePresetPower(activePreset: ReturnType<typeof useActiveBladePreset>, airDensity: number, windSpeed: number, height: number, refHeight: number, surfaceRoughness: number): number | null {
+  if (!activePreset) return null;
+  const adjustedSpeed = calculateWindShear(windSpeed, refHeight, Math.max(1, height), surfaceRoughness);
+  if (adjustedSpeed < 2 || adjustedSpeed > 30) return 0;
+  return computePowerFromBladeGeometry(activePreset.geometry, activePreset.rotorType, adjustedSpeed, airDensity, { heightOverDiameter: activePreset.heightOverDiameter }).power;
 }
 
 // HAWT 3-blade model
@@ -302,6 +312,7 @@ const VAWTRotorGlow: React.FC<{ towerHeight: number; rotorDiameter: number; powe
 };
 
 export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, config, isSelected = false, isHovered = false }) => {
+  const activePreset = useActiveBladePreset();
   const subtype = obstacle.generatorSubtype || 'hawt3';
   const specs = GENERATOR_SUBTYPES[subtype];
   const towerHeight = obstacle.height;
@@ -312,11 +323,13 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const [showDetails, setShowDetails] = useState(false);
 
   const power = useMemo(() => {
+    const presetPower = calculateBladePresetPower(activePreset, config.airDensity, config.windSpeed, towerHeight + obstacle.y, config.referenceHeight, config.surfaceRoughness);
+    if (presetPower !== null) return presetPower;
     return calculateGeneratorPower(
       config.airDensity, rotorDiameter, config.windSpeed,
       towerHeight + obstacle.y, config.referenceHeight, config.surfaceRoughness, subtype
     );
-  }, [config.airDensity, config.windSpeed, config.referenceHeight, config.surfaceRoughness, rotorDiameter, towerHeight, obstacle.y, subtype]);
+  }, [activePreset, config.airDensity, config.windSpeed, config.referenceHeight, config.surfaceRoughness, rotorDiameter, towerHeight, obstacle.y, subtype]);
 
   const adjustedSpeed = useMemo(() => {
     return calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, towerHeight + obstacle.y), config.surfaceRoughness);
@@ -370,11 +383,11 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   return (
     <group position={position} rotation={[0, rotationY, 0]} scale={scaleVal}>
       <group ref={wobbleRef}>
-        {subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
-        {subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
-        {subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
-        {subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
-        {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+        {activePreset ? <BladePresetTurbine3D preset={activePreset} towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} /> : subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
+        {!activePreset && subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
+        {!activePreset && subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+        {!activePreset && subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+        {!activePreset && subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
       </group>
 
       {/* HAWT: disc effect, VAWT: cylindrical glow */}
@@ -390,7 +403,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
           style={{ backgroundColor: 'rgba(0,0,0,0.85)', borderColor: `${statusColor}40`, minWidth: '55px' }}
           onClick={() => setShowDetails(!showDetails)}
         >
-          <div className="text-[6px] font-mono" style={{ color: `${statusColor}cc` }}>{subtypeName}</div>
+          <div className="text-[6px] font-mono" style={{ color: `${statusColor}cc` }}>{activePreset ? `Blade Lab · ${activePreset.nameUA}` : subtypeName}</div>
           {statusLabel ? (
             <div className="text-[9px] font-bold" style={{ color: statusColor }}>{statusLabel}</div>
           ) : (

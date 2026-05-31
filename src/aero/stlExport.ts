@@ -2,7 +2,7 @@
 import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import type { BladeGeometry } from './bem';
-import { buildBladeGeometry } from './buildBladeGeometry';
+import { buildBladeGeometry, buildSavoniusBucketGeometry, buildVAWTBladeGeometry, type RotorType } from './buildBladeGeometry';
 
 export interface ExportOptions {
   mode: 'single' | 'rotor';
@@ -10,26 +10,38 @@ export interface ExportOptions {
   windSpeed: number;
   tsr: number;
   helical?: number;
-  vawt?: boolean;
+  rotorType?: RotorType;
+  heightOverDiameter?: number;
 }
 
 export function exportBladeSTL(g: BladeGeometry, opts: ExportOptions): string {
-  const built = buildBladeGeometry(g, 'solid', opts.windSpeed, opts.tsr, { helicalTwist: opts.helical, vawt: opts.vawt });
+  const rotorType = opts.rotorType ?? 'hawt';
+  const isVAWT = rotorType !== 'hawt';
+  const height = g.tipRadius * 2 * (opts.heightOverDiameter ?? (rotorType === 'vawt-savonius' ? 2 : 1));
+  const built = rotorType === 'vawt-savonius'
+    ? buildSavoniusBucketGeometry(g, 'solid', { height })
+    : isVAWT
+      ? buildVAWTBladeGeometry(g, 'solid', rotorType as 'vawt-h' | 'vawt-helical' | 'vawt-tropo', { helicalTwist: opts.helical, height })
+      : buildBladeGeometry(g, 'solid', opts.windSpeed, opts.tsr, { helicalTwist: opts.helical });
   const group = new THREE.Group();
   const baseMat = new THREE.MeshBasicMaterial();
 
   if (opts.mode === 'single') {
     group.add(new THREE.Mesh(built.geometry, baseMat));
   } else {
-    const N = g.nBlades;
+    const N = rotorType === 'vawt-savonius' ? 2 : g.nBlades;
     for (let i = 0; i < N; i++) {
       const m = new THREE.Mesh(built.geometry.clone(), baseMat);
-      m.rotation.z = (i * 2 * Math.PI) / N;
+      if (isVAWT) m.rotation.y = (i * 2 * Math.PI) / N;
+      else m.rotation.z = (i * 2 * Math.PI) / N;
       group.add(m);
     }
     // hub spinner
+    const hubGeom = isVAWT
+      ? new THREE.CylinderGeometry(g.tipRadius * 0.06, g.tipRadius * 0.06, height * 1.05, 32)
+      : new THREE.CylinderGeometry(g.rootRadius * 0.9, g.rootRadius * 0.9, g.rootRadius * 1.4, 32);
     const hub = new THREE.Mesh(
-      new THREE.CylinderGeometry(g.rootRadius * 0.9, g.rootRadius * 0.9, g.rootRadius * 1.4, 32),
+      hubGeom,
       baseMat
     );
     group.add(hub);

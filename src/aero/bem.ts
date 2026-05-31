@@ -33,6 +33,8 @@ export interface BemResult {
   elements: BemElementResult[];
   thrust: number; torque: number; power: number;
   cp: number; ct: number; tsr: number; rotorRadius: number;
+  sweptArea?: number;
+  rotorType?: 'hawt' | 'vawt';
 }
 
 function localChord(g: BladeGeometry, r: number): number {
@@ -127,6 +129,78 @@ export function cpLambdaCurve(g: BladeGeometry, V = 10, rho = 1.225): { lambda: 
     const omega = (lam * V) / g.tipRadius;
     const r = solveBEM(g, { V, omega, rho }, 16);
     out.push({ lambda: lam, cp: r.cp, ct: r.ct });
+  }
+  return out;
+}
+
+export interface VAWTOptions {
+  rotorType?: 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius';
+  heightOverDiameter?: number;
+}
+
+function vawtCpModel(lambda: number, sigma: number, rotorType: VAWTOptions['rotorType'] = 'vawt-h') {
+  const lam = Math.max(0.05, lambda);
+  const sig = Math.max(0.03, Math.min(0.65, sigma));
+  if (rotorType === 'vawt-savonius') {
+    const peak = 0.18 + Math.min(0.06, sig * 0.08);
+    const shape = Math.exp(-Math.pow((lam - 0.9) / 0.78, 2));
+    return Math.max(0, Math.min(0.24, peak * shape - Math.max(0, lam - 2.2) * 0.035));
+  }
+  const lambdaOpt = rotorType === 'vawt-helical' ? 4.2 : rotorType === 'vawt-tropo' ? 5.0 : 4.7;
+  const peakBase = rotorType === 'vawt-helical' ? 0.38 : rotorType === 'vawt-tropo' ? 0.34 : 0.35;
+  const solidityPenalty = Math.exp(-Math.pow((sig - 0.18) / 0.22, 2));
+  const lowTsrLoss = 1 - Math.exp(-lam / 1.15);
+  const highTsrLoss = Math.exp(-Math.pow((lam - lambdaOpt) / 3.1, 2));
+  return Math.max(0, Math.min(0.43, peakBase * (0.72 + 0.28 * solidityPenalty) * lowTsrLoss * highTsrLoss));
+}
+
+/** Educational DMS-inspired VAWT model: same output shape as BEM for UI integration. */
+export function solveVAWT(g: BladeGeometry, flow: FlowConditions, options: VAWTOptions = {}, nStations = 24): BemResult {
+  const R = Math.max(0.05, g.tipRadius);
+  const H = R * 2 * (options.heightOverDiameter ?? (options.rotorType === 'vawt-savonius' ? 2 : 1.2));
+  const tsr = (flow.omega * R) / Math.max(0.1, flow.V);
+  const chord = Math.max(0.02, (g.chordRoot + g.chordTip) / 2);
+  const sweptArea = Math.max(0.01, 2 * R * H);
+  const sigma = (g.nBlades * chord) / Math.max(0.01, R);
+  const cp = vawtCpModel(tsr, sigma, options.rotorType);
+  const pAvail = 0.5 * flow.rho * sweptArea * Math.pow(flow.V, 3);
+  const power = cp * pAvail;
+  const torque = power / Math.max(0.05, flow.omega);
+  const ct = Math.min(1.15, Math.max(0.05, cp * 1.7 + sigma * 0.18));
+  const thrust = ct * 0.5 * flow.rho * sweptArea * flow.V * flow.V;
+  const elements: BemElementResult[] = [];
+  for (let i = 0; i < nStations; i++) {
+    const az = ((i + 0.5) / nStations) * Math.PI * 2;
+    const rel = Math.sqrt(flow.V * flow.V + Math.pow(flow.omega * R, 2) + 2 * flow.V * flow.omega * R * Math.sin(az));
+    const alpha = Math.atan2(flow.V * Math.cos(az), Math.max(0.1, flow.omega * R + flow.V * Math.sin(az))) * 180 / Math.PI - g.pitch;
+    const cl = clOf(g.airfoil, alpha);
+    const cd = cdOf(g.airfoil, alpha);
+    const dQ = torque / nStations;
+    elements.push({
+      r: R, chord, twist: g.pitch, a: 0.18, aPrime: 0, alpha, cl, cd,
+      dT: thrust / nStations, dQ, F: 1, stalled: Math.abs(alpha) > g.airfoil.alphaStall || rel < flow.V * 0.35,
+    });
+  }
+  return { elements, thrust, torque, power, cp, ct, tsr, rotorRadius: R, sweptArea, rotorType: 'vawt' };
+}
+
+export function cpLambdaCurveVAWT(g: BladeGeometry, V = 10, rho = 1.225, options: VAWTOptions = {}): { lambda: number; cp: number; ct: number }[] {
+  const out: { lambda: number; cp: number; ct: number }[] = [];
+  const maxLam = options.rotorType === 'vawt-savonius' ? 4 : 10;
+  for (let lam = 0.5; lam <= maxLam; lam += 0.25) {
+    const omega = (lam * V) / g.tipRadius;
+    const r = solveVAWT(g, { V, omega, rho }, options, 18);
+    out.push({ lambda: lam, cp: r.cp, ct: r.ct });
+  }
+  return out;
+}
+
+export function powerCurveVAWT(g: BladeGeometry, rho: number, options: VAWTOptions = {}, designTsr = 4.5): { V: number; P: number; cp: number }[] {
+  const out: { V: number; P: number; cp: number }[] = [];
+  for (let V = 2; V <= 25; V += 0.5) {
+    const omega = (designTsr * V) / g.tipRadius;
+    const r = solveVAWT(g, { V, omega, rho }, options);
+    out.push({ V, P: r.power, cp: r.cp });
   }
   return out;
 }

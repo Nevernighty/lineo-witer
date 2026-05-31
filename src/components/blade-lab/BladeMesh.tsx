@@ -45,6 +45,7 @@ export function BladeMesh({
   const isXray = viewMode === 'xray';
   const isWire = viewMode === 'wireframe';
   const nClones = isSavonius ? 2 : g.nBlades;
+  const vawtHeight = g.tipRadius * 2 * (heightOverDiameter ?? (isSavonius ? 2 : 1));
   // VAWT clones rotate around +Y (vertical); HAWT clones rotate around +Z (wind axis).
   const cloneRotation = (k: number): [number, number, number] => {
     const a = (k * 2 * Math.PI) / nClones;
@@ -84,18 +85,33 @@ export function BladeMesh({
         <>
           {/* Vertical spindle */}
           <mesh>
-            <cylinderGeometry args={[g.tipRadius * 0.08, g.tipRadius * 0.1, g.tipRadius * 2.4 * (heightOverDiameter ?? 1), 16]} />
+            <cylinderGeometry args={[g.tipRadius * 0.035, g.tipRadius * 0.045, vawtHeight * 1.08, 20]} />
             <meshStandardMaterial color="#1a1f26" metalness={0.7} roughness={0.35} />
           </mesh>
           {/* Top/bottom mounting plates */}
-          <mesh position={[0, g.tipRadius * (heightOverDiameter ?? 1) * 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[g.tipRadius * 0.18, g.tipRadius * 0.18, g.tipRadius * 0.05, 24]} />
+          <mesh position={[0, vawtHeight / 2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[g.tipRadius * 0.14, g.tipRadius * 0.14, g.tipRadius * 0.045, 28]} />
             <meshStandardMaterial color="#2a3038" metalness={0.6} roughness={0.4} />
           </mesh>
-          <mesh position={[0, -g.tipRadius * (heightOverDiameter ?? 1) * 1.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[g.tipRadius * 0.18, g.tipRadius * 0.18, g.tipRadius * 0.05, 24]} />
+          <mesh position={[0, -vawtHeight / 2, 0]} rotation={[Math.PI / 2, 0, 0]}>
+            <cylinderGeometry args={[g.tipRadius * 0.14, g.tipRadius * 0.14, g.tipRadius * 0.045, 28]} />
             <meshStandardMaterial color="#2a3038" metalness={0.6} roughness={0.4} />
           </mesh>
+          {!isSavonius && Array.from({ length: nClones }).map((_, i) => {
+            const a = (i * 2 * Math.PI) / nClones;
+            return (
+              <group key={`strut-${i}`} rotation={[0, a, 0]}>
+                <mesh position={[g.tipRadius * 0.52, vawtHeight * 0.47, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <cylinderGeometry args={[g.tipRadius * 0.012, g.tipRadius * 0.012, g.tipRadius * 0.96, 8]} />
+                  <meshStandardMaterial color="#46515f" metalness={0.55} roughness={0.45} />
+                </mesh>
+                <mesh position={[g.tipRadius * 0.52, -vawtHeight * 0.47, 0]} rotation={[0, 0, Math.PI / 2]}>
+                  <cylinderGeometry args={[g.tipRadius * 0.012, g.tipRadius * 0.012, g.tipRadius * 0.96, 8]} />
+                  <meshStandardMaterial color="#46515f" metalness={0.55} roughness={0.45} />
+                </mesh>
+              </group>
+            );
+          })}
         </>
       ) : (
         <group rotation={[Math.PI / 2, 0, 0]}>

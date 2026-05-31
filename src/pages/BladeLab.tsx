@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, RotateCcw, Wind } from 'lucide-react';
+import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { setActiveBladePreset } from '@/store/useBladePresetStore';
 import type { RotorType } from '@/aero/buildBladeGeometry';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
@@ -32,8 +33,8 @@ const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
 ];
 
 const T = {
-  ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL', geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', view: 'Режим перегляду', windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори', stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін', utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні', exportSingle: 'Експорт лопаті (STL)', exportRotor: 'Експорт ротора (STL)', scaleMM: 'у міліметрах', reset: 'Скинути', applySim: 'У симуляцію', appliedToast: 'Лопать застосована до симуляції' },
-  en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL', geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', view: 'View mode', windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines', postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print', vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Export blade (STL)', exportRotor: 'Export rotor (STL)', scaleMM: 'in mm', reset: 'Reset', applySim: 'To simulation', appliedToast: 'Blade applied to simulation' },
+  ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL', geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', scene: 'Сцена', view: 'Режим перегляду', windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори', stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін', utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні', exportSingle: 'Лопать STL', exportRotor: 'Ротор STL', scaleMM: 'мм', reset: 'Скинути', applySim: 'У симуляцію', appliedToast: 'Лопать застосована до симуляції' },
+  en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL', geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', scene: 'Scene', view: 'View mode', windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines', postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print', vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Blade STL', exportRotor: 'Rotor STL', scaleMM: 'mm', reset: 'Reset', applySim: 'To simulation', appliedToast: 'Blade applied to simulation' },
 };
 
 const DEFAULT_GEOMETRY: BladeGeometry = {
@@ -105,9 +106,9 @@ export default function BladeLab() {
 
   const exportSTL = useCallback((mode: 'single' | 'rotor') => {
     const name = presetId ? `${presetId}_${mode}` : `blade_${mode}`;
-    const stl = exportBladeSTL(geometry, { mode, scaleMM: exportScaleMM, windSpeed, tsr });
+    const stl = exportBladeSTL(geometry, { mode, scaleMM: exportScaleMM, windSpeed, tsr, rotorType, heightOverDiameter, helical: helicalDeg });
     downloadSTL(name, stl);
-  }, [geometry, presetId, exportScaleMM, windSpeed, tsr]);
+  }, [geometry, presetId, exportScaleMM, windSpeed, tsr, rotorType, heightOverDiameter, helicalDeg]);
 
   const viewerProps = {
     geometry, viewMode, windSpeed, tsr, cinematic, postFX,
@@ -116,19 +117,25 @@ export default function BladeLab() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="h-[100dvh] w-screen flex flex-col bg-background text-foreground overflow-hidden blade-lab-shell">
       {/* Header */}
-      <header className="flex items-center justify-between px-3 py-2 border-b border-border/40 bg-card/60 backdrop-blur-md gap-2 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
+      <header className="border-b border-border/40 bg-card/70 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <Link to="/" className="p-1.5 rounded hover:bg-primary/10 flex-shrink-0"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="min-w-0">
-            <div className="text-sm font-bold truncate">{t.title}</div>
-            <div className="text-[10px] text-muted-foreground tracking-wider uppercase truncate">{t.sub}</div>
+            <div className="text-xs sm:text-sm font-bold truncate max-w-[44vw] sm:max-w-none">{t.title}</div>
+            <div className="hidden sm:block text-[10px] text-muted-foreground tracking-wider uppercase truncate">{t.sub}</div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex bg-card/60 rounded border border-border/30 p-0.5 flex-shrink-0">
+          <button onClick={() => setLang('ua')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>UA</button>
+          <button onClick={() => setLang('en')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>EN</button>
+        </div>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 sm:px-3 pb-2 overflow-x-auto scrollbar-none">
           <Select value={presetId} onValueChange={applyPreset}>
-            <SelectTrigger className="h-7 text-[11px] w-44"><SelectValue placeholder={`— ${t.presets} —`} /></SelectTrigger>
+            <SelectTrigger className="h-7 text-[11px] w-44 flex-shrink-0"><SelectValue placeholder={`— ${t.presets} —`} /></SelectTrigger>
             <SelectContent className="z-[100] max-h-80">
               {(['utility', 'small', 'diy', 'vawt', 'reference'] as const).map(cat => (
                 <SelectGroup key={cat}>
@@ -143,25 +150,25 @@ export default function BladeLab() {
             </SelectContent>
           </Select>
           <button onClick={resetAll} title={t.reset}
-            className="h-7 px-1.5 rounded bg-card/50 hover:bg-card text-muted-foreground border border-border/40 flex items-center">
+            className="h-7 px-1.5 rounded bg-card/50 hover:bg-card text-muted-foreground border border-border/40 flex items-center flex-shrink-0">
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
-          <div className="flex items-center gap-1 px-1.5 h-7 rounded border border-border/40 bg-card/40">
+          <button onClick={applyToSimulation}
+            className="h-7 px-2 text-[10px] rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1 flex-shrink-0">
+            <Wind className="w-3 h-3" /> {t.applySim}
+          </button>
+          <div className="flex items-center gap-1 px-1.5 h-7 rounded border border-border/40 bg-card/40 flex-shrink-0">
             <Switch checked={exportScaleMM} onCheckedChange={setExportScaleMM} className="scale-75" />
             <span className="text-[10px] text-muted-foreground">{t.scaleMM}</span>
           </div>
           <button onClick={() => exportSTL('single')}
-            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1">
+            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1 flex-shrink-0">
             <Download className="w-3 h-3" /> {t.exportSingle}
           </button>
           <button onClick={() => exportSTL('rotor')}
-            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1">
+            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1 flex-shrink-0">
             <Download className="w-3 h-3" /> {t.exportRotor}
           </button>
-          <div className="flex bg-card/60 rounded border border-border/30 p-0.5">
-            <button onClick={() => setLang('ua')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>UA</button>
-            <button onClick={() => setLang('en')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>EN</button>
-          </div>
         </div>
       </header>
 
@@ -191,7 +198,7 @@ export default function BladeLab() {
               <TabsTrigger value="macro" className="text-[11px]">{t.macro}</TabsTrigger>
             </TabsList>
             <TabsContent value="analysis" className="m-0">
-              <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} />
+              <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} rotorType={rotorType} heightOverDiameter={heightOverDiameter} />
             </TabsContent>
             <TabsContent value="macro" className="m-0">
               <MacroRegime geometry={geometry} scenarioId={scenarioId} onScenarioChange={setScenarioId} lang={lang} />
@@ -202,19 +209,19 @@ export default function BladeLab() {
 
       {/* Mobile */}
       <div className="md:hidden flex-1 min-h-0 flex flex-col">
-        <Tabs defaultValue="viewer" className="flex-1 flex flex-col min-h-0">
-          <TabsList className="grid grid-cols-4 m-1 mb-0 h-8">
+          <Tabs defaultValue="viewer" className="flex-1 flex flex-col min-h-0">
+          <TabsList className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-4 h-10 bg-card/90 backdrop-blur-xl border border-primary/20 shadow-lg pb-[env(safe-area-inset-bottom)]">
             <TabsTrigger value="geo" className="text-[10px]">{t.geometry}</TabsTrigger>
             <TabsTrigger value="viewer" className="text-[10px]">{t.viewer}</TabsTrigger>
             <TabsTrigger value="analysis" className="text-[10px]">{t.analysis}</TabsTrigger>
             <TabsTrigger value="macro" className="text-[10px]">{t.macro}</TabsTrigger>
           </TabsList>
-          <TabsContent value="geo" className="flex-1 overflow-y-auto scrollbar-thin m-0">
+          <TabsContent value="geo" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16">
             <GeometryPanel geometry={geometry} onChange={setGeometry} lang={lang} materialId={materialId} onMaterialChange={setMaterialId} />
           </TabsContent>
-          <TabsContent value="viewer" className="flex-1 m-0 relative min-h-0">
+          <TabsContent value="viewer" className="flex-1 m-0 relative min-h-[55vh] pb-14">
             <BladeViewer3D {...viewerProps} />
-            <ViewerControls
+            <ViewerControls mobile
               t={t} viewMode={viewMode} setViewMode={setViewMode}
               windSpeed={windSpeed} setWindSpeed={setWindSpeed}
               tsr={tsr} setTsr={setTsr}
@@ -224,12 +231,12 @@ export default function BladeLab() {
               postFX={postFX} setPostFX={setPostFX}
               lang={lang}
             />
-            <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} />
+            <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} mobile />
           </TabsContent>
-          <TabsContent value="analysis" className="flex-1 overflow-y-auto scrollbar-thin m-0">
-            <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} />
+          <TabsContent value="analysis" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16">
+            <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} rotorType={rotorType} heightOverDiameter={heightOverDiameter} />
           </TabsContent>
-          <TabsContent value="macro" className="flex-1 overflow-y-auto scrollbar-thin m-0">
+          <TabsContent value="macro" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16">
             <MacroRegime geometry={geometry} scenarioId={scenarioId} onScenarioChange={setScenarioId} lang={lang} />
           </TabsContent>
         </Tabs>
@@ -239,9 +246,34 @@ export default function BladeLab() {
 }
 
 function ViewerControls(props: any) {
-  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang } = props;
+  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang, mobile } = props;
+  const panel = <ScenePanel {...{ t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang }} />;
+  if (mobile) {
+    return (
+      <div className="absolute top-2 left-2 z-20 pointer-events-auto">
+        <Sheet>
+          <SheetTrigger className="h-9 w-9 rounded-md bg-card/80 border border-primary/30 text-primary backdrop-blur-xl flex items-center justify-center shadow-lg">
+            <SlidersHorizontal className="w-4 h-4" />
+          </SheetTrigger>
+          <SheetContent side="bottom" className="max-h-[78dvh] overflow-y-auto scrollbar-thin border-primary/30 bg-background/95 p-3">
+            <SheetHeader className="text-left mb-2"><SheetTitle className="text-sm text-primary">{t.scene}</SheetTitle></SheetHeader>
+            {panel}
+          </SheetContent>
+        </Sheet>
+      </div>
+    );
+  }
   return (
     <div className="absolute top-2 left-2 right-2 sm:right-auto sm:w-72 z-10 space-y-2 pointer-events-auto">
+      {panel}
+    </div>
+  );
+}
+
+function ScenePanel(props: any) {
+  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang } = props;
+  return (
+    <>
       <div className="bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md p-2 shadow-lg">
         <div className="text-[10px] text-muted-foreground mb-1.5 uppercase tracking-wider">{t.view}</div>
         <div className="grid grid-cols-4 gap-1">
@@ -269,7 +301,7 @@ function ViewerControls(props: any) {
           <Toggle label={t.postFX} v={postFX} on={setPostFX} />
         </div>
       </div>
-    </div>
+    </>
   );
 }
 
@@ -282,14 +314,14 @@ function Toggle({ label, v, on }: { label: string; v: boolean; on: (b: boolean) 
   );
 }
 
-function HUD({ geometry, windSpeed, tsr }: { geometry: BladeGeometry; windSpeed: number; tsr: number }) {
+function HUD({ geometry, windSpeed, tsr, mobile = false }: { geometry: BladeGeometry; windSpeed: number; tsr: number; mobile?: boolean }) {
   const omega = (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius);
   const rpm = (omega * 60) / (2 * Math.PI);
   const tip = tsr * windSpeed;
   const mach = tip / 343;
   return (
-    <div className="absolute top-2 right-2 z-10 pointer-events-none">
-      <div className="bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md p-2 shadow-lg space-y-0.5 text-[10px] font-mono tabular-nums min-w-[120px]">
+    <div className={`absolute ${mobile ? 'top-2 right-2 left-14' : 'top-2 right-2'} z-10 pointer-events-none`}>
+      <div className={`bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md shadow-lg font-mono tabular-nums ${mobile ? 'px-2 py-1 text-[9px] flex items-center justify-end gap-3 overflow-hidden' : 'p-2 space-y-0.5 text-[10px] min-w-[120px]'}`}>
         <Hud label="ω" value={`${omega.toFixed(2)} rad/s`} />
         <Hud label="RPM" value={rpm.toFixed(1)} />
         <Hud label="V tip" value={`${tip.toFixed(0)} m/s`} />

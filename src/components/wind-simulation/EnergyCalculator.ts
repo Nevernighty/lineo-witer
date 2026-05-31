@@ -1,3 +1,7 @@
+import type { BladeGeometry } from '@/aero/bem';
+import { solveBEM, solveVAWT } from '@/aero/bem';
+import type { RotorType } from '@/aero/buildBladeGeometry';
+
 export class EnergyCalculator {
   private energyHistory: { time: number; value: number }[] = [];
   private readonly HISTORY_DURATION = 3000; // 3 seconds window
@@ -31,4 +35,19 @@ export class EnergyCalculator {
     
     return totalWeight > 0 ? weightedSum / totalWeight : 0;
   }
+}
+
+export function computePowerFromBladeGeometry(
+  geometry: BladeGeometry,
+  rotorType: RotorType,
+  windSpeed: number,
+  airDensity: number,
+  options: { heightOverDiameter?: number; tsr?: number } = {}
+) {
+  const tsr = options.tsr ?? (rotorType === 'vawt-savonius' ? 0.9 : rotorType === 'hawt' ? 7 : 4.5);
+  const omega = (tsr * windSpeed) / Math.max(0.1, geometry.tipRadius);
+  const result = rotorType === 'hawt'
+    ? solveBEM(geometry, { V: windSpeed, omega, rho: airDensity }, 18)
+    : solveVAWT(geometry, { V: windSpeed, omega, rho: airDensity }, { rotorType: rotorType as Exclude<RotorType, 'hawt'>, heightOverDiameter: options.heightOverDiameter }, 24);
+  return { power: Math.max(0, result.power), cp: result.cp, ct: result.ct, tsr };
 }
