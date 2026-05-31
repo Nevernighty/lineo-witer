@@ -72,6 +72,11 @@
     border-radius: 3px;
   }
   .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.55); }
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar { display: none; }
 }
 
 @layer components {
