@@ -3,7 +3,7 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid, Html } from '@react-three/drei';
 import { AdvancedParticleSystem } from './AdvancedParticleSystem';
 import { Obstacle3D } from './Obstacle3D';
-import { WindGenerator3D, calculateGeneratorPower } from './WindGenerator3D';
+import { WindGenerator3D, calculateBladePresetPower, calculateGeneratorPower } from './WindGenerator3D';
 import { AdvancedMeasurementPanel } from './AdvancedMeasurementPanel';
 import { AdvancedWindControls, type WindTypeId } from './AdvancedWindControls';
 import { GhostObstacle } from './GhostObstacle';
@@ -19,6 +19,7 @@ import { SCENARIO_PRESETS, type ScenarioPreset } from '@/data/scenarios';
 import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
 import { Crosshair, MousePointer, Map as MapIcon, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { useActiveBladePreset } from '@/store/useBladePresetStore';
 import * as THREE from 'three';
 
 interface WindSimulation3DProps {
@@ -109,6 +110,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   onWindSpeedChange,
   lang
 }) => {
+  const activeBladePreset = useActiveBladePreset();
   const [physicsConfig, setPhysicsConfig] = useState<WindPhysicsConfig>({ ...DEFAULT_WIND_PHYSICS, windSpeed: initialWindSpeed });
   const [particleCount, setParticleCount] = useState(400);
   const [particleImpact, setParticleImpact] = useState(1.0);
@@ -148,6 +150,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<{ x: number; z: number } | null>(null);
   const orbitRef = useRef<any>(null);
+  const collisionCooldownRef = useRef<Map<string, number>>(new Map());
   const [showScenarios, setShowScenarios] = useState(false);
   const [activeScenario, setActiveScenario] = useState<string | null>(null);
   const [windType, setWindType] = useState<WindTypeId>('custom');
@@ -177,13 +180,15 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const generatorPower = useMemo(() => {
     return obstacles.filter(o => o.type === 'wind_generator').reduce((sum, o) => {
+      const customPower = calculateBladePresetPower(activeBladePreset, physicsConfig.airDensity, physicsConfig.windSpeed, o.height + o.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness);
+      if (customPower !== null) return sum + customPower;
       return sum + calculateGeneratorPower(
         physicsConfig.airDensity, o.width * 1.8, physicsConfig.windSpeed,
         o.height + o.y, physicsConfig.referenceHeight, physicsConfig.surfaceRoughness,
         o.generatorSubtype || 'hawt3'
       );
     }, 0);
-  }, [obstacles, physicsConfig]);
+  }, [obstacles, physicsConfig, activeBladePreset]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -283,8 +288,13 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     onWindSpeedChange?.(preset.config.windSpeed || 8);
   }, [onWindSpeedChange]);
 
-  const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number; deflection?: [number, number, number] }) => {
-    setCollisionEffects(prev => { const next = [...prev, event]; return next.length > 20 ? next.slice(-20) : next; });
+  const handleCollisionEvent = useCallback((event: { id: string; position: [number, number, number]; intensity: number; obstacleId?: string; deflection?: [number, number, number] }) => {
+    const now = performance.now();
+    const key = event.obstacleId || event.id;
+    const last = collisionCooldownRef.current.get(key) || 0;
+    if (now - last < 350) return;
+    collisionCooldownRef.current.set(key, now);
+    setCollisionEffects(prev => { const next = [...prev, event]; return next.length > 6 ? next.slice(-6) : next; });
     if ((window as any).__localHitAdd) {
       const speed = event.intensity;
       const energy = 0.5 * 0.015 * speed * speed * physicsConfig.airDensity;
