@@ -99,8 +99,6 @@ export function BladeMesh({
           </mesh>
           {!isSavonius && Array.from({ length: nClones }).map((_, i) => {
             const a = (i * 2 * Math.PI) / nClones;
-            const x = Math.cos(a) * g.tipRadius * 0.52;
-            const z = Math.sin(a) * g.tipRadius * 0.52;
             return (
               <group key={`strut-${i}`} rotation={[0, a, 0]}>
                 <mesh position={[g.tipRadius * 0.52, vawtHeight * 0.47, 0]} rotation={[0, 0, Math.PI / 2]}>
