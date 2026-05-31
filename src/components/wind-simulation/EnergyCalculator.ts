@@ -1,3 +1,7 @@
+import type { BladeGeometry } from '@/aero/bem';
+import { solveBEM, solveVAWT } from '@/aero/bem';
+import type { RotorType } from '@/aero/buildBladeGeometry';
+
 export class EnergyCalculator {
   private energyHistory: { time: number; value: number }[] = [];
   private readonly HISTORY_DURATION = 3000; // 3 seconds window
@@ -32,10 +36,6 @@ export class EnergyCalculator {
     return totalWeight > 0 ? weightedSum / totalWeight : 0;
   }
 }
-
-import type { BladeGeometry } from '@/aero/bem';
-import { solveBEM, solveVAWT } from '@/aero/bem';
-import type { RotorType } from '@/aero/buildBladeGeometry';
 
 export function computePowerFromBladeGeometry(
   geometry: BladeGeometry,
