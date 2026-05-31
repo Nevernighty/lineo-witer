@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, ResponsiveContainer, ReferenceLine, Tooltip, CartesianGrid, Area, AreaChart } from 'recharts';
 import type { BladeGeometry } from '@/aero/bem';
-import { cpLambdaCurve, powerCurve, solveBEM } from '@/aero/bem';
+import { cpLambdaCurve, cpLambdaCurveVAWT, powerCurve, powerCurveVAWT, solveBEM, solveVAWT } from '@/aero/bem';
+import type { RotorType } from '@/aero/buildBladeGeometry';
 import { clOf, cdOf } from '@/aero/airfoils';
 import { Lang } from '@/utils/i18n';
 import { getMaterial } from '@/aero/materials';
@@ -13,11 +14,13 @@ interface Props {
   tsr: number;
   rho: number;
   materialId: string;
+  rotorType?: RotorType;
+  heightOverDiameter?: number;
 }
 
 const T = {
-  ua: { polar: 'Полярна крива Cl/Cd', cpl: 'Cp – λ (межа Betz 0.593)', power: 'Крива потужності P(V)', aoaDist: 'Розподіл AoA вздовж розмаху', power_: 'Потужність', cp: 'Cp', ct: 'Ct', tipS: 'Кінцева швидк.', alphaTip: 'AoA кінчик', stall: 'У зриві', re70: 'Re @ 0.7R', machTip: 'Mach кінчик', warn: 'Попередження', warnStall: 'Більше 30% розмаху у зриві', warnMach: 'Mach кінчика > 0.3 (шум, втрати)', warnTip: 'Кінцева швидкість > ліміту матеріалу', warnSig: 'Низька солідність σ < 0.03' },
-  en: { polar: 'Polar Cl/Cd', cpl: 'Cp – λ (Betz 0.593)', power: 'Power curve P(V)', aoaDist: 'AoA distribution along span', power_: 'Power', cp: 'Cp', ct: 'Ct', tipS: 'Tip speed', alphaTip: 'Tip AoA', stall: 'Stalled', re70: 'Re @ 0.7R', machTip: 'Tip Mach', warn: 'Warnings', warnStall: '>30% of span stalled', warnMach: 'Tip Mach > 0.3 (noise, losses)', warnTip: 'Tip speed exceeds material limit', warnSig: 'Low solidity σ < 0.03' },
+  ua: { polar: 'Полярна крива Cl/Cd', cpl: 'Cp – λ (межа Betz 0.593)', power: 'Крива потужності P(V)', aoaDist: 'Розподіл AoA / азимуту', power_: 'Потужність', cp: 'Cp', ct: 'Ct', tipS: 'Кінцева швидк.', alphaTip: 'AoA кінчик', stall: 'У зриві', re70: 'Re @ 0.7R', machTip: 'Mach кінчик', swept: 'Ометена площа', lambdaOpt: 'λ оптимум', warn: 'Попередження', warnStall: 'Більше 30% секцій у зриві', warnMach: 'Mach кінчика > 0.3 (шум, втрати)', warnTip: 'Кінцева швидкість > ліміту матеріалу', warnSig: 'Низька солідність σ < 0.03' },
+  en: { polar: 'Polar Cl/Cd', cpl: 'Cp – λ (Betz 0.593)', power: 'Power curve P(V)', aoaDist: 'AoA / azimuth distribution', power_: 'Power', cp: 'Cp', ct: 'Ct', tipS: 'Tip speed', alphaTip: 'Tip AoA', stall: 'Stalled', re70: 'Re @ 0.7R', machTip: 'Tip Mach', swept: 'Swept area', lambdaOpt: 'λ optimum', warn: 'Warnings', warnStall: '>30% of sections stalled', warnMach: 'Tip Mach > 0.3 (noise, losses)', warnTip: 'Tip speed exceeds material limit', warnSig: 'Low solidity σ < 0.03' },
 };
 
 const tooltipStyle = {
