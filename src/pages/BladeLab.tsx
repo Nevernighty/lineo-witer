@@ -106,9 +106,9 @@ export default function BladeLab() {
 
   const exportSTL = useCallback((mode: 'single' | 'rotor') => {
     const name = presetId ? `${presetId}_${mode}` : `blade_${mode}`;
-    const stl = exportBladeSTL(geometry, { mode, scaleMM: exportScaleMM, windSpeed, tsr });
+    const stl = exportBladeSTL(geometry, { mode, scaleMM: exportScaleMM, windSpeed, tsr, rotorType, heightOverDiameter, helical: helicalDeg });
     downloadSTL(name, stl);
-  }, [geometry, presetId, exportScaleMM, windSpeed, tsr]);
+  }, [geometry, presetId, exportScaleMM, windSpeed, tsr, rotorType, heightOverDiameter, helicalDeg]);
 
   const viewerProps = {
     geometry, viewMode, windSpeed, tsr, cinematic, postFX,
@@ -117,19 +117,25 @@ export default function BladeLab() {
   };
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-background text-foreground overflow-hidden">
+    <div className="h-[100dvh] w-screen flex flex-col bg-background text-foreground overflow-hidden blade-lab-shell">
       {/* Header */}
-      <header className="flex items-center justify-between px-3 py-2 border-b border-border/40 bg-card/60 backdrop-blur-md gap-2 flex-wrap">
-        <div className="flex items-center gap-2 min-w-0">
+      <header className="border-b border-border/40 bg-card/70 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-2 px-2 sm:px-3 py-2">
+        <div className="flex items-center gap-2 min-w-0 flex-1">
           <Link to="/" className="p-1.5 rounded hover:bg-primary/10 flex-shrink-0"><ArrowLeft className="w-4 h-4" /></Link>
           <div className="min-w-0">
-            <div className="text-sm font-bold truncate">{t.title}</div>
-            <div className="text-[10px] text-muted-foreground tracking-wider uppercase truncate">{t.sub}</div>
+            <div className="text-xs sm:text-sm font-bold truncate max-w-[44vw] sm:max-w-none">{t.title}</div>
+            <div className="hidden sm:block text-[10px] text-muted-foreground tracking-wider uppercase truncate">{t.sub}</div>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex bg-card/60 rounded border border-border/30 p-0.5 flex-shrink-0">
+          <button onClick={() => setLang('ua')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>UA</button>
+          <button onClick={() => setLang('en')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>EN</button>
+        </div>
+        </div>
+        <div className="flex items-center gap-1.5 px-2 sm:px-3 pb-2 overflow-x-auto scrollbar-none">
           <Select value={presetId} onValueChange={applyPreset}>
-            <SelectTrigger className="h-7 text-[11px] w-44"><SelectValue placeholder={`— ${t.presets} —`} /></SelectTrigger>
+            <SelectTrigger className="h-7 text-[11px] w-44 flex-shrink-0"><SelectValue placeholder={`— ${t.presets} —`} /></SelectTrigger>
             <SelectContent className="z-[100] max-h-80">
               {(['utility', 'small', 'diy', 'vawt', 'reference'] as const).map(cat => (
                 <SelectGroup key={cat}>
@@ -144,25 +150,25 @@ export default function BladeLab() {
             </SelectContent>
           </Select>
           <button onClick={resetAll} title={t.reset}
-            className="h-7 px-1.5 rounded bg-card/50 hover:bg-card text-muted-foreground border border-border/40 flex items-center">
+            className="h-7 px-1.5 rounded bg-card/50 hover:bg-card text-muted-foreground border border-border/40 flex items-center flex-shrink-0">
             <RotateCcw className="w-3.5 h-3.5" />
           </button>
-          <div className="flex items-center gap-1 px-1.5 h-7 rounded border border-border/40 bg-card/40">
+          <button onClick={applyToSimulation}
+            className="h-7 px-2 text-[10px] rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1 flex-shrink-0">
+            <Wind className="w-3 h-3" /> {t.applySim}
+          </button>
+          <div className="flex items-center gap-1 px-1.5 h-7 rounded border border-border/40 bg-card/40 flex-shrink-0">
             <Switch checked={exportScaleMM} onCheckedChange={setExportScaleMM} className="scale-75" />
             <span className="text-[10px] text-muted-foreground">{t.scaleMM}</span>
           </div>
           <button onClick={() => exportSTL('single')}
-            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1">
+            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1 flex-shrink-0">
             <Download className="w-3 h-3" /> {t.exportSingle}
           </button>
           <button onClick={() => exportSTL('rotor')}
-            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1">
+            className="h-7 px-2 text-[10px] rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1 flex-shrink-0">
             <Download className="w-3 h-3" /> {t.exportRotor}
           </button>
-          <div className="flex bg-card/60 rounded border border-border/30 p-0.5">
-            <button onClick={() => setLang('ua')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>UA</button>
-            <button onClick={() => setLang('en')} className={`px-2 py-0.5 rounded text-[10px] font-semibold ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>EN</button>
-          </div>
         </div>
       </header>
 
