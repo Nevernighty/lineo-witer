@@ -2,7 +2,12 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ActiveBladePreset } from '@/store/useBladePresetStore';
-import { buildBladeGeometry, buildSavoniusBucketGeometry, buildVAWTBladeGeometry } from '@/aero/buildBladeGeometry';
+import {
+  buildBladeGeometry,
+  buildSavoniusBucketGeometry,
+  buildVAWTBladeGeometry,
+  buildArchimedesBladeGeometry,
+} from '@/aero/buildBladeGeometry';
 
 interface Props {
   preset: ActiveBladePreset;
@@ -19,12 +24,14 @@ export const BladePresetTurbine3D: React.FC<Props> = ({ preset, towerHeight, rot
   const isVAWT = preset.rotorType !== 'hawt';
   const isSavonius = preset.rotorType === 'vawt-savonius';
   const scale = useMemo(() => rotorDiameter / Math.max(0.1, preset.geometry.tipRadius * 2), [rotorDiameter, preset.geometry.tipRadius]);
-  const height = preset.geometry.tipRadius * 2 * (preset.heightOverDiameter ?? (isSavonius ? 2 : 1));
+  const isArchimedes = preset.rotorType === 'vawt-archimedes';
+  const height = preset.geometry.tipRadius * 2 * (preset.heightOverDiameter ?? (isSavonius ? 2 : isArchimedes ? 1.8 : 1));
   const mesh = useMemo(() => {
     if (isSavonius) return buildSavoniusBucketGeometry(preset.geometry, 'solid', { height }).geometry;
+    if (isArchimedes) return buildArchimedesBladeGeometry(preset.geometry, 'solid', { height, turns: 1 + (preset.helicalTwistDeg ?? 360) / 360 }).geometry;
     if (isVAWT) return buildVAWTBladeGeometry(preset.geometry, 'solid', preset.rotorType as 'vawt-h' | 'vawt-helical' | 'vawt-tropo', { height, helicalTwist: preset.helicalTwistDeg }).geometry;
     return buildBladeGeometry(preset.geometry, 'solid', adjustedSpeed, 7).geometry;
-  }, [preset, isVAWT, isSavonius, height, adjustedSpeed]);
+  }, [preset, isVAWT, isSavonius, isArchimedes, height, adjustedSpeed]);
 
   useFrame((_, delta) => {
     if (!rotorRef.current) return;
@@ -34,6 +41,7 @@ export const BladePresetTurbine3D: React.FC<Props> = ({ preset, towerHeight, rot
 
   if (isVAWT) {
     const n = isSavonius ? 2 : preset.geometry.nBlades;
+    const cloneCount = isArchimedes ? Math.max(2, preset.geometry.nBlades) : n;
     return (
       <>
         <mesh position={[0, towerHeight / 2, 0]}>

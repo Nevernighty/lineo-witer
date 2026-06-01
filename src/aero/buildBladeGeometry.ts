@@ -14,7 +14,7 @@ export type ViewMode = 'solid' | 'wireframe' | 'pressure' | 'stall' | 'stress' |
 //   vawt-helical   — Gorlov / QuietRevolution helical blades
 //   vawt-tropo     — Phi/eggbeater Darrieus (troposkein-shaped blades)
 //   vawt-savonius  — drag-type S-rotor with two half-cylinder buckets
-export type RotorType = 'hawt' | 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius';
+export type RotorType = 'hawt' | 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius' | 'vawt-archimedes';
 
 export interface StationSample {
   r: number; chord: number; twistDeg: number;
@@ -366,4 +366,69 @@ export function buildSavoniusBucketGeometry(
   geom.setIndex(indices);
   geom.computeVertexNormals();
   return { geometry: geom, stations: [], volume: Math.PI * R * R * shellT * height * 0.5, helicalTwistDeg: 0 };
+}
+
+/**
+ * Archimedes-spiral rotor blade: a helical ribbon wrapped around the vertical axis
+ * with the inner edge close to the shaft and outer edge at radius R. Real Archimedes
+ * urban turbines (e.g. Liam F1) use 2–3 such ribbons stacked at 120°.
+ */
+export function buildArchimedesBladeGeometry(
+  g: BladeGeometry,
+  viewMode: ViewMode,
+  opts: { nStations?: number; height?: number; turns?: number; innerRatio?: number } = {}
+): BuiltBlade {
+  const nStations = opts.nStations ?? 64;
+  const height = opts.height ?? g.tipRadius * 2 * 1.8;
+  const turns = opts.turns ?? 1.0;
+  const innerR = (opts.innerRatio ?? 0.18) * g.tipRadius;
+  const R = g.tipRadius;
+  const thickness = Math.max(0.005, R * 0.04);
+
+  const positions: number[] = [];
+  const colors: number[] = [];
+  const indices: number[] = [];
+
+  // Build a quad strip: inner edge near shaft, outer edge at R, spiraling height.
+  for (let s = 0; s <= nStations; s++) {
+    const tN = s / nStations;
+    const y = -height / 2 + tN * height;
+    const ang = tN * turns * Math.PI * 2;
+    const col = vawtColorAt(viewMode, tN, false, -0.4);
+    for (let edge = 0; edge < 2; edge++) {
+      // inner edge along shaft (slightly raised), outer at R
+      const rr = edge === 0 ? innerR : R;
+      const x = Math.cos(ang) * rr;
+      const z = Math.sin(ang) * rr;
+      positions.push(x, y, z);
+      colors.push(col.r, col.g, col.b);
+      // thickness shell — extrude the same edge slightly outward radially
+      const nx = Math.cos(ang) * thickness * 0.5;
+      const nz = Math.sin(ang) * thickness * 0.5;
+      positions.push(x + nx, y + thickness * 0.5, z + nz);
+      colors.push(col.r * 0.85, col.g * 0.85, col.b * 0.85);
+    }
+  }
+
+  const rowLen = 4; // [innerTop, innerBot, outerTop, outerBot]
+  for (let s = 0; s < nStations; s++) {
+    const a = s * rowLen;
+    const b = (s + 1) * rowLen;
+    // top face (inner-outer along chord direction)
+    indices.push(a + 0, b + 0, a + 2, a + 2, b + 0, b + 2);
+    // bottom face
+    indices.push(a + 1, a + 3, b + 1, b + 1, a + 3, b + 3);
+    // outer edge
+    indices.push(a + 2, b + 2, a + 3, a + 3, b + 2, b + 3);
+    // inner edge
+    indices.push(a + 0, a + 1, b + 0, b + 0, a + 1, b + 1);
+  }
+
+  const geom = new THREE.BufferGeometry();
+  geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geom.setIndex(indices);
+  geom.computeVertexNormals();
+  const volume = (Math.PI * R * R - Math.PI * innerR * innerR) * thickness * turns;
+  return { geometry: geom, stations: [], volume, helicalTwistDeg: turns * 360 };
 }
