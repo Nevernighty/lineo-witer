@@ -2,7 +2,13 @@
 import * as THREE from 'three';
 import { STLExporter } from 'three/examples/jsm/exporters/STLExporter.js';
 import type { BladeGeometry } from './bem';
-import { buildBladeGeometry, buildSavoniusBucketGeometry, buildVAWTBladeGeometry, type RotorType } from './buildBladeGeometry';
+import {
+  buildBladeGeometry,
+  buildSavoniusBucketGeometry,
+  buildVAWTBladeGeometry,
+  buildArchimedesBladeGeometry,
+  type RotorType,
+} from './buildBladeGeometry';
 
 export interface ExportOptions {
   mode: 'single' | 'rotor';
@@ -17,19 +23,23 @@ export interface ExportOptions {
 export function exportBladeSTL(g: BladeGeometry, opts: ExportOptions): string {
   const rotorType = opts.rotorType ?? 'hawt';
   const isVAWT = rotorType !== 'hawt';
-  const height = g.tipRadius * 2 * (opts.heightOverDiameter ?? (rotorType === 'vawt-savonius' ? 2 : 1));
-  const built = rotorType === 'vawt-savonius'
+  const isArchimedes = rotorType === 'vawt-archimedes';
+  const isSavonius = rotorType === 'vawt-savonius';
+  const height = g.tipRadius * 2 * (opts.heightOverDiameter ?? (isSavonius ? 2 : isArchimedes ? 1.8 : 1));
+  const built = isSavonius
     ? buildSavoniusBucketGeometry(g, 'solid', { height })
-    : isVAWT
-      ? buildVAWTBladeGeometry(g, 'solid', rotorType as 'vawt-h' | 'vawt-helical' | 'vawt-tropo', { helicalTwist: opts.helical, height })
-      : buildBladeGeometry(g, 'solid', opts.windSpeed, opts.tsr, { helicalTwist: opts.helical });
+    : isArchimedes
+      ? buildArchimedesBladeGeometry(g, 'solid', { height, turns: 1.0 + (opts.helical ?? 360) / 360 })
+      : isVAWT
+        ? buildVAWTBladeGeometry(g, 'solid', rotorType as 'vawt-h' | 'vawt-helical' | 'vawt-tropo', { helicalTwist: opts.helical, height })
+        : buildBladeGeometry(g, 'solid', opts.windSpeed, opts.tsr, { helicalTwist: opts.helical });
   const group = new THREE.Group();
   const baseMat = new THREE.MeshBasicMaterial();
 
   if (opts.mode === 'single') {
     group.add(new THREE.Mesh(built.geometry, baseMat));
   } else {
-    const N = rotorType === 'vawt-savonius' ? 2 : g.nBlades;
+    const N = isSavonius ? 2 : g.nBlades;
     for (let i = 0; i < N; i++) {
       const m = new THREE.Mesh(built.geometry.clone(), baseMat);
       if (isVAWT) m.rotation.y = (i * 2 * Math.PI) / N;
@@ -40,10 +50,7 @@ export function exportBladeSTL(g: BladeGeometry, opts: ExportOptions): string {
     const hubGeom = isVAWT
       ? new THREE.CylinderGeometry(g.tipRadius * 0.06, g.tipRadius * 0.06, height * 1.05, 32)
       : new THREE.CylinderGeometry(g.rootRadius * 0.9, g.rootRadius * 0.9, g.rootRadius * 1.4, 32);
-    const hub = new THREE.Mesh(
-      hubGeom,
-      baseMat
-    );
+    const hub = new THREE.Mesh(hubGeom, baseMat);
     group.add(hub);
   }
 

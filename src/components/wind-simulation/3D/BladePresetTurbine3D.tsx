@@ -2,7 +2,12 @@ import React, { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { ActiveBladePreset } from '@/store/useBladePresetStore';
-import { buildBladeGeometry, buildSavoniusBucketGeometry, buildVAWTBladeGeometry } from '@/aero/buildBladeGeometry';
+import {
+  buildBladeGeometry,
+  buildSavoniusBucketGeometry,
+  buildVAWTBladeGeometry,
+  buildArchimedesBladeGeometry,
+} from '@/aero/buildBladeGeometry';
 
 interface Props {
   preset: ActiveBladePreset;
