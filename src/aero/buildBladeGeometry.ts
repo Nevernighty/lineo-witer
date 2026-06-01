@@ -14,7 +14,7 @@ export type ViewMode = 'solid' | 'wireframe' | 'pressure' | 'stall' | 'stress' |
 //   vawt-helical   — Gorlov / QuietRevolution helical blades
 //   vawt-tropo     — Phi/eggbeater Darrieus (troposkein-shaped blades)
 //   vawt-savonius  — drag-type S-rotor with two half-cylinder buckets
-export type RotorType = 'hawt' | 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius';
+export type RotorType = 'hawt' | 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius' | 'vawt-archimedes';
 
 export interface StationSample {
   r: number; chord: number; twistDeg: number;
