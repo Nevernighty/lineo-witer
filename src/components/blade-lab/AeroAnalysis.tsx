@@ -69,7 +69,7 @@ export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId, 
   if (sigma < 0.03) warnings.push(t.warnSig);
 
   return (
-    <div className="space-y-3 p-3 text-xs">
+    <div className="space-y-3 p-3 text-xs min-w-0 overflow-x-hidden">
       <div className="grid grid-cols-2 gap-1.5">
         <Metric label={t.power_} value={`${(op.power / 1000).toFixed(1)} kW`} />
         <Metric label={t.cp} value={op.cp.toFixed(3)} />
@@ -147,9 +147,9 @@ function Metric({ label, value, accent }: { label: string; value: string; accent
 
 function Chart({ title, h, children }: { title: string; h: number; children: React.ReactElement }) {
   return (
-    <div>
+    <div className="min-w-0">
       <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mb-1">{title}</div>
-      <div className="rounded-md border border-border/40 bg-card/30 p-1" style={{ height: h }}>
+      <div className="rounded-md border border-border/40 bg-card/30 p-1 min-w-0 overflow-hidden" style={{ height: h }}>
         <ResponsiveContainer width="100%" height="100%">{children}</ResponsiveContainer>
       </div>
     </div>
