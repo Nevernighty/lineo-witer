@@ -82,7 +82,6 @@ export const PRESETS: RotorPreset[] = [
     rotorType: 'vawt-h', heightOverDiameter: 1.2,
     geometry: { airfoilId: 'naca0012', rootRadius: 0.15, tipRadius: 2.5, chordRoot: 0.35, chordTip: 0.35, twistRoot: 0, twistTip: 0, pitch: 2, nBlades: 3, twistLaw: 'linear' },
     descUA: 'Більший H-Darrieus з toe-in pitch для self-start.', descEN: 'Bigger H-Darrieus with toe-in pitch for self-start.' },
-    descUA: 'Більший H-Darrieus з toe-in pitch для self-start.', descEN: 'Bigger H-Darrieus with toe-in pitch for self-start.' },
   { id: 'gorlov', nameUA: 'Gorlov helical 2 м', nameEN: 'Gorlov helical 2 m', category: 'vawt', materialId: 'alu',
     rotorType: 'vawt-helical', helicalTwistDeg: 60, heightOverDiameter: 1.3,
     geometry: { airfoilId: 'naca0012', rootRadius: 0.1, tipRadius: 1.0, chordRoot: 0.20, chordTip: 0.20, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 3, twistLaw: 'linear' },
