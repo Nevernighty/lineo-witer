@@ -134,7 +134,7 @@ export function cpLambdaCurve(g: BladeGeometry, V = 10, rho = 1.225): { lambda: 
 }
 
 export interface VAWTOptions {
-  rotorType?: 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius';
+  rotorType?: 'vawt-h' | 'vawt-helical' | 'vawt-tropo' | 'vawt-savonius' | 'vawt-archimedes';
   heightOverDiameter?: number;
 }
 
@@ -145,6 +145,12 @@ function vawtCpModel(lambda: number, sigma: number, rotorType: VAWTOptions['roto
     const peak = 0.18 + Math.min(0.06, sig * 0.08);
     const shape = Math.exp(-Math.pow((lam - 0.9) / 0.78, 2));
     return Math.max(0, Math.min(0.24, peak * shape - Math.max(0, lam - 2.2) * 0.035));
+  }
+  if (rotorType === 'vawt-archimedes') {
+    // Slow-rotating Archimedes drag/lift hybrid; peaks at low TSR with shallow plateau.
+    const peak = 0.22 + Math.min(0.05, sig * 0.06);
+    const shape = Math.exp(-Math.pow((lam - 1.4) / 1.1, 2));
+    return Math.max(0, Math.min(0.28, peak * shape));
   }
   const lambdaOpt = rotorType === 'vawt-helical' ? 4.2 : rotorType === 'vawt-tropo' ? 5.0 : 4.7;
   const peakBase = rotorType === 'vawt-helical' ? 0.38 : rotorType === 'vawt-tropo' ? 0.34 : 0.35;
@@ -157,7 +163,7 @@ function vawtCpModel(lambda: number, sigma: number, rotorType: VAWTOptions['roto
 /** Educational DMS-inspired VAWT model: same output shape as BEM for UI integration. */
 export function solveVAWT(g: BladeGeometry, flow: FlowConditions, options: VAWTOptions = {}, nStations = 24): BemResult {
   const R = Math.max(0.05, g.tipRadius);
-  const H = R * 2 * (options.heightOverDiameter ?? (options.rotorType === 'vawt-savonius' ? 2 : 1.2));
+  const H = R * 2 * (options.heightOverDiameter ?? (options.rotorType === 'vawt-savonius' ? 2 : options.rotorType === 'vawt-archimedes' ? 1.8 : 1.2));
   const tsr = (flow.omega * R) / Math.max(0.1, flow.V);
   const chord = Math.max(0.02, (g.chordRoot + g.chordTip) / 2);
   const sweptArea = Math.max(0.01, 2 * R * H);
