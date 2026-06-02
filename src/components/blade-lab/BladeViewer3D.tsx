@@ -19,6 +19,7 @@ interface Props {
   helical?: number;
   rotorType?: RotorType;
   heightOverDiameter?: number;
+  failureLevel?: number;
 }
 
 /** Vortex helix for HAWT — along +Z wind axis. */
