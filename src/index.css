@@ -79,6 +79,40 @@
   .scrollbar-none::-webkit-scrollbar { display: none; }
 }
 
+/* === Blade Lab unified typography + resizable handle styling === */
+.blade-lab-shell {
+  --bl-title: clamp(13px, 1.2vw, 15px);
+  --bl-text: clamp(11px, 0.92vw, 12px);
+  --bl-meta: clamp(10px, 0.78vw, 11px);
+  --bl-pill: clamp(9px, 0.7vw, 10px);
+  --bl-btn:  clamp(10px, 0.8vw, 11px);
+  line-height: 1.35;
+}
+.blade-lab-shell .bl-title     { font-size: var(--bl-title); font-weight: 700; letter-spacing: -0.005em; }
+.blade-lab-shell .bl-text      { font-size: var(--bl-text);  line-height: 1.4; }
+.blade-lab-shell .bl-meta      { font-size: var(--bl-meta);  line-height: 1.35; }
+.blade-lab-shell .bl-pill      { font-size: var(--bl-pill);  line-height: 1.25; }
+.blade-lab-shell .bl-btn-text  { font-size: var(--bl-btn);   line-height: 1.2; font-weight: 600; }
+.blade-lab-shell .bl-menu-trigger {
+  font-size: var(--bl-btn); height: 1.55rem; padding: 0 .5rem;
+  border-radius: 4px; color: hsl(var(--muted-foreground)); cursor: pointer;
+}
+.blade-lab-shell .bl-menu-trigger[data-state="open"],
+.blade-lab-shell .bl-menu-trigger:hover { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); }
+.blade-lab-shell .bl-menu-item { font-size: var(--bl-text); line-height: 1.3; padding: .3rem .5rem; }
+
+/* Resize handles: visible grip + arrow cursor on hover/drag */
+.bl-resize-handle {
+  background: hsl(var(--border) / 0.5);
+  width: 4px;
+  cursor: col-resize;
+  transition: background .15s ease;
+}
+.bl-resize-handle:hover,
+.bl-resize-handle[data-resize-handle-active] { background: hsl(var(--primary) / 0.7); }
+.bl-resize-handle[data-panel-group-direction="vertical"] { cursor: row-resize; width: 100%; height: 4px; }
+
+
 @layer components {
   .stalker-card {
     @apply bg-stalker-card/80 backdrop-blur-lg border border-stalker-muted/10 rounded-lg p-6 shadow-lg transition-all duration-300 hover:border-stalker-accent/20;

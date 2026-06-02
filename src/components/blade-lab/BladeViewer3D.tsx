@@ -19,6 +19,7 @@ interface Props {
   helical?: number;
   rotorType?: RotorType;
   heightOverDiameter?: number;
+  failureLevel?: number;
 }
 
 /** Vortex helix for HAWT — along +Z wind axis. */
@@ -143,7 +144,7 @@ function GroundDisc({ R, yPos }: { R: number; yPos: number }) {
 
 export function BladeViewer3D({
   geometry, viewMode, windSpeed, tsr, cinematic, showTipVortex, showStreamlines, postFX = true, helical = 0,
-  rotorType = 'hawt', heightOverDiameter,
+  rotorType = 'hawt', heightOverDiameter, failureLevel = 0,
 }: Props) {
   const isVAWT = rotorType !== 'hawt';
   const R = geometry.tipRadius;
@@ -153,6 +154,7 @@ export function BladeViewer3D({
     viewMode === 'pressure' ? '#ff6b6b' :
     viewMode === 'stall' ? '#ff7a00' :
     viewMode === 'stress' ? '#a78bfa' :
+    failureLevel > 0.6 ? '#ff5533' :
     '#66e8ff';
 
   return (
@@ -171,7 +173,10 @@ export function BladeViewer3D({
         <BladeMesh
           geometry={geometry} viewMode={viewMode} windSpeed={windSpeed} tsr={tsr}
           helical={helical} rotorType={rotorType} heightOverDiameter={heightOverDiameter}
+          failureLevel={failureLevel}
+          flex={0.25 + Math.min(0.6, windSpeed / 30)}
         />
+
         {showTipVortex && (isVAWT
           ? <TipVortexVAWT R={R} H={H} color={vortexColor} />
           : <TipVortexHAWT R={R} tsr={tsr} V={windSpeed} nBlades={geometry.nBlades} color={vortexColor} />

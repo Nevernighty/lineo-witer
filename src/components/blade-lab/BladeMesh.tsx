@@ -21,6 +21,12 @@ interface Props {
   heightOverDiameter?: number;
   /** Operational bending: 0 = rigid, 1 = max realistic flex. */
   flex?: number;
+  /**
+   * Structural overload 0..1. >0 starts heavy vibration & visible cracks,
+   * >=1 triggers a blade fracturing/detaching animation. Synced between
+   * the Blade Lab viewer and the main simulation rotor.
+   */
+  failureLevel?: number;
 }
 
 /**
@@ -32,6 +38,7 @@ interface Props {
  */
 export function BladeMesh({
   geometry: g, viewMode, windSpeed, tsr, helical = 0, rotorType = 'hawt', heightOverDiameter, flex = 0.25,
+  failureLevel = 0,
 }: Props) {
   const isVAWT = rotorType !== 'hawt';
   const isSavonius = rotorType === 'vawt-savonius';
@@ -68,32 +75,79 @@ export function BladeMesh({
     return [0, 0, a];
   };
 
-  // Subtle operational bending — HAWT blades flex backward (along +Z, downwind),
-  // VAWT struts/blades show minimal wobble. Scaled by tipSpeed × wind energy proxy.
+  // Per-blade refs allow individual fracture/detach animation when overload is critical.
+  const bladeRefs = useRef<Array<THREE.Group | null>>([]);
   const flexGroupRef = useRef<THREE.Group>(null);
+  const detachStartRef = useRef<number | null>(null);
+
+  // Subtle operational bending + structural shake.  Severity escalates with failure level.
   useFrame((_, dt) => {
-    if (!flexGroupRef.current) return;
-    const k = Math.min(1, flex);
     const t = performance.now() * 0.001;
-    const oscillation = Math.sin(t * 4.2) * 0.05 * k;
-    if (!isVAWT) {
-      // bend backward; rotation around X-axis tilts blade tips downwind
-      flexGroupRef.current.rotation.x = (0.10 * k + oscillation) * (windSpeed / 12);
-    } else {
-      flexGroupRef.current.rotation.x = oscillation * 0.4;
-      flexGroupRef.current.rotation.z = -oscillation * 0.3;
+    const k = Math.min(1, flex);
+    const f = Math.max(0, Math.min(1.4, failureLevel));
+    const shake = f > 0.05 ? (Math.sin(t * 38 + 1.7) * 0.04 + Math.cos(t * 51) * 0.03) * f : 0;
+
+    if (flexGroupRef.current) {
+      const oscillation = Math.sin(t * 4.2) * 0.05 * k;
+      if (!isVAWT) {
+        flexGroupRef.current.rotation.x = (0.10 * k + oscillation) * (windSpeed / 12) + shake * 0.4;
+        flexGroupRef.current.rotation.z = shake * 0.35;
+      } else {
+        flexGroupRef.current.rotation.x = oscillation * 0.4 + shake * 0.25;
+        flexGroupRef.current.rotation.z = -oscillation * 0.3 + shake * 0.25;
+      }
     }
+
+    // Trigger detach when severely overloaded.
+    if (f >= 1 && detachStartRef.current == null) detachStartRef.current = t;
+    if (f < 0.7) detachStartRef.current = null;
+
+    bladeRefs.current.forEach((grp, i) => {
+      if (!grp) return;
+      // Per-blade tip-flutter, intensified by failure level.
+      const flutter = Math.sin(t * (6 + i * 1.3) + i) * 0.04 * (k + f * 1.5);
+      if (!isVAWT) {
+        grp.rotation.x = flutter;
+      } else {
+        grp.rotation.z = flutter * 0.6;
+      }
+      // Single-blade fracture: blade #0 separates, tumbles, and drifts downstream.
+      if (detachStartRef.current != null && i === 0) {
+        const dt2 = t - detachStartRef.current;
+        const drift = Math.min(g.tipRadius * 1.6, dt2 * g.tipRadius * 0.6);
+        const fall = -Math.min(g.tipRadius * 1.4, 0.5 * 2 * dt2 * dt2);
+        // detach direction: HAWT downstream (+Z), VAWT tangential drift +X
+        if (!isVAWT) {
+          grp.position.set(0, fall, drift);
+        } else {
+          grp.position.set(drift, fall, 0);
+        }
+        grp.rotation.x += dt * 4;
+        grp.rotation.y += dt * 2.4;
+      } else {
+        grp.position.set(0, 0, 0);
+      }
+    });
   });
 
   // HAWT spinner radius engulfs blade root: must be >= rootRadius AND >= half-chord of root.
   const spinnerR = Math.max(g.rootRadius * 1.15, g.chordRoot * 0.55);
   const spinnerH = Math.max(g.rootRadius * 1.6, g.chordRoot * 0.9);
 
+  // Stress-driven emissive: blades glow red-hot at the spar before fracture.
+  const fClamped = Math.max(0, Math.min(1.2, failureLevel));
+  const crackEmissive = useMemo(() => new THREE.Color(0xff3322), []);
+  const crackIntensity = fClamped > 0.4 ? (fClamped - 0.4) * 1.6 : 0;
+
   return (
     <group>
       <group ref={flexGroupRef}>
         {Array.from({ length: nClones }).map((_, i) => (
-          <group key={i} rotation={cloneRotation(i)}>
+          <group
+            key={i}
+            rotation={cloneRotation(i)}
+            ref={el => { bladeRefs.current[i] = el; }}
+          >
             <mesh geometry={built.geometry} castShadow receiveShadow>
               {isWire ? (
                 <meshBasicMaterial vertexColors wireframe />
@@ -106,6 +160,8 @@ export function BladeMesh({
               ) : (
                 <meshStandardMaterial
                   vertexColors metalness={0.42} roughness={0.38} side={THREE.DoubleSide}
+                  emissive={crackEmissive}
+                  emissiveIntensity={crackIntensity}
                 />
               )}
             </mesh>
@@ -117,6 +173,7 @@ export function BladeMesh({
           </group>
         ))}
       </group>
+
 
       {/* Hub / shaft / supports */}
       {isVAWT ? (
