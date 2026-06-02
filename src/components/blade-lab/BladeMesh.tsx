@@ -21,6 +21,12 @@ interface Props {
   heightOverDiameter?: number;
   /** Operational bending: 0 = rigid, 1 = max realistic flex. */
   flex?: number;
+  /**
+   * Structural overload 0..1. >0 starts heavy vibration & visible cracks,
+   * >=1 triggers a blade fracturing/detaching animation. Synced between
+   * the Blade Lab viewer and the main simulation rotor.
+   */
+  failureLevel?: number;
 }
 
 /**
