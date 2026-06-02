@@ -134,11 +134,20 @@ export function BladeMesh({
   const spinnerR = Math.max(g.rootRadius * 1.15, g.chordRoot * 0.55);
   const spinnerH = Math.max(g.rootRadius * 1.6, g.chordRoot * 0.9);
 
+  // Stress-driven emissive: blades glow red-hot at the spar before fracture.
+  const fClamped = Math.max(0, Math.min(1.2, failureLevel));
+  const crackEmissive = useMemo(() => new THREE.Color(0xff3322), []);
+  const crackIntensity = fClamped > 0.4 ? (fClamped - 0.4) * 1.6 : 0;
+
   return (
     <group>
       <group ref={flexGroupRef}>
         {Array.from({ length: nClones }).map((_, i) => (
-          <group key={i} rotation={cloneRotation(i)}>
+          <group
+            key={i}
+            rotation={cloneRotation(i)}
+            ref={el => { bladeRefs.current[i] = el; }}
+          >
             <mesh geometry={built.geometry} castShadow receiveShadow>
               {isWire ? (
                 <meshBasicMaterial vertexColors wireframe />
@@ -151,6 +160,8 @@ export function BladeMesh({
               ) : (
                 <meshStandardMaterial
                   vertexColors metalness={0.42} roughness={0.38} side={THREE.DoubleSide}
+                  emissive={crackEmissive}
+                  emissiveIntensity={crackIntensity}
                 />
               )}
             </mesh>
@@ -162,6 +173,7 @@ export function BladeMesh({
           </group>
         ))}
       </group>
+
 
       {/* Hub / shaft / supports */}
       {isVAWT ? (
