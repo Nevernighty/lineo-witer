@@ -44,6 +44,7 @@ export function BladeMesh({
   const isVAWT = rotorType !== 'hawt';
   const isSavonius = rotorType === 'vawt-savonius';
   const isArchimedes = rotorType === 'vawt-archimedes';
+  const isMobile = useIsMobile();
 
   const built = useMemo(() => {
     if (isSavonius) {
@@ -69,27 +70,34 @@ export function BladeMesh({
   const nClones = isSavonius ? 2 : g.nBlades;
   const vawtHeight = g.tipRadius * 2 * (heightOverDiameter ?? (isSavonius ? 2 : isArchimedes ? 1.8 : 1));
 
-  // VAWT clones rotate around +Y (vertical); HAWT clones rotate around +Z (wind axis).
   const cloneRotation = (k: number): [number, number, number] => {
     const a = (k * 2 * Math.PI) / nClones;
     if (isVAWT) return [0, a, 0];
     return [0, 0, a];
   };
 
-  // Per-blade refs allow individual fracture/detach animation when overload is critical.
   const bladeRefs = useRef<Array<THREE.Group | null>>([]);
   const flexGroupRef = useRef<THREE.Group>(null);
   const detachStartRef = useRef<number | null>(null);
+  const frameCounterRef = useRef(0);
 
-  // Subtle operational bending + structural shake.  Severity escalates with failure level.
+  // Mobile: only refresh deformation every 2nd frame & damp amplitudes.
+  const mobileScale = isMobile ? 0.55 : 1;
+  const frameSkip = isMobile ? 2 : 1;
+
   useFrame((_, dt) => {
+    frameCounterRef.current = (frameCounterRef.current + 1) % 1024;
+    if (frameCounterRef.current % frameSkip !== 0) return;
+
     const t = performance.now() * 0.001;
     const k = Math.min(1, flex);
     const f = Math.max(0, Math.min(1.4, failureLevel));
-    const shake = f > 0.05 ? (Math.sin(t * 38 + 1.7) * 0.04 + Math.cos(t * 51) * 0.03) * f : 0;
+    const shake = f > 0.05
+      ? (Math.sin(t * 38 + 1.7) * 0.04 + Math.cos(t * 51) * 0.03) * f * mobileScale
+      : 0;
 
     if (flexGroupRef.current) {
-      const oscillation = Math.sin(t * 4.2) * 0.05 * k;
+      const oscillation = Math.sin(t * 4.2) * 0.05 * k * mobileScale;
       if (!isVAWT) {
         flexGroupRef.current.rotation.x = (0.10 * k + oscillation) * (windSpeed / 12) + shake * 0.4;
         flexGroupRef.current.rotation.z = shake * 0.35;
@@ -99,30 +107,20 @@ export function BladeMesh({
       }
     }
 
-    // Trigger detach when severely overloaded.
     if (f >= 1 && detachStartRef.current == null) detachStartRef.current = t;
     if (f < 0.7) detachStartRef.current = null;
 
     bladeRefs.current.forEach((grp, i) => {
       if (!grp) return;
-      // Per-blade tip-flutter, intensified by failure level.
-      const flutter = Math.sin(t * (6 + i * 1.3) + i) * 0.04 * (k + f * 1.5);
-      if (!isVAWT) {
-        grp.rotation.x = flutter;
-      } else {
-        grp.rotation.z = flutter * 0.6;
-      }
-      // Single-blade fracture: blade #0 separates, tumbles, and drifts downstream.
+      const flutter = Math.sin(t * (6 + i * 1.3) + i) * 0.04 * (k + f * 1.5) * mobileScale;
+      if (!isVAWT) grp.rotation.x = flutter;
+      else grp.rotation.z = flutter * 0.6;
       if (detachStartRef.current != null && i === 0) {
         const dt2 = t - detachStartRef.current;
         const drift = Math.min(g.tipRadius * 1.6, dt2 * g.tipRadius * 0.6);
         const fall = -Math.min(g.tipRadius * 1.4, 0.5 * 2 * dt2 * dt2);
-        // detach direction: HAWT downstream (+Z), VAWT tangential drift +X
-        if (!isVAWT) {
-          grp.position.set(0, fall, drift);
-        } else {
-          grp.position.set(drift, fall, 0);
-        }
+        if (!isVAWT) grp.position.set(0, fall, drift);
+        else grp.position.set(drift, fall, 0);
         grp.rotation.x += dt * 4;
         grp.rotation.y += dt * 2.4;
       } else {
