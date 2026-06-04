@@ -114,7 +114,7 @@ export const PRESETS: RotorPreset[] = [
   // ---------------- Market innovators ----------------
   { id: 'harmony', nameUA: 'Harmony Turbines (urban)', nameEN: 'Harmony Turbines (urban)', category: 'vawt', materialId: 'cfrp',
     rotorType: 'vawt-helical', helicalTwistDeg: 180, heightOverDiameter: 1.4,
-    geometry: { airfoilId: 'naca0018', rootRadius: 0.12, tipRadius: 1.1, chordRoot: 0.22, chordTip: 0.22, twistRoot: 0, twistTip: 0, pitch: 3, nBlades: 3, twistLaw: 'linear' },
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.12, tipRadius: 1.1, chordRoot: 0.22, chordTip: 0.22, twistRoot: 0, twistTip: 0, pitch: 3, nBlades: 3, twistLaw: 'linear' },
     descUA: 'Запатентована безшумна VAWT для дахів.', descEN: 'Patented silent rooftop VAWT.' },
   { id: 'icewind', nameUA: 'Icewind Freya', nameEN: 'Icewind Freya', category: 'vawt', materialId: 'alu',
     rotorType: 'vawt-savonius', heightOverDiameter: 1.6,
@@ -122,7 +122,7 @@ export const PRESETS: RotorPreset[] = [
     descUA: 'Полярна 600 Вт; стартує з 1.8 м/с.', descEN: 'Arctic 600 W; starts at 1.8 m/s.' },
   { id: 'flowergen', nameUA: 'Flower Turbines Tulip', nameEN: 'Flower Turbines Tulip', category: 'vawt', materialId: 'gfrp',
     rotorType: 'vawt-helical', helicalTwistDeg: 90, heightOverDiameter: 2.0,
-    geometry: { airfoilId: 'naca0018', rootRadius: 0.08, tipRadius: 0.6, chordRoot: 0.16, chordTip: 0.16, twistRoot: 0, twistTip: 0, pitch: 2, nBlades: 3, twistLaw: 'linear' },
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.08, tipRadius: 0.6, chordRoot: 0.16, chordTip: 0.16, twistRoot: 0, twistTip: 0, pitch: 2, nBlades: 3, twistLaw: 'linear' },
     descUA: 'Кластерна VAWT-«тюльпан»; масиви.', descEN: 'Tulip-shaped VAWT designed for clustering.' },
 
 
