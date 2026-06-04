@@ -10,6 +10,7 @@ import {
   ViewMode,
   RotorType,
 } from '@/aero/buildBladeGeometry';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Props {
   geometry: BladeGeometry;
