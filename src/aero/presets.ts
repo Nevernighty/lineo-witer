@@ -111,6 +111,21 @@ export const PRESETS: RotorPreset[] = [
     geometry: { airfoilId: 'flat', rootRadius: 0.05, tipRadius: 0.3, chordRoot: 0.25, chordTip: 0.25, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 3, twistLaw: 'linear' },
     descUA: 'DIY 3D-друкований Архімед; для балкону.', descEN: 'DIY 3D-printed Archimedes; balcony scale.' },
 
+  // ---------------- Market innovators ----------------
+  { id: 'harmony', nameUA: 'Harmony Turbines (urban)', nameEN: 'Harmony Turbines (urban)', category: 'vawt', materialId: 'cfrp',
+    rotorType: 'vawt-helical', helicalTwistDeg: 180, heightOverDiameter: 1.4,
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.12, tipRadius: 1.1, chordRoot: 0.22, chordTip: 0.22, twistRoot: 0, twistTip: 0, pitch: 3, nBlades: 3, twistLaw: 'linear' },
+    descUA: 'Запатентована безшумна VAWT для дахів.', descEN: 'Patented silent rooftop VAWT.' },
+  { id: 'icewind', nameUA: 'Icewind Freya', nameEN: 'Icewind Freya', category: 'vawt', materialId: 'alu',
+    rotorType: 'vawt-savonius', heightOverDiameter: 1.6,
+    geometry: { airfoilId: 'flat', rootRadius: 0.05, tipRadius: 0.4, chordRoot: 0.4, chordTip: 0.4, twistRoot: 0, twistTip: 0, pitch: 0, nBlades: 3, twistLaw: 'linear' },
+    descUA: 'Полярна 600 Вт; стартує з 1.8 м/с.', descEN: 'Arctic 600 W; starts at 1.8 m/s.' },
+  { id: 'flowergen', nameUA: 'Flower Turbines Tulip', nameEN: 'Flower Turbines Tulip', category: 'vawt', materialId: 'gfrp',
+    rotorType: 'vawt-helical', helicalTwistDeg: 90, heightOverDiameter: 2.0,
+    geometry: { airfoilId: 'naca0012', rootRadius: 0.08, tipRadius: 0.6, chordRoot: 0.16, chordTip: 0.16, twistRoot: 0, twistTip: 0, pitch: 2, nBlades: 3, twistLaw: 'linear' },
+    descUA: 'Кластерна VAWT-«тюльпан»; масиви.', descEN: 'Tulip-shaped VAWT designed for clustering.' },
+
+
   // ---------------- Reference / ideal ----------------
   { id: 'betz',    nameUA: 'Betz-ideal', nameEN: 'Betz-ideal', category: 'reference', materialId: 'cfrp',
     geometry: { airfoilId: 'risoeb118', rootRadius: 0.8, tipRadius: 30, chordRoot: 3.0, chordTip: 0.4, twistRoot: 14, twistTip: -1, pitch: 0, nBlades: 3, twistLaw: 'optimal' },

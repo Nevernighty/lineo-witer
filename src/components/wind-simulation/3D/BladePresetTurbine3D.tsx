@@ -9,6 +9,7 @@ import {
   buildArchimedesBladeGeometry,
 } from '@/aero/buildBladeGeometry';
 import { getMaterial } from '@/aero/materials';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Props {
   preset: ActiveBladePreset;
@@ -55,25 +56,38 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
     return buildBladeGeometry(preset.geometry, 'solid', adjustedSpeed, 7).geometry;
   }, [preset, isVAWT, isSavonius, isArchimedes, height, adjustedSpeed]);
 
-  // Failure level — 0 below 70% of material tip-speed limit; saturates above 110%.
-  const tsr = 7; // nominal
+  // User-tunable thresholds from the lab (fallback to 0.7 / 1.1 of material limit).
+  const bendStart = preset.bendThresholdPct ?? 0.7;
+  const fractureAt = preset.fractureThresholdPct ?? 1.1;
+  const tsr = 7;
   const tipSpeed = isVAWT
     ? adjustedSpeed * Math.max(1, tsr * 0.5)
     : adjustedSpeed * tsr;
   const safety = mat.maxTipSpeed;
-  const failureLevel = Math.max(0, Math.min(1.2, (tipSpeed - safety * 0.7) / (safety * 0.4)));
+  const failureLevel = Math.max(0, Math.min(1.3,
+    (tipSpeed - safety * bendStart) / Math.max(0.05, safety * (fractureAt - bendStart))
+  ));
 
   const crackEmissive = useMemo(() => new THREE.Color(0xff3322), []);
   const crackIntensity = failureLevel > 0.35 ? (failureLevel - 0.35) * 1.4 : 0;
 
+  const isMobile = useIsMobile();
+  const mobileScale = isMobile ? 0.5 : 1;
+  const frameSkip = isMobile ? 2 : 1;
+  const frameCounterRef = useRef(0);
+
   useFrame((_, dt) => {
+    frameCounterRef.current = (frameCounterRef.current + 1) % 1024;
+    if (frameCounterRef.current % frameSkip !== 0) return;
+
     const t = performance.now() * 0.001;
     if (rotorRef.current) {
       const spinFactor = Math.max(0, 1 - failureLevel * 0.5);
-      if (isVAWT) rotorRef.current.rotation.y += adjustedSpeed * 0.14 * dt * spinFactor;
-      else rotorRef.current.rotation.z += adjustedSpeed * 0.12 * dt * spinFactor;
+      // Multiply by frameSkip so visible rotation rate stays constant when skipping.
+      if (isVAWT) rotorRef.current.rotation.y += adjustedSpeed * 0.14 * dt * spinFactor * frameSkip;
+      else rotorRef.current.rotation.z += adjustedSpeed * 0.12 * dt * spinFactor * frameSkip;
       const shake = failureLevel > 0.1
-        ? Math.sin(t * 42) * 0.025 * failureLevel
+        ? Math.sin(t * 42) * 0.025 * failureLevel * mobileScale
         : 0;
       rotorRef.current.position.x = (rotorRef.current.userData.bx ?? 0) + shake;
       rotorRef.current.position.y = (rotorRef.current.userData.by ?? rotorRef.current.position.y);
@@ -82,7 +96,7 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
     if (failureLevel < 0.6) detachStartRef.current = null;
     bladeRefs.current.forEach((grp, i) => {
       if (!grp) return;
-      const flutter = Math.sin(t * (6 + i * 1.3) + i) * 0.04 * (0.3 + failureLevel * 1.5);
+      const flutter = Math.sin(t * (6 + i * 1.3) + i) * 0.04 * (0.3 + failureLevel * 1.5) * mobileScale;
       if (isVAWT) grp.rotation.z = flutter * 0.6;
       else grp.rotation.x = flutter;
       if (detachStartRef.current != null && i === 0) {

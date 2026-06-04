@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind, AlertTriangle } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
@@ -42,7 +42,7 @@ const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
 
 const T = {
   ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL',
-    geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', scene: 'Сцена', view: 'Режим перегляду',
+    geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', scene: 'Симуляція', view: 'Режим перегляду',
     windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори',
     stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін',
     utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні',
@@ -51,9 +51,12 @@ const T = {
     file: 'Файл', editM: 'Правка', viewM: 'Вигляд', simM: 'Симуляція', helpM: 'Довідка',
     preset: 'Пресет', exportSTL: 'Експорт STL', singleBlade: 'Одна лопать', fullRotor: 'Повний ротор',
     overload: 'Перевантаження', failure: 'Руйнування лопаті',
+    flow: 'Потік', visualFX: 'Візуальні ефекти', thresholds: 'Пороги руйнування',
+    bendStart: 'Початок згину (%)', fracture: 'Поріг розриву (%)',
+    advancedSim: 'Розширені налаштування',
   },
   en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL',
-    geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', scene: 'Scene', view: 'View mode',
+    geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', scene: 'Simulation', view: 'View mode',
     windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines',
     postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print',
     vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Blade STL', exportRotor: 'Rotor STL',
@@ -61,6 +64,9 @@ const T = {
     file: 'File', editM: 'Edit', viewM: 'View', simM: 'Simulation', helpM: 'Help',
     preset: 'Preset', exportSTL: 'Export STL', singleBlade: 'Single blade', fullRotor: 'Full rotor',
     overload: 'Overload', failure: 'Blade failure',
+    flow: 'Flow', visualFX: 'Visual FX', thresholds: 'Failure thresholds',
+    bendStart: 'Bend start (%)', fracture: 'Fracture (%)',
+    advancedSim: 'Advanced controls',
   },
 };
 
@@ -87,19 +93,22 @@ export default function BladeLab() {
   const [presetId, setPresetId] = useState('');
   const [exportScaleMM, setExportScaleMM] = useState(true);
   const [rotorType, setRotorType] = useState<RotorType>('hawt');
-  const [heightOverDiameter, setHeightOverDiameter] = useState<number | undefined>(undefined);
+  const [heightOverDiameter, setHeightOverDiameter] = useState<number>(1);
   const [helicalDeg, setHelicalDeg] = useState<number>(0);
+  // User-adjustable failure thresholds, expressed as fraction of material max tip speed.
+  const [bendThresholdPct, setBendThresholdPct] = useState(0.7);
+  const [fractureThresholdPct, setFractureThresholdPct] = useState(1.1);
   const navigate = useNavigate();
 
   const rho = 1.225;
 
-  // Failure level derived from current tip speed vs material limit (same logic the sim uses).
   const material = getMaterial(materialId);
   const tipSpeed = tsr * windSpeed;
-  const failureLevel = useMemo(
-    () => Math.max(0, Math.min(1.2, (tipSpeed - material.maxTipSpeed * 0.7) / (material.maxTipSpeed * 0.4))),
-    [tipSpeed, material.maxTipSpeed],
-  );
+  const failureLevel = useMemo(() => {
+    const lo = material.maxTipSpeed * bendThresholdPct;
+    const hi = material.maxTipSpeed * fractureThresholdPct;
+    return Math.max(0, Math.min(1.3, (tipSpeed - lo) / Math.max(0.05, hi - lo)));
+  }, [tipSpeed, material.maxTipSpeed, bendThresholdPct, fractureThresholdPct]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, typeof PRESETS> = { utility: [], small: [], diy: [], vawt: [], reference: [] };
@@ -117,16 +126,17 @@ export default function BladeLab() {
     setGeometry({ ...clamped, airfoil } as BladeGeometry);
     setMaterialId(p.materialId);
     setRotorType(p.rotorType ?? 'hawt');
-    setHeightOverDiameter(p.heightOverDiameter);
+    setHeightOverDiameter(p.heightOverDiameter ?? 1);
     setHelicalDeg(p.helicalTwistDeg ?? 0);
   };
 
   const resetAll = () => {
     setGeometry(DEFAULT_GEOMETRY); setMaterialId('gfrp'); setPresetId('');
-    setRotorType('hawt'); setHeightOverDiameter(undefined); setHelicalDeg(0);
+    setRotorType('hawt'); setHeightOverDiameter(1); setHelicalDeg(0);
+    setBendThresholdPct(0.7); setFractureThresholdPct(1.1);
   };
 
-  const applyToSimulation = () => {
+  const applyToSimulation = useCallback((silent = false) => {
     const p = PRESETS.find(x => x.id === presetId);
     setActiveBladePreset({
       id: presetId || 'custom',
@@ -134,10 +144,17 @@ export default function BladeLab() {
       nameEN: p?.nameEN || 'Custom',
       geometry, materialId, rotorType,
       heightOverDiameter, helicalTwistDeg: helicalDeg,
+      bendThresholdPct, fractureThresholdPct,
     });
-    toast({ title: t.appliedToast });
-    setTimeout(() => navigate('/'), 600);
-  };
+    if (!silent) {
+      toast({ title: t.appliedToast });
+      setTimeout(() => navigate('/'), 600);
+    }
+  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate]);
+
+  // Live-push the current rotor + thresholds into the simulation store so the
+  // main wind sim renders edits in real time, no manual "Apply" needed.
+  useEffect(() => { applyToSimulation(true); }, [applyToSimulation]);
 
   const exportSTL = useCallback((mode: 'single' | 'rotor') => {
     const name = presetId ? `${presetId}_${mode}` : `blade_${mode}`;
@@ -150,6 +167,12 @@ export default function BladeLab() {
     showTipVortex: showVortex, showStreamlines: showStream,
     rotorType, heightOverDiameter, helical: helicalDeg,
     failureLevel,
+  };
+
+  const simCtl = {
+    t, lang, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr,
+    cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX,
+    bendThresholdPct, setBendThresholdPct, fractureThresholdPct, setFractureThresholdPct,
   };
 
   return (
@@ -165,7 +188,6 @@ export default function BladeLab() {
             <div className="bl-meta truncate hidden md:block">{t.sub}</div>
           </div>
 
-          {/* Compact menubar */}
           <div className="hidden md:block ml-2 min-w-0 flex-1">
             <Menubar className="h-7 border-border/40 bg-transparent p-0 gap-0">
               {/* File */}
@@ -212,7 +234,7 @@ export default function BladeLab() {
                 </MenubarContent>
               </MenubarMenu>
 
-              {/* View */}
+              {/* View — just the render mode + visual toggles */}
               <MenubarMenu>
                 <MenubarTrigger className="bl-menu-trigger">{t.viewM}</MenubarTrigger>
                 <MenubarContent className="z-[120]">
@@ -226,17 +248,17 @@ export default function BladeLab() {
                   </MenubarRadioGroup>
                   <MenubarSeparator />
                   <MenubarCheckboxItem checked={cinematic} onCheckedChange={(v) => setCinematic(!!v)} className="bl-menu-item">{t.cinematic}</MenubarCheckboxItem>
-                  <MenubarCheckboxItem checked={showVortex} onCheckedChange={(v) => setShowVortex(!!v)} className="bl-menu-item">{t.vortex}</MenubarCheckboxItem>
-                  <MenubarCheckboxItem checked={showStream} onCheckedChange={(v) => setShowStream(!!v)} className="bl-menu-item">{t.stream}</MenubarCheckboxItem>
                   <MenubarCheckboxItem checked={postFX} onCheckedChange={(v) => setPostFX(!!v)} className="bl-menu-item">{t.postFX}</MenubarCheckboxItem>
                 </MenubarContent>
               </MenubarMenu>
 
-              {/* Simulation */}
+              {/* Simulation — all flow controls + thresholds + apply */}
               <MenubarMenu>
                 <MenubarTrigger className="bl-menu-trigger">{t.simM}</MenubarTrigger>
-                <MenubarContent className="z-[120]">
-                  <MenubarItem onSelect={applyToSimulation} className="bl-menu-item">
+                <MenubarContent className="z-[120] w-72 p-2 space-y-2.5" onCloseAutoFocus={(e) => e.preventDefault()}>
+                  <SimMenuPanel {...simCtl} />
+                  <MenubarSeparator />
+                  <MenubarItem onSelect={() => applyToSimulation(false)} className="bl-menu-item">
                     <Wind className="w-3 h-3 mr-2" /> {t.applySim}
                   </MenubarItem>
                 </MenubarContent>
@@ -251,7 +273,7 @@ export default function BladeLab() {
                 {failureLevel >= 1 ? t.failure : t.overload}
               </div>
             )}
-            <button onClick={applyToSimulation}
+            <button onClick={() => applyToSimulation(false)}
               className="h-7 px-2 bl-btn-text rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1">
               <Wind className="w-3 h-3" /> <span className="hidden sm:inline">{t.applySim}</span>
             </button>
@@ -262,7 +284,7 @@ export default function BladeLab() {
           </div>
         </div>
 
-        {/* Mobile: keep the original quick-preset row only on phones */}
+        {/* Mobile quick row */}
         <div className="md:hidden flex items-center gap-1.5 px-2 pb-1.5 overflow-x-auto scrollbar-none">
           <Select value={presetId} onValueChange={applyPreset}>
             <SelectTrigger className="h-7 bl-text w-44 flex-shrink-0"><SelectValue placeholder={`— ${t.presets} —`} /></SelectTrigger>
@@ -294,28 +316,26 @@ export default function BladeLab() {
         </div>
       </header>
 
-      {/* Desktop — resizable panels with grip handles & col-resize cursor */}
+      {/* Desktop */}
       <div className="hidden md:block flex-1 min-h-0">
         <ResizablePanelGroup direction="horizontal" autoSaveId="blade-lab-layout" className="h-full w-full">
           <ResizablePanel defaultSize={22} minSize={14} maxSize={40} className="min-w-0">
             <aside className="h-full overflow-y-auto scrollbar-thin">
-              <GeometryPanel geometry={geometry} onChange={setGeometry} lang={lang} materialId={materialId} onMaterialChange={setMaterialId} />
+              <GeometryPanel
+                geometry={geometry} onChange={setGeometry} lang={lang}
+                materialId={materialId} onMaterialChange={setMaterialId}
+                rotorType={rotorType} onRotorTypeChange={setRotorType}
+                helicalDeg={helicalDeg} onHelicalChange={setHelicalDeg}
+                heightOverDiameter={heightOverDiameter} onHeightOverDiameterChange={setHeightOverDiameter}
+              />
             </aside>
           </ResizablePanel>
           <ResizableHandle withHandle className="bl-resize-handle" />
           <ResizablePanel defaultSize={54} minSize={28} className="min-w-0">
             <main className="relative h-full min-w-0">
               <BladeViewer3D {...viewerProps} />
-              <ViewerControls
-                t={t} viewMode={viewMode} setViewMode={setViewMode}
-                windSpeed={windSpeed} setWindSpeed={setWindSpeed}
-                tsr={tsr} setTsr={setTsr}
-                cinematic={cinematic} setCinematic={setCinematic}
-                showVortex={showVortex} setShowVortex={setShowVortex}
-                showStream={showStream} setShowStream={setShowStream}
-                postFX={postFX} setPostFX={setPostFX}
-                lang={lang}
-              />
+              {/* Bottom-left compact wind + TSR ribbon (no view-mode modal) */}
+              <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} />
               <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
             </main>
           </ResizablePanel>
@@ -349,20 +369,17 @@ export default function BladeLab() {
             <TabsTrigger value="macro" className="bl-meta">{t.macro}</TabsTrigger>
           </TabsList>
           <TabsContent value="geo" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16">
-            <GeometryPanel geometry={geometry} onChange={setGeometry} lang={lang} materialId={materialId} onMaterialChange={setMaterialId} />
+            <GeometryPanel
+              geometry={geometry} onChange={setGeometry} lang={lang}
+              materialId={materialId} onMaterialChange={setMaterialId}
+              rotorType={rotorType} onRotorTypeChange={setRotorType}
+              helicalDeg={helicalDeg} onHelicalChange={setHelicalDeg}
+              heightOverDiameter={heightOverDiameter} onHeightOverDiameterChange={setHeightOverDiameter}
+            />
           </TabsContent>
           <TabsContent value="viewer" className="flex-1 m-0 relative min-h-[55vh] pb-14">
             <BladeViewer3D {...viewerProps} />
-            <ViewerControls mobile
-              t={t} viewMode={viewMode} setViewMode={setViewMode}
-              windSpeed={windSpeed} setWindSpeed={setWindSpeed}
-              tsr={tsr} setTsr={setTsr}
-              cinematic={cinematic} setCinematic={setCinematic}
-              showVortex={showVortex} setShowVortex={setShowVortex}
-              showStream={showStream} setShowStream={setShowStream}
-              postFX={postFX} setPostFX={setPostFX}
-              lang={lang}
-            />
+            <MobileSimSheet simCtl={simCtl} />
             <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} mobile />
           </TabsContent>
           <TabsContent value="analysis" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16 min-w-0 overflow-x-hidden">
@@ -377,71 +394,97 @@ export default function BladeLab() {
   );
 }
 
-function ViewerControls(props: any) {
-  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang, mobile } = props;
-  const panel = <ScenePanel {...{ t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang }} />;
-  if (mobile) {
-    return (
-      <div className="absolute top-2 left-2 z-20 pointer-events-auto">
-        <Sheet>
-          <SheetTrigger className="h-9 w-9 rounded-md bg-card/80 border border-primary/30 text-primary backdrop-blur-xl flex items-center justify-center shadow-lg">
-            <SlidersHorizontal className="w-4 h-4" />
-          </SheetTrigger>
-          <SheetContent side="bottom" className="max-h-[78dvh] overflow-y-auto scrollbar-thin border-primary/30 bg-background/95 p-3">
-            <SheetHeader className="text-left mb-2"><SheetTitle className="bl-text text-primary">{t.scene}</SheetTitle></SheetHeader>
-            {panel}
-          </SheetContent>
-        </Sheet>
-      </div>
-    );
-  }
+/** All flow + threshold controls, used both in the Simulation menu and the mobile sheet. */
+function SimMenuPanel({
+  t, windSpeed, setWindSpeed, tsr, setTsr,
+  cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX,
+  bendThresholdPct, setBendThresholdPct, fractureThresholdPct, setFractureThresholdPct,
+}: any) {
   return (
-    <div className="absolute top-2 left-2 right-2 sm:right-auto sm:w-64 z-10 space-y-2 pointer-events-auto">
-      {panel}
+    <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+      <div className="space-y-1.5">
+        <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.flow}</div>
+        <RangeRow label={t.windV} value={`${windSpeed.toFixed(1)} m/s`}
+          min={2} max={35} step={0.5} v={windSpeed} on={setWindSpeed} />
+        <RangeRow label={t.tsr} value={tsr.toFixed(1)}
+          min={1} max={14} step={0.5} v={tsr} on={setTsr} />
+      </div>
+      <div className="space-y-1.5">
+        <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.thresholds}</div>
+        <RangeRow label={t.bendStart} value={`${Math.round(bendThresholdPct * 100)}%`}
+          min={0.3} max={1} step={0.02} v={bendThresholdPct} on={setBendThresholdPct} />
+        <RangeRow label={t.fracture} value={`${Math.round(fractureThresholdPct * 100)}%`}
+          min={Math.max(0.5, bendThresholdPct + 0.05)} max={1.6} step={0.02}
+          v={fractureThresholdPct} on={setFractureThresholdPct} />
+      </div>
+      <div className="space-y-1.5">
+        <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.visualFX}</div>
+        <div className="grid grid-cols-2 gap-1.5">
+          <FxToggle label={t.vortex} v={showVortex} on={setShowVortex} />
+          <FxToggle label={t.stream} v={showStream} on={setShowStream} />
+          <FxToggle label={t.cinematic} v={cinematic} on={setCinematic} />
+          <FxToggle label={t.postFX} v={postFX} on={setPostFX} />
+        </div>
+      </div>
     </div>
   );
 }
 
-function ScenePanel(props: any) {
-  const { t, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr, cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX, lang } = props;
+function RangeRow({ label, value, v, on, min, max, step }: { label: string; value: string; v: number; on: (n: number) => void; min: number; max: number; step: number }) {
   return (
-    <>
-      <div className="bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md p-2 shadow-lg">
-        <div className="bl-meta text-muted-foreground mb-1.5 uppercase tracking-wider">{t.view}</div>
-        <div className="grid grid-cols-4 gap-1">
-          {VIEW_MODES.map(m => (
-            <button key={m.id} onClick={() => setViewMode(m.id)}
-              className={`bl-pill px-1 py-1 rounded border transition ${viewMode === m.id ? 'bg-primary/25 text-primary border-primary/60' : 'bg-card/40 text-muted-foreground border-border/40 hover:border-primary/30'}`}>
-              {lang === 'ua' ? m.ua : m.en}
-            </button>
-          ))}
-        </div>
+    <div className="space-y-0.5">
+      <div className="flex items-center justify-between bl-meta">
+        <span className="text-muted-foreground truncate pr-2">{label}</span>
+        <span className="font-mono text-primary tabular-nums">{value}</span>
       </div>
-      <div className="bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md p-2 space-y-2 shadow-lg">
-        <div>
-          <div className="flex justify-between bl-meta"><span className="text-muted-foreground">{t.windV}</span><span className="font-mono text-primary tabular-nums">{windSpeed.toFixed(1)} m/s</span></div>
-          <Slider min={2} max={30} step={0.5} value={[windSpeed]} onValueChange={([v]) => setWindSpeed(v)} />
-        </div>
-        <div>
-          <div className="flex justify-between bl-meta"><span className="text-muted-foreground">{t.tsr}</span><span className="font-mono text-primary tabular-nums">{tsr.toFixed(1)}</span></div>
-          <Slider min={1} max={14} step={0.5} value={[tsr]} onValueChange={([v]) => setTsr(v)} />
-        </div>
-        <div className="grid grid-cols-2 gap-1.5">
-          <Toggle label={t.cinematic} v={cinematic} on={setCinematic} />
-          <Toggle label={t.vortex} v={showVortex} on={setShowVortex} />
-          <Toggle label={t.stream} v={showStream} on={setShowStream} />
-          <Toggle label={t.postFX} v={postFX} on={setPostFX} />
-        </div>
-      </div>
-    </>
+      <Slider min={min} max={max} step={step} value={[v]} onValueChange={([x]) => on(x)} />
+    </div>
   );
 }
 
-function Toggle({ label, v, on }: { label: string; v: boolean; on: (b: boolean) => void }) {
+function FxToggle({ label, v, on }: { label: string; v: boolean; on: (b: boolean) => void }) {
   return (
-    <div className="flex items-center justify-between bl-meta gap-1 px-1.5 py-1 rounded border border-border/40 bg-card/40">
-      <Label className="text-muted-foreground truncate">{label}</Label>
+    <label className="flex items-center justify-between bl-meta gap-1 px-1.5 py-1 rounded border border-border/40 bg-card/40 cursor-pointer">
+      <span className="text-muted-foreground truncate">{label}</span>
       <Switch checked={v} onCheckedChange={on} className="scale-75" />
+    </label>
+  );
+}
+
+/** Minimal on-canvas ribbon: wind & TSR only, everything else lives in the menu. */
+function CanvasRibbon({ t, windSpeed, setWindSpeed, tsr, setTsr }: { t: any; windSpeed: number; setWindSpeed: (n: number) => void; tsr: number; setTsr: (n: number) => void }) {
+  return (
+    <div className="hidden md:flex absolute left-2 bottom-2 z-10 items-center gap-3 px-3 py-1.5 rounded-md bg-card/70 backdrop-blur-xl border border-primary/20 shadow-lg pointer-events-auto min-w-[300px]">
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between bl-meta">
+          <span className="text-muted-foreground truncate">{t.windV}</span>
+          <span className="font-mono text-primary tabular-nums">{windSpeed.toFixed(1)} m/s</span>
+        </div>
+        <Slider min={2} max={35} step={0.5} value={[windSpeed]} onValueChange={([v]) => setWindSpeed(v)} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex justify-between bl-meta">
+          <span className="text-muted-foreground truncate">{t.tsr}</span>
+          <span className="font-mono text-primary tabular-nums">{tsr.toFixed(1)}</span>
+        </div>
+        <Slider min={1} max={14} step={0.5} value={[tsr]} onValueChange={([v]) => setTsr(v)} />
+      </div>
+    </div>
+  );
+}
+
+function MobileSimSheet({ simCtl }: { simCtl: any }) {
+  return (
+    <div className="absolute top-2 left-2 z-20 pointer-events-auto">
+      <Sheet>
+        <SheetTrigger className="h-9 w-9 rounded-md bg-card/80 border border-primary/30 text-primary backdrop-blur-xl flex items-center justify-center shadow-lg">
+          <SlidersHorizontal className="w-4 h-4" />
+        </SheetTrigger>
+        <SheetContent side="bottom" className="max-h-[78dvh] overflow-y-auto scrollbar-thin border-primary/30 bg-background/95 p-3">
+          <SheetHeader className="text-left mb-2"><SheetTitle className="bl-text text-primary">{simCtl.t.scene}</SheetTitle></SheetHeader>
+          <SimMenuPanel {...simCtl} />
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
