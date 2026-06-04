@@ -12,6 +12,10 @@ export interface ActiveBladePreset {
   rotorType: RotorType;
   heightOverDiameter?: number;
   helicalTwistDeg?: number;
+  /** Fraction of material max tip-speed at which visible bending/cracking starts (0..1). */
+  bendThresholdPct?: number;
+  /** Fraction of material max tip-speed at which blades fracture & detach. */
+  fractureThresholdPct?: number;
 }
 
 const KEY = 'lineo.bladePreset.v1';
