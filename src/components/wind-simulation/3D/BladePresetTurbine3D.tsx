@@ -9,6 +9,7 @@ import {
   buildArchimedesBladeGeometry,
 } from '@/aero/buildBladeGeometry';
 import { getMaterial } from '@/aero/materials';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Props {
   preset: ActiveBladePreset;
