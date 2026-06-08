@@ -101,6 +101,23 @@
 .blade-lab-shell .bl-menu-trigger:hover { background: hsl(var(--primary) / 0.12); color: hsl(var(--primary)); }
 .blade-lab-shell .bl-menu-item { font-size: var(--bl-text); line-height: 1.3; padding: .3rem .5rem; }
 
+/* Compact menu sliders: keep tracks slim and unobtrusive inside dropdown content */
+.bl-menu-panel [role="slider"] { height: 12px; width: 12px; }
+.bl-menu-panel [data-orientation="horizontal"].relative { height: 4px; }
+.bl-menu-panel .space-y-3 > * + * { margin-top: .55rem; }
+.bl-menu-panel .space-y-1\.5 > * + * { margin-top: .3rem; }
+
+/* Dark, high-contrast tabs for the Blade Lab analysis sidebar */
+.bl-dark-tabs { background: hsl(222 28% 10% / 0.85); border: 1px solid hsl(var(--border) / 0.5); }
+.bl-dark-tabs [data-state="inactive"] {
+  background: transparent; color: hsl(var(--muted-foreground));
+}
+.bl-dark-tabs [data-state="active"] {
+  background: hsl(var(--primary) / 0.18); color: hsl(var(--primary));
+  box-shadow: inset 0 -2px 0 hsl(var(--primary));
+}
+.bl-analysis-surface { background: hsl(222 28% 9%); }
+
 /* Resize handles: visible grip + arrow cursor on hover/drag */
 .bl-resize-handle {
   background: hsl(var(--border) / 0.5);
@@ -111,6 +128,7 @@
 .bl-resize-handle:hover,
 .bl-resize-handle[data-resize-handle-active] { background: hsl(var(--primary) / 0.7); }
 .bl-resize-handle[data-panel-group-direction="vertical"] { cursor: row-resize; width: 100%; height: 4px; }
+
 
 
 @layer components {
