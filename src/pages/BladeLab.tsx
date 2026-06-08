@@ -98,7 +98,10 @@ export default function BladeLab() {
   // User-adjustable failure thresholds, expressed as fraction of material max tip speed.
   const [bendThresholdPct, setBendThresholdPct] = useState(0.7);
   const [fractureThresholdPct, setFractureThresholdPct] = useState(1.1);
+  const [vortexIntensity, setVortexIntensity] = useState(1.0);
+  const [wakeDensity, setWakeDensity] = useState(1.0);
   const navigate = useNavigate();
+
 
   const rho = 1.225;
 
@@ -167,13 +170,16 @@ export default function BladeLab() {
     showTipVortex: showVortex, showStreamlines: showStream,
     rotorType, heightOverDiameter, helical: helicalDeg,
     failureLevel,
+    vortexIntensity, wakeDensity,
   };
 
   const simCtl = {
     t, lang, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr,
     cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX,
     bendThresholdPct, setBendThresholdPct, fractureThresholdPct, setFractureThresholdPct,
+    vortexIntensity, setVortexIntensity, wakeDensity, setWakeDensity,
   };
+
 
   return (
     <div className="h-[100dvh] w-screen flex flex-col bg-background text-foreground overflow-hidden blade-lab-shell">
@@ -255,7 +261,7 @@ export default function BladeLab() {
               {/* Simulation — all flow controls + thresholds + apply */}
               <MenubarMenu>
                 <MenubarTrigger className="bl-menu-trigger">{t.simM}</MenubarTrigger>
-                <MenubarContent className="z-[120] w-72 p-2 space-y-2.5" onCloseAutoFocus={(e) => e.preventDefault()}>
+                <MenubarContent className="z-[120] w-80 p-2 bl-menu-panel" onCloseAutoFocus={(e) => e.preventDefault()}>
                   <SimMenuPanel {...simCtl} />
                   <MenubarSeparator />
                   <MenubarItem onSelect={() => applyToSimulation(false)} className="bl-menu-item">
@@ -342,18 +348,19 @@ export default function BladeLab() {
           <ResizableHandle withHandle className="bl-resize-handle" />
           <ResizablePanel defaultSize={24} minSize={16} maxSize={44} className="min-w-0">
             <aside className="h-full overflow-y-auto scrollbar-thin min-w-0">
-              <Tabs defaultValue="analysis" className="w-full min-w-0">
-                <TabsList className="grid w-full grid-cols-2 h-8 m-1 mb-0">
+              <Tabs defaultValue="analysis" className="w-full min-w-0 bl-analysis-surface h-full">
+                <TabsList className="grid w-[calc(100%-8px)] grid-cols-2 h-8 m-1 mb-0 bl-dark-tabs">
                   <TabsTrigger value="analysis" className="bl-text">{t.analysis}</TabsTrigger>
                   <TabsTrigger value="macro" className="bl-text">{t.macro}</TabsTrigger>
                 </TabsList>
-                <TabsContent value="analysis" className="m-0 min-w-0 overflow-x-hidden">
+                <TabsContent value="analysis" className="m-0 min-w-0 overflow-x-hidden bl-analysis-surface">
                   <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} rotorType={rotorType} heightOverDiameter={heightOverDiameter} />
                 </TabsContent>
-                <TabsContent value="macro" className="m-0 min-w-0 overflow-x-hidden">
+                <TabsContent value="macro" className="m-0 min-w-0 overflow-x-hidden bl-analysis-surface">
                   <MacroRegime geometry={geometry} scenarioId={scenarioId} onScenarioChange={setScenarioId} lang={lang} />
                 </TabsContent>
               </Tabs>
+
             </aside>
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -394,14 +401,15 @@ export default function BladeLab() {
   );
 }
 
-/** All flow + threshold controls, used both in the Simulation menu and the mobile sheet. */
+/** All flow + threshold + VFX controls, used both in the Simulation menu and the mobile sheet. */
 function SimMenuPanel({
   t, windSpeed, setWindSpeed, tsr, setTsr,
   cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX,
   bendThresholdPct, setBendThresholdPct, fractureThresholdPct, setFractureThresholdPct,
+  vortexIntensity, setVortexIntensity, wakeDensity, setWakeDensity,
 }: any) {
   return (
-    <div className="space-y-3" onClick={(e) => e.stopPropagation()}>
+    <div className="space-y-2.5 bl-menu-panel" onClick={(e) => e.stopPropagation()}>
       <div className="space-y-1.5">
         <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.flow}</div>
         <RangeRow label={t.windV} value={`${windSpeed.toFixed(1)} m/s`}
@@ -419,6 +427,10 @@ function SimMenuPanel({
       </div>
       <div className="space-y-1.5">
         <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.visualFX}</div>
+        <RangeRow label="Vortex" value={`${Math.round(vortexIntensity * 100)}%`}
+          min={0} max={1.5} step={0.05} v={vortexIntensity} on={setVortexIntensity} />
+        <RangeRow label="Wake" value={`${Math.round(wakeDensity * 100)}%`}
+          min={0} max={1.5} step={0.05} v={wakeDensity} on={setWakeDensity} />
         <div className="grid grid-cols-2 gap-1.5">
           <FxToggle label={t.vortex} v={showVortex} on={setShowVortex} />
           <FxToggle label={t.stream} v={showStream} on={setShowStream} />
@@ -429,6 +441,7 @@ function SimMenuPanel({
     </div>
   );
 }
+
 
 function RangeRow({ label, value, v, on, min, max, step }: { label: string; value: string; v: number; on: (n: number) => void; min: number; max: number; step: number }) {
   return (

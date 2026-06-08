@@ -1,83 +1,71 @@
-План продовження Blade Lab v4 — без видалення існуючих функцій, тільки рефакторинг, доповнення й виправлення.
+## План виправлення Blade Lab
 
-1. Уніфікувати Blade Lab UI як компактну “DaVinci Resolve”-логіку
-- Переробити верхній бар у справжнє компактне меню: Preset / Geometry / Rotor / View / Export / Simulation.
-- Прибрати розкидані оверлеї з 3D-вікна: HUD, режими перегляду, wind/TSR і toggles перенести у впорядковану top-toolbar/side drawer.
-- Уніфікувати розміри шрифтів, висоти кнопок, падінги, tabs, chips, labels, metric cards.
-- Заборонити горизонтальний скрол у Analysis/Macro: responsive grid + min-width: 0 + overflow-x-hidden для chart containers.
-- Мобільна версія: один viewport без накладання тексту; нижні tabs + scene controls у bottom sheet; графіки стають компактними картками, без кривого обрізання.
+### 1. Нормальна кінематика ротора замість wiggle/stutter
+- Розділити **обертання ротора** і **деформацію лопатей** у `BladeMesh`:
+  - окремий spin-group крутиться стабільно від `omega = TSR * V / R`;
+  - bending/flutter застосовується тільки як мале локальне відхилення лопатей, не замінює обертання.
+- Для HAWT крутити навколо Z, для VAWT навколо Y.
+- При overload плавно зменшувати RPM через damage factor, але без рандомного смикання.
 
-2. Додати ресайз і нормальну роботу з панелями
-- На desktop замінити жорсткий grid `300px / 1fr / 340px` на `ResizablePanelGroup`.
-- Ліва Geometry і права Analysis/Macro панелі матимуть draggable borders.
-- Курсор біля межі змінюється на `col-resize`, ручки будуть тонкі, зелені, акуратні.
-- Додати кнопки collapse/expand для лівої і правої панелі, щоб 3D-вікно могло бути великим.
-- На mobile ресайз не вмикати, щоб не ламати touch UX.
+### 2. Multi-blade failure + красива recovery-анімація
+- Замість відриву тільки однієї лопаті зробити стан для кожної лопаті:
+  - індивідуальна затримка руйнування;
+  - відрив усіх лопатей/ківшів/спіралей при перевищенні fracture threshold;
+  - різний drift/fall/tumble для кожної частини, щоб виглядало фізично, а не однаково.
+- Коли параметри повертаються нижче порогу:
+  - лопаті анімовано повертаються назад до ротора;
+  - damage/recovery інтерполюється плавно, без телепорту.
+- Додати видимі stress-cracks/heat glow, debris sparks і root separation markers, але з mobile throttling.
 
-3. Переробити модель даних ротора, щоб налаштування не були “HAWT для всього”
-- Додати окремі rotor families: `hawt`, `darrieus-h`, `darrieus-troposkein`, `gorlov-helical`, `savonius-s`, `archimedes-spiral`, `crossflow-diy`.
-- Для VAWT перейменувати й переосмислити поля в UI: не “root/tip radius” як у горизонтальної лопаті, а Radius, Height, Chord, Solidity, Pitch/Toe-in, Helix angle.
-- GeometryPanel буде показувати різні секції для HAWT і VAWT, а не однакові слайдери, які дають нереалістичні значення.
-- Додати clamp/validation presets: Savonius не зможе мати абсурдну TSR/airfoil twist; Darrieus не буде використовувати tip/root логіку HAWT.
+### 3. Реалістичніший wind VFX навколо ротора
+- Переробити потік у `BladeViewer3D`:
+  - HAWT: осьовий потік + tip vortex helix позаду ротора, не величезні пласкі кільця перед камерою;
+  - VAWT: боковий потік через rotor cylinder + wake/downstream swirl.
+- Додати параметри в меню: щільність потоку, wake swirl, vortex intensity, turbulence/gust visual intensity.
+- На mobile зменшувати кількість streamlines/tubes і вимикати зайві post effects для стабільності.
 
-4. Реальніші 3D-ротори й лопаті
-- HAWT: лопать буде кріпитися до hub root adapter, без “відірваної” геометрії; додати root cuff, pitch bearing, nacelle spinner, hub bolts/plates.
-- Darrieus H: вертикальні airfoil blades з top/bottom arms, correct radius, blade toe-in, центральний вал.
-- Troposkein/Phi Darrieus: справжня “eggbeater” форма з плавним радіальним профілем, а не просто вертикальна палка.
-- Gorlov/QR5: helical blades зі справжнім обертанням вздовж висоти, top/bottom rings, стійки.
-- Savonius: S-buckets із перекриттям, товщиною shell, центральним overlap gap, top/bottom plates.
-- Додати Archimedes spiral rotor: спіральні лопаті як DIY/urban low-speed preset, з STL export.
-- Додати декоративно-функціональні деталі: struts, collars, root fairings, tip caps, support rings, shaft, material shading.
+### 4. Детальніше й функціональніше DaVinci-style top menu
+- Прибрати/ущільнити oversized typography у `Симуляція > Потік`:
+  - компактні секції, нормальний line-height, менші labels, значення вирівняні моноширинно;
+  - меню ширше там, де треба, але без обрізання тексту.
+- Додати логічні submenu:
+  - `Simulation > Flow`: V∞, TSR, turbulence, gusts;
+  - `Simulation > Failure`: bend/fracture thresholds, recovery speed, damage damping;
+  - `View > VFX`: streamlines, wake, vortices, stress overlay, fracture debris;
+  - `View > Quality`: desktop/mobile quality preset.
+- Залишити меню як головне місце керування, без повернення старого modal.
 
-5. Покращити wind/physics visualization у Blade Lab
-- Додати режим “Operational deformation”: лопаті плавно гнуться під навантаженням залежно від wind speed, material stiffness, TSR.
-- Додати режим “Failure risk”: stress heatmap + tip overspeed + root bending warning.
-- Якщо параметри явно небезпечні: показувати crack/spark/fracture preview або partial blade detachment як візуальну аварійну симуляцію, без руйнування даних користувача.
-- Додати airflow ribbons, wake cone/cylinder, pressure zones, tip vortex більш фізично розміщені для HAWT/VAWT окремо.
-- Покращити camera fit: HAWT wide, VAWT tall, Savonius close, Archimedes front/side readable.
+### 5. Темний і читабельний Analysis/Macro
+- Виправити `TabsList` і `TabsTrigger`, щоб `Аналіз/Макро` завжди були на темному фоні, а inactive tab не ставав світло-сірим.
+- Додати спеціальні класи Blade Lab для темних panel-tabs.
+- Перевірити `AeroAnalysis` chart cards: без горизонтального скроллу, dark chart background, читабельні ticks/labels.
 
-6. Переробити presets
-- Розширити presets: референсні HAWT, small wind, DIY carved wood, segmented 3D-print, Darrieus H, Gorlov, QR5-like, Phi Darrieus, Savonius S, Savonius helical, Archimedes spiral.
-- Кожен preset отримає коректний rotor family, height/diameter, chord/solidity, material, recommended TSR, cut-in range, notes.
-- Preset selection стане не одним dropdown, а categorized compact menu / command list з бейджами: HAWT, VAWT, DIY, Utility, Urban.
-- При виборі preset усі налаштування форми, матеріалу, режимів аналізу та симуляції синхронізуються.
+### 6. Більше family-aware параметрів у GeometryPanel
+- Розширити controls за rotor family:
+  - HAWT: taper, root cutout, pitch, twist law, blade thickness multiplier;
+  - Darrieus/Gorlov: H/D, toe-in, helical wrap, strut count/position;
+  - Savonius: bucket overlap, bucket arc, endplate size;
+  - Archimedes/Liam F1: spiral turns, inner radius ratio, ribbon width, cone/taper feel.
+- Контроли, які не мають сенсу для конкретної сім’ї, не показувати; ті, що показуються, реально впливають на 3D або хоча б на derived metrics.
 
-7. Науковіший аналіз для різних типів ротора
-- HAWT лишається через BEM, але додати root/tip loss, solidity warning, material stress summary.
-- VAWT: покращити DMS-inspired модель: upstream/downstream half-cycle, azimuth AoA, torque ripple, self-start score.
-- Savonius: окрема drag-based модель Cp/λ, overlap effect, torque at low TSR.
-- Archimedes: окрема low-TSR helical drag/lift hybrid approximation.
-- Analysis UI показуватиме релевантні графіки: для VAWT — azimuth torque/AoA, solidity, swept rectangle; для HAWT — radial BEM distribution.
+### 7. Технічні файли, які будуть змінені
+- `src/pages/BladeLab.tsx` — menu structure, new simulation/VFX parameters, dark tabs.
+- `src/components/blade-lab/BladeMesh.tsx` — stable spin, per-blade failure/recovery, better deformation sync.
+- `src/components/blade-lab/BladeViewer3D.tsx` — improved wind/wake/vortex VFX and mobile quality gating.
+- `src/components/blade-lab/GeometryPanel.tsx` — additional family-aware controls.
+- `src/components/blade-lab/AeroAnalysis.tsx` — dark/no-horizontal-scroll analysis polish.
+- `src/components/wind-simulation/3D/BladePresetTurbine3D.tsx` — sync stable spin + multi-blade failure in main simulation.
+- `src/aero/buildBladeGeometry.ts` — if needed, extend Savonius/Archimedes geometry options.
+- `src/store/useBladePresetStore.ts` — persist new thresholds/VFX/geometry options used by simulation.
+- `src/index.css` — unified Blade Lab font sizes, dark tabs, menu typography, resize/scroll styling.
 
-8. Повна інтеграція з основною симуляцією
-- Активний Blade Lab preset буде впливати не тільки на модель, а й на generator subtype, power calculation, labels, wake/absorption visualization.
-- `WindGenerator3D` отримає той самий advanced rotor renderer, що й Blade Lab, щоб не було різниці між лабораторією і сценою.
-- Додати в simulation label компактний статус: Blade Lab preset, Cp, power, risk state.
-- Для overspeed/high wind у головній симуляції додати bend/failure animation: лопать згинається, вібрує, може візуально тріснути/відлетіти при критичних параметрах.
-
-9. Прибрати “сирість” 3D матеріалів і сцени
-- Замість плоского зеленого матеріалу: PBR матеріали для carbon/fiberglass/aluminum/wood/PLA з subtle roughness/metalness.
-- Vertex colors лишити тільки для analysis modes; у solid mode — реалістичний material shading.
-- Додати edge highlights, root shadows, better lighting, less chaotic bloom.
-- Зменшити UI overlay opacity і навести порядок z-index/pointer-events.
-
-10. Перевірка після реалізації
-- Перевірити `/blade-lab` на desktop 1024×720 і mobile.
-- Перевірити presets: Darrieus H, QR5/Gorlov, Savonius, Archimedes, NREL/HAWT.
-- Перевірити, що analysis/macro не створюють горизонтальний scrollbar.
-- Перевірити STL export для single blade і rotor для HAWT/VAWT/Savonius/Archimedes.
-- Перевірити “Apply to Simulation” і поведінку ротора в основній 3D симуляції.
-
-Технічні файли, які будуть змінені/додані:
-- `src/pages/BladeLab.tsx` — layout, top menu, resizable panels, mobile structure.
-- `src/components/blade-lab/GeometryPanel.tsx` — rotor-family aware controls.
-- `src/components/blade-lab/BladeViewer3D.tsx` — cleaner scene controls, camera fit, advanced wind visuals.
-- `src/components/blade-lab/BladeMesh.tsx` — rotor assemblies and attachment fixes.
-- `src/aero/buildBladeGeometry.ts` — advanced HAWT/VAWT/Savonius/Archimedes mesh builders.
-- `src/aero/presets.ts` — expanded, corrected presets with family-specific data.
-- `src/aero/bem.ts` — improved family-specific power/loads models.
-- `src/aero/stlExport.ts` — export all new rotor families.
-- `src/components/wind-simulation/3D/BladePresetTurbine3D.tsx` — use the same advanced rotor renderer in simulation.
-- `src/components/wind-simulation/3D/WindGenerator3D.tsx` — integration, deformation/failure states, labels.
-- `src/components/wind-simulation/EnergyCalculator.ts` — family-specific power bridge.
-- `src/index.css` — Blade Lab scrollbar/resizable/mobile polish utilities.
+### 8. Verification
+- Run targeted validation after implementation.
+- Check `/blade-lab` visually on desktop dimensions from the screenshot and mobile-sized viewport.
+- Confirm:
+  - propellers spin continuously;
+  - wind VFX aligns with rotor direction;
+  - Analysis/Macro tabs are dark and readable;
+  - Simulation menu text is compact/readable;
+  - no horizontal scroll in Analysis;
+  - overload breaks all blades and recovery restores them smoothly.

@@ -69,7 +69,8 @@ export function AeroAnalysis({ geometry, lang, windSpeed, tsr, rho, materialId, 
   if (sigma < 0.03) warnings.push(t.warnSig);
 
   return (
-    <div className="space-y-3 p-3 text-xs min-w-0 overflow-x-hidden">
+    <div className="space-y-3 p-3 text-xs min-w-0 overflow-x-hidden bl-analysis-surface">
+
       <div className="grid grid-cols-2 gap-1.5">
         <Metric label={t.power_} value={`${(op.power / 1000).toFixed(1)} kW`} />
         <Metric label={t.cp} value={op.cp.toFixed(3)} />
