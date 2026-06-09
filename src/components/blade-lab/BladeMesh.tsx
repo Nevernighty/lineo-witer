@@ -11,6 +11,7 @@ import {
   RotorType,
 } from '@/aero/buildBladeGeometry';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { pushDiag } from '@/store/useDiagnosticsStore';
 
 interface Props {
   geometry: BladeGeometry;
@@ -20,30 +21,41 @@ interface Props {
   helical?: number;
   rotorType?: RotorType;
   heightOverDiameter?: number;
-  /** Operational bending: 0 = rigid, 1 = max realistic flex. */
   flex?: number;
-  /** Structural overload 0..1.2 — drives stress emissive, vibration, fracture+recovery. */
   failureLevel?: number;
-  /** Whether the rotor should actively spin (off in static thumbnails). */
   spin?: boolean;
+  /** Extra turbulence jitter (0..1) from selected site scenario. */
+  turbulence?: number;
+  /** Recovery speed multiplier (1 = default). */
+  recoverySpeed?: number;
+  /** Reaction speed multiplier for entering failure. */
+  reactionSpeed?: number;
 }
 
 /**
- * Full rotor renderer.
- * Architecture (very important — fixes the "wiggle, no spin" bug):
- *
- *   <group>                          ← world
- *     <group ref=spinRef>            ← rotates continuously (omega from V·λ/R)
- *       <group ref=flexRef>          ← tiny global flex/shake (NEVER overrides spin)
- *         {blades.map → bladeRef}    ← per-blade flutter + detach/recovery
+ * Architecture:
+ *   <group> ← world (static parts: hub, struts, shaft)
+ *     <group ref=spinRef>           continuous omega rotation, ONLY spin axis is touched
+ *       <group ref=flexRef>          tiny global flex (NEVER on spin axis)
+ *         per-blade <group ref=bladeRefs[i]> — local flutter, fracture trajectories
  *       </group>
  *     </group>
- *     {hub/spinner/struts}           ← non-spinning shell parts where appropriate
- *   </group>
+ *
+ * Detach model (fix for "wrong-axis-after-crash"):
+ *   • each blade has its own stable Euler offset (eulerRef) that grows during detach
+ *     and is interpolated back to (0,0,0) on recovery — we no longer accumulate
+ *     rotation.x/y straight on the group object, which was the source of the bug.
+ *   • position is interpolated the same way through targetPos/curPos vectors.
+ *   • all blades fracture together (with small phase delay 0..0.18) and each gets
+ *     a UNIQUE explosion vector + tumble axis so pieces fly in different directions.
+ *   • on recovery: position lerps to (0,0,0), rotation slerps to identity quaternion
+ *     before the blade is fully re-shown. Result: blades return correctly aligned
+ *     with the spin axis, no axis flip.
  */
 export function BladeMesh({
   geometry: g, viewMode, windSpeed, tsr, helical = 0, rotorType = 'hawt', heightOverDiameter,
   flex = 0.25, failureLevel = 0, spin = true,
+  turbulence = 0, recoverySpeed = 1, reactionSpeed = 1,
 }: Props) {
   const isVAWT = rotorType !== 'hawt';
   const isSavonius = rotorType === 'vawt-savonius';
@@ -84,14 +96,61 @@ export function BladeMesh({
   const flexRef = useRef<THREE.Group>(null);
   const bladeRefs = useRef<Array<THREE.Group | null>>([]);
 
-  // Per-blade detach progress 0..1 (1 = fully detached + tumbling).
-  const detachT = useRef<number[]>([]);
-  const frameCounterRef = useRef(0);
+  // Stable per-blade explosion vectors (random but reproducible per index).
+  const explosion = useMemo(() => {
+    const arr: Array<{
+      drift: THREE.Vector3;    // direction the piece flies (in clone-local space)
+      tumble: THREE.Euler;     // angular velocity (rad/s)
+      delay: number;           // 0..0.25 staggered phase
+      gravity: number;         // m/s² visible
+    }> = [];
+    for (let i = 0; i < nClones; i++) {
+      // Pseudo-random but deterministic per i & nClones.
+      const seed = (i * 1664525 + nClones * 1013904223) >>> 0;
+      const r1 = ((seed & 0xffff) / 0xffff) * 2 - 1;
+      const r2 = (((seed >> 8) & 0xffff) / 0xffff) * 2 - 1;
+      const r3 = (((seed >> 16) & 0xffff) / 0xffff) * 2 - 1;
+      // Outward (centrifugal) tendency along +Y (span), plus downwind +Z (HAWT) / +X (VAWT)
+      // and a sideways component to spread directions visibly.
+      const downwind = isVAWT ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 0, 1);
+      const sideways = isVAWT ? new THREE.Vector3(0, 0, 1) : new THREE.Vector3(1, 0, 0);
+      const drift = new THREE.Vector3()
+        .add(downwind.clone().multiplyScalar(1.2 + 0.5 * Math.abs(r1)))
+        .add(sideways.clone().multiplyScalar(0.8 * r2))
+        .add(new THREE.Vector3(0, 1, 0).multiplyScalar(0.6 + 0.5 * r3)); // outward along span
+      drift.normalize().multiplyScalar(g.tipRadius * (1.5 + 0.6 * Math.abs(r1)));
+      const tumble = new THREE.Euler(
+        (3 + 2 * r1),
+        (2.5 + 2 * r2),
+        (3.5 + 2 * r3),
+      );
+      arr.push({ drift, tumble, delay: 0.18 * (i / Math.max(1, nClones - 1)), gravity: g.tipRadius * 1.4 });
+    }
+    return arr;
+  }, [nClones, g.tipRadius, isVAWT]);
 
+  // Per-blade state, all initialised to zero (no detach).
+  const state = useRef<Array<{
+    detachT: number;        // 0..1
+    pos: THREE.Vector3;     // current displacement
+    quat: THREE.Quaternion; // current rotation offset on top of clone rotation
+    quatV: THREE.Vector3;   // accumulated tumble Euler angles (for slerp back)
+  }>>([]);
+
+  if (state.current.length !== nClones) {
+    state.current = Array.from({ length: nClones }, () => ({
+      detachT: 0,
+      pos: new THREE.Vector3(),
+      quat: new THREE.Quaternion(),
+      quatV: new THREE.Vector3(),
+    }));
+  }
+
+  const frameCounterRef = useRef(0);
   const mobileScale = isMobile ? 0.55 : 1;
   const frameSkip = isMobile ? 2 : 1;
 
-  // Aero ω (rad/s). For VAWT we cap the visible spin a bit to avoid blur.
+  // Aero ω (rad/s).
   const omega = useMemo(() => {
     const o = (tsr * windSpeed) / Math.max(0.1, g.tipRadius);
     return isVAWT ? Math.min(o, 6) : Math.min(o, 8);
@@ -99,76 +158,97 @@ export function BladeMesh({
 
   useFrame((_, dt) => {
     frameCounterRef.current = (frameCounterRef.current + 1) % 1024;
-    const stepDt = dt; // spin always uses real dt — never throttle rotation
     const t = performance.now() * 0.001;
     const f = Math.max(0, Math.min(1.4, failureLevel));
 
-    // Init detach state buffer.
-    if (detachT.current.length !== nClones) detachT.current = new Array(nClones).fill(0);
-
-    // 1) Stable spin — damped when most blades have detached.
-    const detachedFrac = detachT.current.reduce((a, x) => a + x, 0) / Math.max(1, nClones);
+    // 1) Stable spin — damped when detached.
+    let detachedFrac = 0;
+    for (const s of state.current) detachedFrac += s.detachT;
+    detachedFrac /= Math.max(1, nClones);
     const spinDamp = 1 - detachedFrac * 0.85;
     if (spin && spinRef.current) {
-      const axis = isVAWT ? 'y' : 'z';
-      spinRef.current.rotation[axis] += omega * stepDt * spinDamp;
+      const axis: 'y' | 'z' = isVAWT ? 'y' : 'z';
+      spinRef.current.rotation[axis] += omega * dt * spinDamp;
     }
 
-    // Skip the cosmetic per-blade math on mobile alternating frames.
+    // Diagnostics emit (throttled inside the store).
+    pushDiag({
+      t,
+      omega: omega * spinDamp,
+      rpm: (omega * spinDamp * 60) / (2 * Math.PI),
+      tipSpeed: tsr * windSpeed,
+      failure: f,
+      detachedFrac,
+      flexAmp: Math.min(1, flex) + turbulence * 0.5,
+    });
+
     if (frameCounterRef.current % frameSkip !== 0) return;
 
-    // 2) Global flex/shake — small, never replaces spin.
+    // 2) Global flex/shake — non-spin axes only.
     if (flexRef.current) {
       const k = Math.min(1, flex);
+      const tj = 1 + turbulence * 1.5;
       const shake = f > 0.05
-        ? (Math.sin(t * 38 + 1.7) * 0.025 + Math.cos(t * 51) * 0.018) * f * mobileScale
+        ? (Math.sin(t * 38 + 1.7) * 0.025 + Math.cos(t * 51) * 0.018) * f * mobileScale * tj
         : 0;
-      const oscillation = Math.sin(t * 4.2) * 0.035 * k * mobileScale;
-      // Apply only to non-spin axes so blades still rotate cleanly.
+      const oscillation = Math.sin(t * 4.2) * 0.035 * k * mobileScale * tj;
       if (!isVAWT) {
         flexRef.current.rotation.x = oscillation + shake * 0.4;
         flexRef.current.rotation.y = shake * 0.3;
+        flexRef.current.rotation.z = 0; // never touch spin axis
       } else {
         flexRef.current.rotation.x = oscillation * 0.4 + shake * 0.25;
         flexRef.current.rotation.z = -oscillation * 0.3 + shake * 0.25;
+        flexRef.current.rotation.y = 0;
       }
     }
 
-    // 3) Per-blade detach / recovery.
-    //    - Each blade has a staggered fracture threshold (0.95..1.15·fLevel).
-    //    - detachT[i] eases towards 1 when over threshold, eases back to 0 when safe.
-    //    - When detachT > 0, blade drifts downwind, falls, tumbles, fades.
-    const stagger = (i: number) => 1 + (i / Math.max(1, nClones - 1)) * 0.18;
+    // 3) Per-blade detach / recovery — all blades together with phase stagger.
     bladeRefs.current.forEach((grp, i) => {
       if (!grp) return;
-      const target = f >= stagger(i) ? 1 : (f < 0.55 ? 0 : detachT.current[i]);
-      // ease towards target
-      const speed = target > detachT.current[i] ? 1.2 : 2.4; // recovery is faster than failure
-      detachT.current[i] += (target - detachT.current[i]) * Math.min(1, stepDt * speed);
-      const d = detachT.current[i];
+      const st = state.current[i];
+      const ex = explosion[i];
+      // Trigger ALL blades at f >= 1 (with small per-blade delay so they don't snap at the same instant)
+      // Allow recovery whenever f drops to a safe margin.
+      const targetTrigger = f - ex.delay >= 1.0;
+      const targetSafe = f < 0.55;
+      const target = targetTrigger ? 1 : targetSafe ? 0 : st.detachT;
 
-      // Local flutter (independent of spin)
-      const flutter = Math.sin(t * (6 + i * 1.3) + i) * 0.05 * (Math.min(1, flex) + f * 1.2) * mobileScale;
-      if (!isVAWT) grp.rotation.x = flutter * (1 - d);
-      else grp.rotation.z = flutter * 0.6 * (1 - d);
+      const speed = (target > st.detachT ? 1.4 * reactionSpeed : 2.6 * recoverySpeed);
+      st.detachT += (target - st.detachT) * Math.min(1, dt * speed);
+      const d = st.detachT;
+
+      // Local flutter on non-spin axis only, scaled down as detach grows.
+      const flutter = Math.sin(t * (6 + i * 1.3) + i) * 0.05 * (Math.min(1, flex) + f * 1.2) * mobileScale * (1 + turbulence);
+      const flutterScale = (1 - d);
 
       if (d > 0.001) {
-        // Drift downwind, fall, tumble. Wind axis: HAWT = +Z, VAWT = +X.
-        const driftMax = g.tipRadius * 1.8;
-        const fallMax = g.tipRadius * 1.6;
-        const drift = driftMax * d;
-        const fall = -fallMax * d * d;
-        if (!isVAWT) grp.position.set(0, fall, drift);
-        else grp.position.set(drift, fall, 0);
-        grp.rotation.x = (grp.rotation.x || 0) + dt * 3.5 * d;
-        grp.rotation.y = (grp.rotation.y || 0) + dt * 2.2 * d;
-        // shrink slightly to hint at fading debris
-        const sc = 1 - d * 0.18;
-        grp.scale.set(sc, sc, sc);
+        // Accumulate tumble (radians) using stable angular velocities.
+        st.quatV.x += ex.tumble.x * dt * d;
+        st.quatV.y += ex.tumble.y * dt * d;
+        st.quatV.z += ex.tumble.z * dt * d;
+        // Position: explosion drift + gravity (downward in world-Y).
+        st.pos.copy(ex.drift).multiplyScalar(d * d);
+        st.pos.y -= ex.gravity * d * d * 0.9;
       } else {
-        grp.position.set(0, 0, 0);
-        grp.scale.set(1, 1, 1);
+        // Recovery: lerp back to identity smoothly.
+        st.pos.multiplyScalar(0.78);
+        st.quatV.multiplyScalar(0.78);
+        if (st.pos.lengthSq() < 1e-4) st.pos.set(0, 0, 0);
+        if (st.quatV.lengthSq() < 1e-4) st.quatV.set(0, 0, 0);
       }
+
+      grp.position.copy(st.pos);
+      // Apply rotation as Euler — keeps axis sane (no quaternion drift accumulation).
+      grp.rotation.set(
+        st.quatV.x + (!isVAWT ? flutter * flutterScale : 0),
+        st.quatV.y,
+        st.quatV.z + (isVAWT ? flutter * 0.6 * flutterScale : 0),
+      );
+
+      // Shrink slightly as pieces "fade" to suggest debris (recovers smoothly).
+      const sc = 1 - d * 0.20;
+      grp.scale.setScalar(sc);
     });
   });
 
@@ -189,36 +269,37 @@ export function BladeMesh({
             <group
               key={i}
               rotation={cloneRotation(i)}
-              ref={el => { bladeRefs.current[i] = el; }}
             >
-              <mesh geometry={built.geometry} castShadow receiveShadow>
-                {isWire ? (
-                  <meshBasicMaterial vertexColors wireframe />
-                ) : isXray ? (
-                  <meshStandardMaterial
-                    vertexColors transparent opacity={0.35}
-                    emissive={new THREE.Color(0x39ff14)} emissiveIntensity={0.6}
-                    metalness={0.1} roughness={0.6} side={THREE.DoubleSide}
-                  />
-                ) : (
-                  <meshStandardMaterial
-                    vertexColors metalness={0.42} roughness={0.38} side={THREE.DoubleSide}
-                    emissive={crackEmissive}
-                    emissiveIntensity={crackIntensity}
-                  />
-                )}
-              </mesh>
-              {isXray && (
-                <mesh geometry={built.geometry}>
-                  <meshBasicMaterial color="#39ff14" wireframe transparent opacity={0.25} />
+              <group ref={el => { bladeRefs.current[i] = el; }}>
+                <mesh geometry={built.geometry} castShadow receiveShadow>
+                  {isWire ? (
+                    <meshBasicMaterial vertexColors wireframe />
+                  ) : isXray ? (
+                    <meshStandardMaterial
+                      vertexColors transparent opacity={0.35}
+                      emissive={new THREE.Color(0x39ff14)} emissiveIntensity={0.6}
+                      metalness={0.1} roughness={0.6} side={THREE.DoubleSide}
+                    />
+                  ) : (
+                    <meshStandardMaterial
+                      vertexColors metalness={0.42} roughness={0.38} side={THREE.DoubleSide}
+                      emissive={crackEmissive}
+                      emissiveIntensity={crackIntensity}
+                    />
+                  )}
                 </mesh>
-              )}
+                {isXray && (
+                  <mesh geometry={built.geometry}>
+                    <meshBasicMaterial color="#39ff14" wireframe transparent opacity={0.25} />
+                  </mesh>
+                )}
+              </group>
             </group>
           ))}
         </group>
       </group>
 
-      {/* Hub / shaft / supports (static — don't spin so non-rotating parts stay put) */}
+      {/* Hub / shaft / supports — outside the spin group so they don't smear during fast spin. */}
       {isVAWT ? (
         <>
           <mesh castShadow receiveShadow>
@@ -237,26 +318,22 @@ export function BladeMesh({
           </mesh>
         </>
       ) : (
-        <>
-          {/* HAWT spinner stays on the spin group so it rotates with the blades; struts/cone outside don't. */}
-          <group rotation={[Math.PI / 2, 0, 0]}>
-            <mesh castShadow receiveShadow>
-              <cylinderGeometry args={[spinnerR, spinnerR * 0.85, spinnerH, 32]} />
-              <meshStandardMaterial color="#1a1f26" metalness={0.78} roughness={0.3} />
-            </mesh>
-            <mesh position={[0, spinnerH * 0.55, 0]} castShadow>
-              <coneGeometry args={[spinnerR, spinnerR * 1.1, 32]} />
-              <meshStandardMaterial color="#23292f" metalness={0.7} roughness={0.35} />
-            </mesh>
-            <mesh position={[0, -spinnerH * 0.55, 0]} castShadow>
-              <cylinderGeometry args={[spinnerR * 0.95, spinnerR * 0.7, spinnerR * 0.4, 32]} />
-              <meshStandardMaterial color="#2a3038" metalness={0.65} roughness={0.38} />
-            </mesh>
-          </group>
-        </>
+        <group rotation={[Math.PI / 2, 0, 0]}>
+          <mesh castShadow receiveShadow>
+            <cylinderGeometry args={[spinnerR, spinnerR * 0.85, spinnerH, 32]} />
+            <meshStandardMaterial color="#1a1f26" metalness={0.78} roughness={0.3} />
+          </mesh>
+          <mesh position={[0, spinnerH * 0.55, 0]} castShadow>
+            <coneGeometry args={[spinnerR, spinnerR * 1.1, 32]} />
+            <meshStandardMaterial color="#23292f" metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, -spinnerH * 0.55, 0]} castShadow>
+            <cylinderGeometry args={[spinnerR * 0.95, spinnerR * 0.7, spinnerR * 0.4, 32]} />
+            <meshStandardMaterial color="#2a3038" metalness={0.65} roughness={0.38} />
+          </mesh>
+        </group>
       )}
 
-      {/* VAWT radial struts — kept static so they don't smear under spin */}
       {isVAWT && !isSavonius && !isArchimedes && Array.from({ length: nClones }).map((_, i) => {
         const a = (i * 2 * Math.PI) / nClones;
         return (
