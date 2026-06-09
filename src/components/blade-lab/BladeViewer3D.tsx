@@ -8,6 +8,20 @@ import type { BladeGeometry } from '@/aero/bem';
 import type { ViewMode, RotorType } from '@/aero/buildBladeGeometry';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+interface VfxConfig {
+  vortexIntensity: number;  // 0..1.5
+  vortexTurns: number;      // 1..6
+  vortexRadiusFactor: number; // 0.6..1.4
+  vortexDecay: number;      // 0..0.6 contraction along length
+  wakeDensity: number;      // 0..1.5
+  wakeSwirl: number;        // 0..1
+  streamCount: number;      // 0..1 multiplier
+  streamLength: number;     // 0.5..2 multiplier on advection length
+  streamJitter: number;     // 0..1 turbulence shake
+  streamSpeedMul: number;   // 0.2..3
+  airAroundBlades: boolean; // dense near-blade streamers
+}
+
 interface Props {
   geometry: BladeGeometry;
   viewMode: ViewMode;
@@ -21,81 +35,81 @@ interface Props {
   rotorType?: RotorType;
   heightOverDiameter?: number;
   failureLevel?: number;
-  vortexIntensity?: number; // 0..1
-  wakeDensity?: number;     // 0..1
+  /** Background tint from site scenario. */
+  bgTint?: string;
+  /** Turbulence intensity 0..1 from site scenario. */
+  turbulence?: number;
+  reactionSpeed?: number;
+  recoverySpeed?: number;
+  vfx: VfxConfig;
 }
 
-/**
- * HAWT tip-vortex helices — one helix per blade, trailing downwind (+Z) from each blade tip.
- * Spirals are slim, behind the rotor only, and twist around the wake axis like real horseshoe vortices.
- */
-function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity }: { R: number; nBlades: number; V: number; tsr: number; color: string; intensity: number }) {
+function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity, turns, radiusFactor, decay }:
+  { R: number; nBlades: number; V: number; tsr: number; color: string; intensity: number; turns: number; radiusFactor: number; decay: number }) {
   const ref = useRef<THREE.Group>(null);
   useFrame((_, dt) => {
     if (ref.current) ref.current.rotation.z += dt * Math.min(2.5, (tsr * V) / Math.max(1, R)) * 0.25;
   });
   const tubes = useMemo(() => {
     const out: THREE.BufferGeometry[] = [];
-    const turns = 3.2;
     const len = R * 2.8;
+    const R0 = R * radiusFactor;
     for (let b = 0; b < nBlades; b++) {
       const phase0 = (b * 2 * Math.PI) / nBlades;
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 80; i++) {
-        const t = i / 80;
-        const angle = phase0 + t * turns * Math.PI * 2;
-        // gentle radial contraction in the wake
-        const rr = R * (1 - t * 0.18);
-        pts.push(new THREE.Vector3(Math.cos(angle) * rr, Math.sin(angle) * rr, t * len));
+        const tt = i / 80;
+        const angle = phase0 + tt * turns * Math.PI * 2;
+        const rr = R0 * (1 - tt * decay);
+        pts.push(new THREE.Vector3(Math.cos(angle) * rr, Math.sin(angle) * rr, tt * len));
       }
-      out.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, Math.max(0.018, R * 0.012), 6, false));
+      out.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 140, Math.max(0.015, R * 0.011), 6, false));
     }
     return out;
-  }, [R, nBlades]);
+  }, [R, nBlades, turns, radiusFactor, decay]);
   return (
     <group ref={ref}>
       {tubes.map((g, i) => (
         <mesh key={i} geometry={g}>
-          <meshBasicMaterial color={color} transparent opacity={0.38 * intensity} />
+          <meshBasicMaterial color={color} transparent opacity={Math.min(0.7, 0.38 * intensity)} />
         </mesh>
       ))}
     </group>
   );
 }
 
-/** VAWT tip-vortex — two helices wrapped around the rotor cylinder, drifting downstream along +X. */
-function TipVortexVAWT({ R, H, color, intensity }: { R: number; H: number; color: string; intensity: number }) {
+function TipVortexVAWT({ R, H, color, intensity, turns, swirl }:
+  { R: number; H: number; color: string; intensity: number; turns: number; swirl: number }) {
   const ref = useRef<THREE.Group>(null);
-  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += dt * 0.45; });
+  useFrame((_, dt) => { if (ref.current) ref.current.rotation.y += dt * (0.3 + swirl * 0.6); });
   const tubes = useMemo(() => {
     const out: THREE.BufferGeometry[] = [];
     for (let s = 0; s < 2; s++) {
       const ySign = s === 0 ? 1 : -1;
       const pts: THREE.Vector3[] = [];
       for (let i = 0; i <= 90; i++) {
-        const t = i / 90;
-        const ang = t * 3.5 * Math.PI * 2;
-        pts.push(new THREE.Vector3(t * R * 2.6, (H / 2) * ySign - ySign * t * H * 0.18, Math.sin(ang) * R * (1 - t * 0.18) * 0.9));
+        const tt = i / 90;
+        const ang = tt * turns * Math.PI * 2;
+        pts.push(new THREE.Vector3(tt * R * 2.6, (H / 2) * ySign - ySign * tt * H * 0.18, Math.sin(ang) * R * (1 - tt * 0.18) * 0.9));
       }
       out.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 160, Math.max(0.015, R * 0.010), 6, false));
     }
     return out;
-  }, [R, H]);
+  }, [R, H, turns]);
   return (
     <group ref={ref}>
       {tubes.map((g, i) => (
         <mesh key={i} geometry={g}>
-          <meshBasicMaterial color={color} transparent opacity={0.42 * intensity} />
+          <meshBasicMaterial color={color} transparent opacity={Math.min(0.7, 0.42 * intensity)} />
         </mesh>
       ))}
     </group>
   );
 }
 
-/** HAWT freestream lines — short particles streaming +Z (towards the rotor face), confined inside the rotor disc, fading out behind. */
-function StreamlinesHAWT({ R, V, density }: { R: number; V: number; density: number }) {
+function StreamlinesHAWT({ R, V, vfx, turbulence }: { R: number; V: number; vfx: VfxConfig; turbulence: number }) {
   const ref = useRef<THREE.Points>(null);
-  const count = Math.max(40, Math.floor(220 * density));
+  const count = Math.max(40, Math.floor(220 * vfx.wakeDensity * vfx.streamCount));
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
@@ -103,17 +117,24 @@ function StreamlinesHAWT({ R, V, density }: { R: number; V: number; density: num
       const r = Math.sqrt(Math.random()) * R * 1.1;
       arr[i * 3] = Math.cos(a) * r;
       arr[i * 3 + 1] = Math.sin(a) * r;
-      arr[i * 3 + 2] = -R * 1.6 + Math.random() * R * 3.2;
+      arr[i * 3 + 2] = -R * 1.6 + Math.random() * R * 3.2 * vfx.streamLength;
     }
     return arr;
-  }, [count, R]);
+  }, [count, R, vfx.streamLength]);
   useFrame((_, dt) => {
     if (!ref.current) return;
     const arr = ref.current.geometry.attributes.position.array as Float32Array;
-    const step = Math.max(0.5, V) * dt * 0.6;
-    for (let i = 2; i < arr.length; i += 3) {
-      arr[i] += step;
-      if (arr[i] > R * 1.8) arr[i] = -R * 1.6;
+    const step = Math.max(0.5, V) * dt * 0.6 * vfx.streamSpeedMul;
+    const jitter = (turbulence + vfx.streamJitter) * 0.05 * R;
+    const maxZ = R * 1.8 * vfx.streamLength;
+    const minZ = -R * 1.6;
+    for (let i = 0; i < arr.length; i += 3) {
+      arr[i + 2] += step;
+      if (jitter > 0) {
+        arr[i]     += (Math.random() - 0.5) * jitter * dt;
+        arr[i + 1] += (Math.random() - 0.5) * jitter * dt;
+      }
+      if (arr[i + 2] > maxZ) arr[i + 2] = minZ;
     }
     ref.current.geometry.attributes.position.needsUpdate = true;
   });
@@ -127,26 +148,32 @@ function StreamlinesHAWT({ R, V, density }: { R: number; V: number; density: num
   );
 }
 
-/** VAWT freestream lines — particles drifting +X across the rotor's swept width. */
-function StreamlinesVAWT({ R, H, V, density }: { R: number; H: number; V: number; density: number }) {
+function StreamlinesVAWT({ R, H, V, vfx, turbulence }: { R: number; H: number; V: number; vfx: VfxConfig; turbulence: number }) {
   const ref = useRef<THREE.Points>(null);
-  const count = Math.max(40, Math.floor(260 * density));
+  const count = Math.max(40, Math.floor(260 * vfx.wakeDensity * vfx.streamCount));
   const positions = useMemo(() => {
     const arr = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
-      arr[i * 3] = -R * 1.6 + Math.random() * R * 3.2;
+      arr[i * 3] = -R * 1.6 + Math.random() * R * 3.2 * vfx.streamLength;
       arr[i * 3 + 1] = (Math.random() - 0.5) * H * 1.1;
       arr[i * 3 + 2] = (Math.random() - 0.5) * R * 2.2;
     }
     return arr;
-  }, [count, R, H]);
+  }, [count, R, H, vfx.streamLength]);
   useFrame((_, dt) => {
     if (!ref.current) return;
     const arr = ref.current.geometry.attributes.position.array as Float32Array;
-    const step = Math.max(0.5, V) * dt * 0.6;
+    const step = Math.max(0.5, V) * dt * 0.6 * vfx.streamSpeedMul;
+    const jitter = (turbulence + vfx.streamJitter) * 0.05 * R;
+    const maxX = R * 1.8 * vfx.streamLength;
+    const minX = -R * 1.6;
     for (let i = 0; i < arr.length; i += 3) {
       arr[i] += step;
-      if (arr[i] > R * 1.8) arr[i] = -R * 1.6;
+      if (jitter > 0) {
+        arr[i + 1] += (Math.random() - 0.5) * jitter * dt;
+        arr[i + 2] += (Math.random() - 0.5) * jitter * dt;
+      }
+      if (arr[i] > maxX) arr[i] = minX;
     }
     ref.current.geometry.attributes.position.needsUpdate = true;
   });
@@ -156,6 +183,54 @@ function StreamlinesVAWT({ R, H, V, density }: { R: number; H: number; V: number
         <bufferAttribute attach="attributes-position" args={[positions, 3]} count={count} />
       </bufferGeometry>
       <pointsMaterial color="#7be7ff" size={Math.max(0.04, R * 0.012)} sizeAttenuation transparent opacity={0.55} />
+    </points>
+  );
+}
+
+/** Dense streamers hugging the rotor disc — air around blades. */
+function AirAroundBlades({ R, isVAWT, V }: { R: number; isVAWT: boolean; V: number }) {
+  const ref = useRef<THREE.Points>(null);
+  const count = 220;
+  const positions = useMemo(() => {
+    const arr = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = R * (0.4 + Math.random() * 0.7);
+      if (isVAWT) {
+        arr[i * 3]     = Math.cos(a) * r;
+        arr[i * 3 + 1] = (Math.random() - 0.5) * R * 1.6;
+        arr[i * 3 + 2] = Math.sin(a) * r;
+      } else {
+        arr[i * 3]     = Math.cos(a) * r;
+        arr[i * 3 + 1] = Math.sin(a) * r;
+        arr[i * 3 + 2] = (Math.random() - 0.5) * R * 0.6;
+      }
+    }
+    return arr;
+  }, [count, R, isVAWT]);
+  useFrame((_, dt) => {
+    if (!ref.current) return;
+    const arr = ref.current.geometry.attributes.position.array as Float32Array;
+    const step = Math.max(0.5, V) * dt * 0.45;
+    if (isVAWT) {
+      for (let i = 0; i < arr.length; i += 3) {
+        arr[i] += step;
+        if (arr[i] > R * 1.6) arr[i] = -R * 1.4;
+      }
+    } else {
+      for (let i = 2; i < arr.length; i += 3) {
+        arr[i] += step;
+        if (arr[i] > R * 0.6) arr[i] = -R * 0.6;
+      }
+    }
+    ref.current.geometry.attributes.position.needsUpdate = true;
+  });
+  return (
+    <points ref={ref}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} count={count} />
+      </bufferGeometry>
+      <pointsMaterial color="#bff7ff" size={Math.max(0.035, R * 0.010)} sizeAttenuation transparent opacity={0.75} />
     </points>
   );
 }
@@ -212,7 +287,7 @@ function GroundDisc({ R, yPos }: { R: number; yPos: number }) {
 export function BladeViewer3D({
   geometry, viewMode, windSpeed, tsr, cinematic, showTipVortex, showStreamlines, postFX = true, helical = 0,
   rotorType = 'hawt', heightOverDiameter, failureLevel = 0,
-  vortexIntensity = 1, wakeDensity = 1,
+  bgTint, turbulence = 0, reactionSpeed = 1, recoverySpeed = 1, vfx,
 }: Props) {
   const isVAWT = rotorType !== 'hawt';
   const R = geometry.tipRadius;
@@ -227,12 +302,17 @@ export function BladeViewer3D({
     failureLevel > 0.6 ? '#ff5533' :
     '#66e8ff';
 
+  const bg = bgTint ?? '#07101a';
+  const canvasStyle = useMemo(() => ({
+    background: `radial-gradient(circle at center, ${bg} 0%, #02050a 70%, #000 100%)`,
+  }), [bg]);
+
   return (
     <Canvas
       shadows
       camera={{ position: [R * 1.6, R * 0.8, R * 1.8], fov: 45 }}
       dpr={[1, isMobile ? 1.3 : 1.6]}
-      style={{ background: 'radial-gradient(circle at center, #07101a 0%, #02050a 70%, #000 100%)' }}
+      style={canvasStyle}
     >
       <CameraFit R={R} H={H} isVAWT={isVAWT} />
       <ambientLight intensity={0.35} />
@@ -245,16 +325,22 @@ export function BladeViewer3D({
           helical={helical} rotorType={rotorType} heightOverDiameter={heightOverDiameter}
           failureLevel={failureLevel}
           flex={0.25 + Math.min(0.6, windSpeed / 30)}
+          turbulence={turbulence}
+          reactionSpeed={reactionSpeed}
+          recoverySpeed={recoverySpeed}
         />
 
         {showTipVortex && (isVAWT
-          ? <TipVortexVAWT R={R} H={H} color={vortexColor} intensity={vortexIntensity * mobileMul} />
-          : <TipVortexHAWT R={R} nBlades={geometry.nBlades} V={windSpeed} tsr={tsr} color={vortexColor} intensity={vortexIntensity * mobileMul} />
+          ? <TipVortexVAWT R={R} H={H} color={vortexColor} intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns} swirl={vfx.wakeSwirl} />
+          : <TipVortexHAWT R={R} nBlades={geometry.nBlades} V={windSpeed} tsr={tsr} color={vortexColor}
+              intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns}
+              radiusFactor={vfx.vortexRadiusFactor} decay={vfx.vortexDecay} />
         )}
         {showStreamlines && (isVAWT
-          ? <StreamlinesVAWT R={R} H={H} V={windSpeed} density={wakeDensity * mobileMul} />
-          : <StreamlinesHAWT R={R} V={windSpeed} density={wakeDensity * mobileMul} />
+          ? <StreamlinesVAWT R={R} H={H} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
+          : <StreamlinesHAWT R={R} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
         )}
+        {vfx.airAroundBlades && <AirAroundBlades R={R} isVAWT={isVAWT} V={windSpeed} />}
         <GroundDisc R={Math.max(R, H * 0.5)} yPos={groundY} />
         <Grid
           args={[Math.max(R, H) * 8, Math.max(R, H) * 8]}
@@ -275,3 +361,5 @@ export function BladeViewer3D({
     </Canvas>
   );
 }
+
+export type { VfxConfig };

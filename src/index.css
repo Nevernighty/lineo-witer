@@ -129,6 +129,33 @@
 .bl-resize-handle[data-resize-handle-active] { background: hsl(var(--primary) / 0.7); }
 .bl-resize-handle[data-panel-group-direction="vertical"] { cursor: row-resize; width: 100%; height: 4px; }
 
+/* Bottom-canvas ribbon: 3-column grid [label | slider | value] that never overflows. */
+.blade-lab-shell .bl-ribbon-cell {
+  display: grid;
+  grid-template-columns: minmax(28px, max-content) minmax(80px, 1fr) minmax(48px, max-content);
+  align-items: center;
+  column-gap: .5rem;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.blade-lab-shell .bl-ribbon-label {
+  font-size: var(--bl-meta);
+  color: hsl(var(--muted-foreground));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.blade-lab-shell .bl-ribbon-value {
+  font-size: var(--bl-meta);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  color: hsl(var(--primary));
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+
+
 
 
 @layer components {

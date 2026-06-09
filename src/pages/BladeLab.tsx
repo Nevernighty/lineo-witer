@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind, AlertTriangle, Activity } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
 import { setActiveBladePreset } from '@/store/useBladePresetStore';
 import type { RotorType } from '@/aero/buildBladeGeometry';
@@ -8,7 +8,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectGroup, SelectLabel, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   Menubar, MenubarMenu, MenubarTrigger, MenubarContent,
@@ -17,16 +16,19 @@ import {
   MenubarSub, MenubarSubTrigger, MenubarSubContent,
 } from '@/components/ui/menubar';
 import { ResizablePanelGroup, ResizablePanel, ResizableHandle } from '@/components/ui/resizable';
-import { BladeViewer3D } from '@/components/blade-lab/BladeViewer3D';
+import { BladeViewer3D, type VfxConfig } from '@/components/blade-lab/BladeViewer3D';
 import { GeometryPanel } from '@/components/blade-lab/GeometryPanel';
 import { AeroAnalysis } from '@/components/blade-lab/AeroAnalysis';
 import { MacroRegime } from '@/components/blade-lab/MacroRegime';
+import { DiagnosticsOverlay } from '@/components/blade-lab/DiagnosticsOverlay';
 import { AIRFOILS } from '@/aero/airfoils';
 import type { BladeGeometry } from '@/aero/bem';
 import type { ViewMode } from '@/aero/buildBladeGeometry';
 import { PRESETS, clampGeometry } from '@/aero/presets';
 import { getMaterial } from '@/aero/materials';
 import { exportBladeSTL, downloadSTL } from '@/aero/stlExport';
+import { SITE_SCENARIOS, getSiteScenario } from '@/aero/sitePresets';
+import { calibrationFor } from '@/aero/calibration';
 import { Lang } from '@/utils/i18n';
 
 const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
@@ -43,30 +45,36 @@ const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
 const T = {
   ua: { back: 'Назад', title: 'Лабораторія форми лопаті', sub: 'Аеродинаміка · Геометрія · Макро · STL',
     geometry: 'Геометрія', viewer: '3D', analysis: 'Аналіз', macro: 'Макро', scene: 'Симуляція', view: 'Режим перегляду',
-    windV: 'Швидкість вітру V∞', tsr: 'λ (TSR)', cinematic: 'Кінематика', vortex: 'Кінцеві вихори',
+    windV: 'V∞', tsr: 'λ', cinematic: 'Кінематика', vortex: 'Кінцеві вихори',
     stream: 'Лінії потоку', postFX: 'Пост-обробка', presets: 'Пресети турбін',
     utility: 'Промислові', small: 'Малі', diy: 'DIY / 3D-друк', vawt: 'Вертикальні', reference: 'Еталонні',
     exportSingle: 'Лопать STL', exportRotor: 'Ротор STL', scaleMM: 'мм', reset: 'Скинути',
     applySim: 'У симуляцію', appliedToast: 'Лопать застосована до симуляції',
-    file: 'Файл', editM: 'Правка', viewM: 'Вигляд', simM: 'Симуляція', helpM: 'Довідка',
+    file: 'Файл', viewM: 'Вигляд', simM: 'Симуляція', siteM: 'Сценарій', vfxM: 'VFX',
     preset: 'Пресет', exportSTL: 'Експорт STL', singleBlade: 'Одна лопать', fullRotor: 'Повний ротор',
     overload: 'Перевантаження', failure: 'Руйнування лопаті',
     flow: 'Потік', visualFX: 'Візуальні ефекти', thresholds: 'Пороги руйнування',
-    bendStart: 'Початок згину (%)', fracture: 'Поріг розриву (%)',
-    advancedSim: 'Розширені налаштування',
+    bendStart: 'Початок згину', fracture: 'Поріг розриву',
+    diag: 'Діагностика', calib: 'Калібрування', airBlades: 'Повітря біля лопатей',
+    vortexInt: 'Вихри', vortexTurns: 'Витки', vortexR: 'Радіус', vortexDec: 'Затухання',
+    wakeDen: 'Сліди', wakeSwl: 'Закрутка',
+    streamN: 'Кількість', streamLen: 'Довжина', streamJit: 'Турбулентність', streamSpd: 'Швидкість',
   },
   en: { back: 'Back', title: 'Blade Geometry Lab', sub: 'Aerodynamics · Geometry · Macro · STL',
     geometry: 'Geometry', viewer: '3D', analysis: 'Analysis', macro: 'Macro', scene: 'Simulation', view: 'View mode',
-    windV: 'Freestream V∞', tsr: 'λ (TSR)', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines',
+    windV: 'V∞', tsr: 'λ', cinematic: 'Cinematic', vortex: 'Tip vortex', stream: 'Streamlines',
     postFX: 'Post-FX', presets: 'Turbine presets', utility: 'Utility', small: 'Small', diy: 'DIY / 3D-print',
     vawt: 'Vertical-axis', reference: 'Reference', exportSingle: 'Blade STL', exportRotor: 'Rotor STL',
     scaleMM: 'mm', reset: 'Reset', applySim: 'To simulation', appliedToast: 'Blade applied to simulation',
-    file: 'File', editM: 'Edit', viewM: 'View', simM: 'Simulation', helpM: 'Help',
+    file: 'File', viewM: 'View', simM: 'Simulation', siteM: 'Scenario', vfxM: 'VFX',
     preset: 'Preset', exportSTL: 'Export STL', singleBlade: 'Single blade', fullRotor: 'Full rotor',
     overload: 'Overload', failure: 'Blade failure',
     flow: 'Flow', visualFX: 'Visual FX', thresholds: 'Failure thresholds',
-    bendStart: 'Bend start (%)', fracture: 'Fracture (%)',
-    advancedSim: 'Advanced controls',
+    bendStart: 'Bend start', fracture: 'Fracture',
+    diag: 'Diagnostics', calib: 'Calibration', airBlades: 'Air around blades',
+    vortexInt: 'Vortex', vortexTurns: 'Turns', vortexR: 'Radius', vortexDec: 'Decay',
+    wakeDen: 'Wake', wakeSwl: 'Swirl',
+    streamN: 'Count', streamLen: 'Length', streamJit: 'Turbulence', streamSpd: 'Speed',
   },
 };
 
@@ -74,6 +82,13 @@ const DEFAULT_GEOMETRY: BladeGeometry = {
   airfoil: AIRFOILS.find(a => a.id === 's809') || AIRFOILS[0],
   rootRadius: 1.5, tipRadius: 30, chordRoot: 2.5, chordTip: 0.6,
   twistRoot: 14, twistTip: 0, pitch: 0, nBlades: 3, twistLaw: 'optimal',
+};
+
+const DEFAULT_VFX: VfxConfig = {
+  vortexIntensity: 1.0, vortexTurns: 3.2, vortexRadiusFactor: 1.0, vortexDecay: 0.18,
+  wakeDensity: 1.0, wakeSwirl: 0.5,
+  streamCount: 1.0, streamLength: 1.0, streamJitter: 0.0, streamSpeedMul: 1.0,
+  airAroundBlades: false,
 };
 
 export default function BladeLab() {
@@ -95,16 +110,16 @@ export default function BladeLab() {
   const [rotorType, setRotorType] = useState<RotorType>('hawt');
   const [heightOverDiameter, setHeightOverDiameter] = useState<number>(1);
   const [helicalDeg, setHelicalDeg] = useState<number>(0);
-  // User-adjustable failure thresholds, expressed as fraction of material max tip speed.
   const [bendThresholdPct, setBendThresholdPct] = useState(0.7);
   const [fractureThresholdPct, setFractureThresholdPct] = useState(1.1);
-  const [vortexIntensity, setVortexIntensity] = useState(1.0);
-  const [wakeDensity, setWakeDensity] = useState(1.0);
+  const [reactionSpeed, setReactionSpeed] = useState(1);
+  const [recoverySpeed, setRecoverySpeed] = useState(1);
+  const [siteId, setSiteId] = useState<string>('lowland_open');
+  const [vfx, setVfx] = useState<VfxConfig>(DEFAULT_VFX);
+  const [showDiag, setShowDiag] = useState(false);
   const navigate = useNavigate();
 
-
   const rho = 1.225;
-
   const material = getMaterial(materialId);
   const tipSpeed = tsr * windSpeed;
   const failureLevel = useMemo(() => {
@@ -112,6 +127,17 @@ export default function BladeLab() {
     const hi = material.maxTipSpeed * fractureThresholdPct;
     return Math.max(0, Math.min(1.3, (tipSpeed - lo) / Math.max(0.05, hi - lo)));
   }, [tipSpeed, material.maxTipSpeed, bendThresholdPct, fractureThresholdPct]);
+
+  // Auto-apply family calibration whenever rotor type changes.
+  useEffect(() => {
+    const c = calibrationFor(rotorType);
+    setBendThresholdPct(c.bendThresholdPct);
+    setFractureThresholdPct(c.fractureThresholdPct);
+    setReactionSpeed(c.reactionSpeed);
+    setRecoverySpeed(c.recoverySpeed);
+  }, [rotorType]);
+
+  const site = useMemo(() => getSiteScenario(siteId), [siteId]);
 
   const grouped = useMemo(() => {
     const groups: Record<string, typeof PRESETS> = { utility: [], small: [], diy: [], vawt: [], reference: [] };
@@ -133,10 +159,16 @@ export default function BladeLab() {
     setHelicalDeg(p.helicalTwistDeg ?? 0);
   };
 
+  const applySite = (id: string) => {
+    setSiteId(id);
+    const s = getSiteScenario(id);
+    setWindSpeed(s.windSpeed);
+  };
+
   const resetAll = () => {
     setGeometry(DEFAULT_GEOMETRY); setMaterialId('gfrp'); setPresetId('');
     setRotorType('hawt'); setHeightOverDiameter(1); setHelicalDeg(0);
-    setBendThresholdPct(0.7); setFractureThresholdPct(1.1);
+    setVfx(DEFAULT_VFX);
   };
 
   const applyToSimulation = useCallback((silent = false) => {
@@ -155,8 +187,6 @@ export default function BladeLab() {
     }
   }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate]);
 
-  // Live-push the current rotor + thresholds into the simulation store so the
-  // main wind sim renders edits in real time, no manual "Apply" needed.
   useEffect(() => { applyToSimulation(true); }, [applyToSimulation]);
 
   const exportSTL = useCallback((mode: 'single' | 'rotor') => {
@@ -170,20 +200,21 @@ export default function BladeLab() {
     showTipVortex: showVortex, showStreamlines: showStream,
     rotorType, heightOverDiameter, helical: helicalDeg,
     failureLevel,
-    vortexIntensity, wakeDensity,
+    bgTint: site.tint, turbulence: site.turbulence,
+    reactionSpeed, recoverySpeed,
+    vfx,
   };
 
   const simCtl = {
-    t, lang, viewMode, setViewMode, windSpeed, setWindSpeed, tsr, setTsr,
+    t, lang, windSpeed, setWindSpeed, tsr, setTsr,
     cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX,
     bendThresholdPct, setBendThresholdPct, fractureThresholdPct, setFractureThresholdPct,
-    vortexIntensity, setVortexIntensity, wakeDensity, setWakeDensity,
+    reactionSpeed, setReactionSpeed, recoverySpeed, setRecoverySpeed,
+    vfx, setVfx,
   };
-
 
   return (
     <div className="h-[100dvh] w-screen flex flex-col bg-background text-foreground overflow-hidden blade-lab-shell">
-      {/* DaVinci-style compact top bar */}
       <header className="border-b border-border/40 bg-card/70 backdrop-blur-md">
         <div className="flex items-center gap-2 px-2 py-1.5">
           <Link to="/" className="p-1 rounded hover:bg-primary/10 flex-shrink-0" title={t.back}>
@@ -240,7 +271,7 @@ export default function BladeLab() {
                 </MenubarContent>
               </MenubarMenu>
 
-              {/* View — just the render mode + visual toggles */}
+              {/* View */}
               <MenubarMenu>
                 <MenubarTrigger className="bl-menu-trigger">{t.viewM}</MenubarTrigger>
                 <MenubarContent className="z-[120]">
@@ -255,10 +286,30 @@ export default function BladeLab() {
                   <MenubarSeparator />
                   <MenubarCheckboxItem checked={cinematic} onCheckedChange={(v) => setCinematic(!!v)} className="bl-menu-item">{t.cinematic}</MenubarCheckboxItem>
                   <MenubarCheckboxItem checked={postFX} onCheckedChange={(v) => setPostFX(!!v)} className="bl-menu-item">{t.postFX}</MenubarCheckboxItem>
+                  <MenubarCheckboxItem checked={showDiag} onCheckedChange={(v) => setShowDiag(!!v)} className="bl-menu-item">
+                    <Activity className="w-3 h-3 mr-2" /> {t.diag}
+                  </MenubarCheckboxItem>
                 </MenubarContent>
               </MenubarMenu>
 
-              {/* Simulation — all flow controls + thresholds + apply */}
+              {/* Scenario */}
+              <MenubarMenu>
+                <MenubarTrigger className="bl-menu-trigger">{t.siteM}</MenubarTrigger>
+                <MenubarContent className="z-[120] max-h-[60vh] overflow-y-auto">
+                  <MenubarRadioGroup value={siteId} onValueChange={applySite}>
+                    {SITE_SCENARIOS.map(s => (
+                      <MenubarRadioItem key={s.id} value={s.id} className="bl-menu-item">
+                        <div className="flex flex-col">
+                          <span>{lang === 'ua' ? s.nameUA : s.nameEN}</span>
+                          <span className="bl-meta text-muted-foreground">{s.windSpeed} m/s · TI {Math.round(s.turbulence * 100)}%</span>
+                        </div>
+                      </MenubarRadioItem>
+                    ))}
+                  </MenubarRadioGroup>
+                </MenubarContent>
+              </MenubarMenu>
+
+              {/* Simulation — flow + thresholds + calibration */}
               <MenubarMenu>
                 <MenubarTrigger className="bl-menu-trigger">{t.simM}</MenubarTrigger>
                 <MenubarContent className="z-[120] w-80 p-2 bl-menu-panel" onCloseAutoFocus={(e) => e.preventDefault()}>
@@ -267,6 +318,14 @@ export default function BladeLab() {
                   <MenubarItem onSelect={() => applyToSimulation(false)} className="bl-menu-item">
                     <Wind className="w-3 h-3 mr-2" /> {t.applySim}
                   </MenubarItem>
+                </MenubarContent>
+              </MenubarMenu>
+
+              {/* VFX — vortex / wake / streamlines knobs */}
+              <MenubarMenu>
+                <MenubarTrigger className="bl-menu-trigger">{t.vfxM}</MenubarTrigger>
+                <MenubarContent className="z-[120] w-80 p-2 bl-menu-panel" onCloseAutoFocus={(e) => e.preventDefault()}>
+                  <VfxMenuPanel t={t} vfx={vfx} setVfx={setVfx} />
                 </MenubarContent>
               </MenubarMenu>
             </Menubar>
@@ -290,7 +349,6 @@ export default function BladeLab() {
           </div>
         </div>
 
-        {/* Mobile quick row */}
         <div className="md:hidden flex items-center gap-1.5 px-2 pb-1.5 overflow-x-auto scrollbar-none">
           <Select value={presetId} onValueChange={applyPreset}>
             <SelectTrigger className="h-7 bl-text w-44 flex-shrink-0"><SelectValue placeholder={`— ${t.presets} —`} /></SelectTrigger>
@@ -307,17 +365,19 @@ export default function BladeLab() {
               ))}
             </SelectContent>
           </Select>
+          <Select value={siteId} onValueChange={applySite}>
+            <SelectTrigger className="h-7 bl-text w-40 flex-shrink-0"><SelectValue placeholder={t.siteM} /></SelectTrigger>
+            <SelectContent className="z-[100] max-h-80">
+              {SITE_SCENARIOS.map(s => (
+                <SelectItem key={s.id} value={s.id} className="bl-text">
+                  {lang === 'ua' ? s.nameUA : s.nameEN}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <button onClick={resetAll} title={t.reset}
             className="h-7 px-1.5 rounded bg-card/50 hover:bg-card text-muted-foreground border border-border/40 flex items-center flex-shrink-0">
             <RotateCcw className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => exportSTL('single')}
-            className="h-7 px-2 bl-btn-text rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1 flex-shrink-0">
-            <Download className="w-3 h-3" /> {t.exportSingle}
-          </button>
-          <button onClick={() => exportSTL('rotor')}
-            className="h-7 px-2 bl-btn-text rounded bg-primary/15 hover:bg-primary/25 text-primary border border-primary/30 flex items-center gap-1 flex-shrink-0">
-            <Download className="w-3 h-3" /> {t.exportRotor}
           </button>
         </div>
       </header>
@@ -340,9 +400,9 @@ export default function BladeLab() {
           <ResizablePanel defaultSize={54} minSize={28} className="min-w-0">
             <main className="relative h-full min-w-0">
               <BladeViewer3D {...viewerProps} />
-              {/* Bottom-left compact wind + TSR ribbon (no view-mode modal) */}
-              <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} />
+              <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />
               <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
+              {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
             </main>
           </ResizablePanel>
           <ResizableHandle withHandle className="bl-resize-handle" />
@@ -360,7 +420,6 @@ export default function BladeLab() {
                   <MacroRegime geometry={geometry} scenarioId={scenarioId} onScenarioChange={setScenarioId} lang={lang} />
                 </TabsContent>
               </Tabs>
-
             </aside>
           </ResizablePanel>
         </ResizablePanelGroup>
@@ -386,8 +445,9 @@ export default function BladeLab() {
           </TabsContent>
           <TabsContent value="viewer" className="flex-1 m-0 relative min-h-[55vh] pb-14">
             <BladeViewer3D {...viewerProps} />
-            <MobileSimSheet simCtl={simCtl} />
+            <MobileSimSheet simCtl={simCtl} t={t} vfx={vfx} setVfx={setVfx} />
             <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} mobile />
+            {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
           </TabsContent>
           <TabsContent value="analysis" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16 min-w-0 overflow-x-hidden">
             <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} rotorType={rotorType} heightOverDiameter={heightOverDiameter} />
@@ -401,47 +461,72 @@ export default function BladeLab() {
   );
 }
 
-/** All flow + threshold + VFX controls, used both in the Simulation menu and the mobile sheet. */
 function SimMenuPanel({
   t, windSpeed, setWindSpeed, tsr, setTsr,
   cinematic, setCinematic, showVortex, setShowVortex, showStream, setShowStream, postFX, setPostFX,
   bendThresholdPct, setBendThresholdPct, fractureThresholdPct, setFractureThresholdPct,
-  vortexIntensity, setVortexIntensity, wakeDensity, setWakeDensity,
+  reactionSpeed, setReactionSpeed, recoverySpeed, setRecoverySpeed,
 }: any) {
   return (
     <div className="space-y-2.5 bl-menu-panel" onClick={(e) => e.stopPropagation()}>
-      <div className="space-y-1.5">
-        <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.flow}</div>
-        <RangeRow label={t.windV} value={`${windSpeed.toFixed(1)} m/s`}
-          min={2} max={35} step={0.5} v={windSpeed} on={setWindSpeed} />
-        <RangeRow label={t.tsr} value={tsr.toFixed(1)}
-          min={1} max={14} step={0.5} v={tsr} on={setTsr} />
-      </div>
-      <div className="space-y-1.5">
-        <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.thresholds}</div>
+      <Section title={t.flow}>
+        <RangeRow label={t.windV} value={`${windSpeed.toFixed(1)} m/s`} min={2} max={35} step={0.5} v={windSpeed} on={setWindSpeed} />
+        <RangeRow label={t.tsr} value={tsr.toFixed(1)} min={1} max={14} step={0.5} v={tsr} on={setTsr} />
+      </Section>
+      <Section title={t.thresholds}>
         <RangeRow label={t.bendStart} value={`${Math.round(bendThresholdPct * 100)}%`}
           min={0.3} max={1} step={0.02} v={bendThresholdPct} on={setBendThresholdPct} />
         <RangeRow label={t.fracture} value={`${Math.round(fractureThresholdPct * 100)}%`}
           min={Math.max(0.5, bendThresholdPct + 0.05)} max={1.6} step={0.02}
           v={fractureThresholdPct} on={setFractureThresholdPct} />
-      </div>
-      <div className="space-y-1.5">
-        <div className="bl-meta uppercase tracking-wider text-muted-foreground">{t.visualFX}</div>
-        <RangeRow label="Vortex" value={`${Math.round(vortexIntensity * 100)}%`}
-          min={0} max={1.5} step={0.05} v={vortexIntensity} on={setVortexIntensity} />
-        <RangeRow label="Wake" value={`${Math.round(wakeDensity * 100)}%`}
-          min={0} max={1.5} step={0.05} v={wakeDensity} on={setWakeDensity} />
+      </Section>
+      <Section title={t.calib}>
+        <RangeRow label="Reaction" value={`${reactionSpeed.toFixed(2)}×`} min={0.3} max={3} step={0.05} v={reactionSpeed} on={setReactionSpeed} />
+        <RangeRow label="Recovery" value={`${recoverySpeed.toFixed(2)}×`} min={0.3} max={3} step={0.05} v={recoverySpeed} on={setRecoverySpeed} />
+      </Section>
+      <Section title={t.visualFX}>
         <div className="grid grid-cols-2 gap-1.5">
           <FxToggle label={t.vortex} v={showVortex} on={setShowVortex} />
           <FxToggle label={t.stream} v={showStream} on={setShowStream} />
           <FxToggle label={t.cinematic} v={cinematic} on={setCinematic} />
           <FxToggle label={t.postFX} v={postFX} on={setPostFX} />
         </div>
-      </div>
+      </Section>
     </div>
   );
 }
 
+function VfxMenuPanel({ t, vfx, setVfx }: { t: any; vfx: VfxConfig; setVfx: (v: VfxConfig) => void }) {
+  const set = (k: keyof VfxConfig, v: any) => setVfx({ ...vfx, [k]: v });
+  return (
+    <div className="space-y-2.5 bl-menu-panel" onClick={(e) => e.stopPropagation()}>
+      <Section title="Vortex">
+        <RangeRow label={t.vortexInt} value={`${Math.round(vfx.vortexIntensity * 100)}%`} min={0} max={1.5} step={0.05} v={vfx.vortexIntensity} on={(n) => set('vortexIntensity', n)} />
+        <RangeRow label={t.vortexTurns} value={vfx.vortexTurns.toFixed(1)} min={1} max={6} step={0.2} v={vfx.vortexTurns} on={(n) => set('vortexTurns', n)} />
+        <RangeRow label={t.vortexR} value={vfx.vortexRadiusFactor.toFixed(2)} min={0.6} max={1.4} step={0.02} v={vfx.vortexRadiusFactor} on={(n) => set('vortexRadiusFactor', n)} />
+        <RangeRow label={t.vortexDec} value={`${Math.round(vfx.vortexDecay * 100)}%`} min={0} max={0.6} step={0.02} v={vfx.vortexDecay} on={(n) => set('vortexDecay', n)} />
+      </Section>
+      <Section title="Wake / streamlines">
+        <RangeRow label={t.wakeDen} value={`${Math.round(vfx.wakeDensity * 100)}%`} min={0} max={1.5} step={0.05} v={vfx.wakeDensity} on={(n) => set('wakeDensity', n)} />
+        <RangeRow label={t.wakeSwl} value={`${Math.round(vfx.wakeSwirl * 100)}%`} min={0} max={1} step={0.05} v={vfx.wakeSwirl} on={(n) => set('wakeSwirl', n)} />
+        <RangeRow label={t.streamN} value={`${Math.round(vfx.streamCount * 100)}%`} min={0.2} max={1.5} step={0.05} v={vfx.streamCount} on={(n) => set('streamCount', n)} />
+        <RangeRow label={t.streamLen} value={vfx.streamLength.toFixed(2)} min={0.5} max={2} step={0.05} v={vfx.streamLength} on={(n) => set('streamLength', n)} />
+        <RangeRow label={t.streamJit} value={`${Math.round(vfx.streamJitter * 100)}%`} min={0} max={1} step={0.05} v={vfx.streamJitter} on={(n) => set('streamJitter', n)} />
+        <RangeRow label={t.streamSpd} value={`${vfx.streamSpeedMul.toFixed(2)}×`} min={0.2} max={3} step={0.05} v={vfx.streamSpeedMul} on={(n) => set('streamSpeedMul', n)} />
+      </Section>
+      <FxToggle label={t.airBlades} v={vfx.airAroundBlades} on={(b) => set('airAroundBlades', b)} />
+    </div>
+  );
+}
+
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="bl-meta uppercase tracking-wider text-muted-foreground">{title}</div>
+      {children}
+    </div>
+  );
+}
 
 function RangeRow({ label, value, v, on, min, max, step }: { label: string; value: string; v: number; on: (n: number) => void; min: number; max: number; step: number }) {
   return (
@@ -464,29 +549,30 @@ function FxToggle({ label, v, on }: { label: string; v: boolean; on: (b: boolean
   );
 }
 
-/** Minimal on-canvas ribbon: wind & TSR only, everything else lives in the menu. */
-function CanvasRibbon({ t, windSpeed, setWindSpeed, tsr, setTsr }: { t: any; windSpeed: number; setWindSpeed: (n: number) => void; tsr: number; setTsr: (n: number) => void }) {
+/** Fixed bottom ribbon — CSS-grid layout so the wind/TSR sliders never overflow at narrow widths. */
+function CanvasRibbon({ t, windSpeed, setWindSpeed, tsr, setTsr, site, lang }:
+  { t: any; windSpeed: number; setWindSpeed: (n: number) => void; tsr: number; setTsr: (n: number) => void; site: any; lang: 'ua' | 'en' }) {
   return (
-    <div className="hidden md:flex absolute left-2 bottom-2 z-10 items-center gap-3 px-3 py-1.5 rounded-md bg-card/70 backdrop-blur-xl border border-primary/20 shadow-lg pointer-events-auto min-w-[300px]">
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between bl-meta">
-          <span className="text-muted-foreground truncate">{t.windV}</span>
-          <span className="font-mono text-primary tabular-nums">{windSpeed.toFixed(1)} m/s</span>
-        </div>
+    <div className="hidden md:flex absolute left-2 right-2 lg:right-auto lg:max-w-[520px] bottom-2 z-10 items-center gap-3 px-3 py-1.5 rounded-md bg-card/80 backdrop-blur-xl border border-primary/20 shadow-lg pointer-events-auto">
+      <div className="bl-ribbon-cell">
+        <div className="bl-ribbon-label">{t.windV}</div>
         <Slider min={2} max={35} step={0.5} value={[windSpeed]} onValueChange={([v]) => setWindSpeed(v)} />
+        <div className="bl-ribbon-value">{windSpeed.toFixed(1)}<span className="text-muted-foreground"> m/s</span></div>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex justify-between bl-meta">
-          <span className="text-muted-foreground truncate">{t.tsr}</span>
-          <span className="font-mono text-primary tabular-nums">{tsr.toFixed(1)}</span>
-        </div>
+      <div className="bl-ribbon-cell">
+        <div className="bl-ribbon-label">{t.tsr}</div>
         <Slider min={1} max={14} step={0.5} value={[tsr]} onValueChange={([v]) => setTsr(v)} />
+        <div className="bl-ribbon-value">{tsr.toFixed(1)}</div>
+      </div>
+      <div className="hidden lg:flex flex-col items-end bl-meta text-muted-foreground leading-tight">
+        <span className="text-primary truncate max-w-[140px]">{lang === 'ua' ? site.nameUA : site.nameEN}</span>
+        <span>TI {Math.round(site.turbulence * 100)}% · g {site.gustFactor.toFixed(2)}</span>
       </div>
     </div>
   );
 }
 
-function MobileSimSheet({ simCtl }: { simCtl: any }) {
+function MobileSimSheet({ simCtl, t, vfx, setVfx }: { simCtl: any; t: any; vfx: VfxConfig; setVfx: (v: VfxConfig) => void }) {
   return (
     <div className="absolute top-2 left-2 z-20 pointer-events-auto">
       <Sheet>
@@ -496,6 +582,9 @@ function MobileSimSheet({ simCtl }: { simCtl: any }) {
         <SheetContent side="bottom" className="max-h-[78dvh] overflow-y-auto scrollbar-thin border-primary/30 bg-background/95 p-3">
           <SheetHeader className="text-left mb-2"><SheetTitle className="bl-text text-primary">{simCtl.t.scene}</SheetTitle></SheetHeader>
           <SimMenuPanel {...simCtl} />
+          <div className="mt-3 pt-2 border-t border-border/40">
+            <VfxMenuPanel t={t} vfx={vfx} setVfx={setVfx} />
+          </div>
         </SheetContent>
       </Sheet>
     </div>
