@@ -83,7 +83,8 @@ export function BladeMesh({
 
   const isXray = viewMode === 'xray';
   const isWire = viewMode === 'wireframe';
-  const nClones = isSavonius ? 2 : g.nBlades;
+  // Savonius geometry already contains both buckets in one mesh → no cloning.
+  const nClones = isSavonius ? 1 : g.nBlades;
   const vawtHeight = g.tipRadius * 2 * (heightOverDiameter ?? (isSavonius ? 2 : isArchimedes ? 1.8 : 1));
 
   const cloneRotation = (k: number): [number, number, number] => {
