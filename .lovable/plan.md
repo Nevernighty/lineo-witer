@@ -1,80 +1,96 @@
 
-## Blade Lab — Diagnostics, Calibration, Spectacular Crash & Site Scenarios
+# Blade Lab — Expert Overhaul
 
-### 1. Spin/Stability Diagnostics page
-New route `/blade-lab/diagnostics` (also opened as a side panel via top menu → View → Diagnostics).
-- Live readouts: ω (rad/s), RPM, TSR (commanded vs effective), torque proxy (Q ≈ ½ρV²·A·Cp/ω), tip Mach, per-blade state (OK / bending / detached / recovering), failureLevel, spinDamp.
-- Rolling time-series chart (Recharts, dark theme) — 30 s window, toggles for RPM, torque, failureLevel, vibration amplitude.
-- Wireframe toggle (forces `viewMode='wireframe'` locally) + “Freeze spin”, “Step frame”, “Log to console” buttons for debugging wiggle/stutter.
-- Source: small `useDiagnosticsStore` that `BladeMesh` pushes samples into each frame (throttled to 20 Hz).
+The lab has the right ideas but ships wrong physics and wrong geometry for every non-HAWT family. This plan fixes the architecture once, then rebuilds each rotor family from the reference document, then adds the requested tooling (recording, A/B, diagnostics page, calibration UI, expanded VFX).
 
-### 2. Calibration system (per-family presets + validation)
-New module `src/aero/calibration.ts`:
-- `CalibrationProfile { strength, bendThresholdPct, fractureThresholdPct, reactionSpeed, recoverySpeed, flexGain, vibrationDamping }`.
-- Built-ins: `HAWT_DEFAULT`, `DARRIEUS_DEFAULT`, `SAVONIUS_DEFAULT`, `ARCHIMEDES_DEFAULT` with realistic ranges.
-- `validateGeometry(rotorType, geometry)` → returns warnings (e.g. Savonius needs overlap, Archimedes needs turns, HAWT needs nBlades∈[2,5]).
-- Stored in `useBladePresetStore`; auto-applied when the rotor family changes; user can override via new “Calibration” submenu in top menu.
-- GeometryPanel shows inline validation badges so each family’s controls actually drive the mesh.
+## 1. Fix the rotation/axis bug (root cause)
 
-### 3. Fix crash-recovery axis bug
-In `BladeMesh.tsx` the recovery path currently lerps `position` to zero but leaves accumulated `rotation.x/y` on the per-blade group, so when blades return they spin around the wrong local axis (visible in the screenshot).
-- Track `detachT` plus a separate `detachRot` quaternion per blade; on recovery, slerp it back to identity before re-parenting visuals to the spin group.
-- Reset `flexRef` non-spin axes to 0 when `failureLevel < 0.05` for ≥ 0.5 s.
-- Ensure spin axis stays HAWT=Z / VAWT=Y exclusively on `spinRef`; per-blade groups only carry local flutter offsets, never global rotation.
+Symptom: "part static, part in mid-air, axes torn". Cause: `BladeMesh` rotates the entire `spinRef` on Y for VAWT / Z for HAWT, but several sub-meshes (struts, end caps, Archimedes shell) live **outside** the spin group, while the blade clones live inside. Strut clones are also rotated independently around Y with no parent spin.
 
-### 4. Spectacular multi-piece fracture
-Replace single-rigid-detach with shard breakup at the highest-stress span:
-- `buildBladeShards(geometry, nShards=3)` splits each blade into root/mid/tip pieces along span; stress at each cut is sampled from BEM bending moment.
-- At fracture, each shard gets its own velocity vector: tip flies tangentially (centrifugal direction × ω×r), mid drifts downwind, root falls. Add angular velocity per shard, gravity, air drag.
-- Particle burst (sparks + dust) at the break point using existing `AdvancedParticleSystem` style.
-- On recovery, shards fade out and the original blade fades back in at the hub.
-- Mobile: 1 shard per blade, no particles.
+Fix:
+- One canonical scene graph for every rotor:
+  ```
+  <root>
+    <staticGroup>      // mast, base, nacelle housing, tower
+    <yawGroup>         // HAWT yaw only
+      <spinGroup>      // ALL rotating geometry: hub, spinner cone, struts, end discs, blades, shroud caps
+        <flexGroup>    // global flex on non-spin axes only
+          per-blade <bladeGroup>  // detach/recover, flutter
+  ```
+- Strut/end-disc/spinner-cone meshes move **inside** `spinGroup`. Nothing rotating is left in world space.
+- Spin axis is a single source of truth per family (`hawt → +Z`, all VAWT → +Y`). Detach pieces are re-parented to a `debrisGroup` (sibling of spinGroup) on fracture so they don't inherit further spin, and re-parented back to spinGroup on recovery after slerp-to-identity (kills the "wrong axis after crash" bug).
+- The same architecture is mirrored in `BladePresetTurbine3D` (main simulation).
 
-### 5. Site/Scenario macro presets
-New `src/aero/sitePresets.ts`:
-- `roof_pitched`, `roof_flat`, `near_roof_edge`, `balcony`, `lowland_open`, `lowland_urban`, `highland_ridge`, `coastal`, `forest_clearing`.
-- Each defines: wind profile (mean V, turbulence intensity, gust factor, shear exponent α), inflow angle distribution, obstacle proxies, recommended rotor families, scene dressing (ground texture tint, skybox tone, ambient particles).
-- New top-menu submenu “Сценарій” + a card grid in the Simulation panel. Selecting a scenario:
-  - drives `windSpeed`, turbulence and gust sliders,
-  - swaps a lightweight 3D environment (roof slab, balcony rail, ridge silhouette, tree line) as instanced meshes around the rotor,
-  - feeds turbulence into `BladeMesh` flex and into Streamlines jitter so blades visibly react.
+## 2. Scientifically correct geometry per family
 
-### 6. Bottom ribbon + Settings UI fix (screenshot #2)
-Current ribbon clips text “Швидкість вітру V∞” and the slider thumbs overflow.
-- Rebuild as a CSS grid: `[label | slider | value]` with `min-width:0`, `truncate`, `clamp()` font-size, slider min-width 120 px, value monospace.
-- Move secondary controls into a popover (“Більше…”) to keep the bar compact at 1024 px.
-- GeometryPanel + SimMenuPanel: unify input/Slider/Label sizing tokens (`--bl-control-h`, `--bl-label-fs`, `--bl-value-fs`), remove ad-hoc paddings, ensure all panels use `bl-dark-tabs` and `bl-analysis-surface` for contrast. Virtualize long parameter lists with `<ScrollArea>` so the panels don’t reflow the page.
+Rewrite `src/aero/buildBladeGeometry.ts` builders using the reference doc. Each builder returns a `BuiltBlade` plus a `BuiltSupports` (hub disc(s), struts, end caps) so the mesh layer doesn't have to guess.
 
-### 7. Expanded Vortex / Wake / Streamlines controls
-Extend the Simulation → VFX submenu:
-- Vortex: intensity, turns, radius factor, decay length, color mode (speed/pressure/stress).
-- Wake: density, swirl strength, expansion ratio, lifetime.
-- Streamlines: count, length, jitter (turbulence), speed multiplier, “bind to V∞” toggle so particle speed = real windSpeed × multiplier.
-- New mode “Air around blades”: short streamlines sampled near each blade surface, advected by a simple potential-flow proxy around the airfoil cross-section, visualising attached vs separated flow (ties into existing stall view).
-- All controls persist in `useBladePresetStore.vfx` and stream into `BladeViewer3D` props.
+**HAWT (`buildHAWTBlade`)** — keep current NACA-4 + twist law, expose `chordRoot/chordTip` and Schmitz/Optimal/Linear twist (already OK). Add 3D-printed-rotor preset matching the uploaded HAWT-NEMA17 reference (3 blades, untwisted thin plate option).
 
-### 8. Files to add / modify
-Add:
-- `src/pages/BladeLabDiagnostics.tsx`
-- `src/components/blade-lab/DiagnosticsPanel.tsx`
-- `src/store/useDiagnosticsStore.ts`
-- `src/aero/calibration.ts`
-- `src/aero/sitePresets.ts`
-- `src/components/blade-lab/SiteScenarioPicker.tsx`
-- `src/components/blade-lab/SceneDressing.tsx`
-- `src/components/blade-lab/BladeShards.tsx`
+**Φ-Darrieus / troposkein (`buildTroposkeinBlade`)** — replace the current `sin(πt)` placeholder with the actual troposkein. Use the standard parametric solution via Jacobi `sn` (small-amplitude expansion is enough for visuals): `r(s) = R · sn(K·(1−2s), m)` with `m≈0.5` and the height/radius ratio matched to `heightOverDiameter`. Result is the egg-beater curve, not the half-sine arc. Add top/bottom hub discs **inside spinGroup**.
 
-Modify:
-- `src/pages/BladeLab.tsx` (top menu entries, ribbon rebuild, route hook)
-- `src/components/blade-lab/BladeMesh.tsx` (axis-correct recovery, shard fracture, diagnostics emit)
-- `src/components/blade-lab/BladeViewer3D.tsx` (extra vortex/wake/streamline props, scenario env, near-blade flow)
-- `src/components/blade-lab/GeometryPanel.tsx` (family validation badges, calibration sliders)
-- `src/components/wind-simulation/3D/BladePresetTurbine3D.tsx` (mirror shard fracture + axis fix)
-- `src/store/useBladePresetStore.ts` (calibration + vfx + scenario state)
-- `src/index.css` (ribbon grid tokens, unified control sizing)
-- `src/App.tsx` (diagnostics route)
+**H-Darrieus / Giromill (`buildHDarrieusBlade`)** — straight constant-chord NACA-0018/0022 blade at radius R, with horizontal support struts at 25% and 75% span (inside spinGroup), proper toe-in pitch.
 
-### Technical notes
-- Diagnostics sampling uses `requestAnimationFrame` throttle to avoid React re-render storms; chart reads from a ring buffer.
-- Shard geometry is precomputed per preset and cached in a `useMemo` keyed by geometry hash.
-- Site scenarios only swap dressing meshes + wind params; physics core stays the same to keep changes UI/presentation-scoped.
+**Gorlov / QuietRevolution (`buildGorlovBlade`)** — true helical wrap: each blade sweeps 60–120° (slider) around the axis over the full height, blade chord rotates with the helix angle. Add an outer/inner hub ring. Reference image: yellow "Victory Drones" stacked helices.
+
+**Savonius (`buildSavoniusBucket`)** — rebuild as a proper S-rotor:
+  - Two/three half-cylinder buckets, each offset from the central axis by `overlap·R` (overlap ratio slider 0.0–0.30, default 0.15 per Table in §7.2).
+  - Real shell thickness, capped top + bottom end plates (disc geometry).
+  - Optional helical Savonius (Savonius-Gorlov hybrid in the uploaded "Savonius Gorlov" reference): twist parameter twists each bucket along Y.
+  - Hybrid mode: combine with an outer Darrieus pair (matches "Savonius Darrieus" reference image).
+
+**Archimedes (`buildArchimedesSpiral`)** — replace the cone "shell" with a proper Liam-F1-style triple-helix:
+  - Use the parametric `X = a·t·sin(πt), Y = a·t·cos(πt), Z = b·t` from §3.1.
+  - Build 3 ribbons at 120° (slider also accepts 2), each as a tapered swept quad strip from inner shaft radius to outer R, opening angle γ controlling the cone half-angle (slider).
+  - Add a front hub ring and rear tail cone (passive yaw vane) — both inside spinGroup so the entire rotor turns coherently.
+  - Mass estimate fix: current code reports 4 152 189 kg because volume is computed from `R²·H` solid instead of the thin ribbon. Use ribbon area × shell thickness.
+
+## 3. Family-aware GeometryPanel
+
+`GeometryPanel` becomes a switch on `rotorType` so users only see meaningful sliders:
+- HAWT: R, chordRoot, chordTip, twistRoot, twistTip, twistLaw, pitch, nBlades(2–5).
+- H-Darrieus: R, H/D, chord, pitch (toe-in), nBlades(2–4).
+- Gorlov: R, H/D, chord, helical wrap °, nBlades(2–4).
+- Tropo Φ: R, H/D, chord, nBlades(2–3).
+- Savonius: R, H/D, bucket chord, **overlap ratio**, helical twist °, nBuckets(2 or 3).
+- Archimedes: R, H/D, ribbon width, **opening angle γ**, turns, nBlades(2 or 3).
+
+Validation badges from `calibration.validateGeometry` shown inline.
+
+## 4. Recording (play/pause/scrub) + A/B compare
+
+New `useSimRecorder` store: ring buffer (≤30 s @ 60 Hz) of `{t, omega, failure, perBlade[]}` snapshots. UI: bottom control strip with ▶ ⏸ ⏮ slider + frame count. When scrubbing, `BladeMesh` is set to "playback mode": it disables `useFrame` integration and reads state from the snapshot at the chosen `t`.
+
+A/B mode: split-screen using existing `ResizablePanelGroup`. Each side has its own `BladeViewer3D` bound to slot A or slot B of a new `useABStore` (`presetA`, `presetB`, `paramsA`, `paramsB`). "Copy A→B" / "Swap" / "Diff" buttons. Synced camera optional.
+
+## 5. Diagnostics page `/blade-lab/diagnostics`
+
+Standalone route reusing `useDiagnosticsStore`. Recharts line chart (30 s window) with toggles for RPM, ω, TSR, torque (`τ = ½ρARV²·Cp/ω`), per-blade failure, tip Mach. Top toolbar: Wireframe ✓ (drives viewer `viewMode='wireframe'`), Freeze spin, Step 1 frame, Log to console, Export CSV. Useful for diagnosing wiggle/stutter.
+
+## 6. Calibration UI
+
+Surface the existing `calibrationFor(type)` profile in a "Калібрування" sheet (already in menu):
+- Sliders: strength (=fracture threshold pct), bendStart (=bend threshold pct), reactionSpeed, recoverySpeed, flexGain, vibrationDamping.
+- Presets dropdown: HAWT / Darrieus / Savonius / Archimedes (load defaults from `calibration.ts`).
+- "Validate geometry" runs `validateGeometry` and shows warnings.
+- Wired into `BladeMesh` props (already accepts reactionSpeed/recoverySpeed; add flexGain & vibrationDamping pass-through).
+
+## 7. Expanded VFX + air-around-blades
+
+`BladeViewer3D` already takes a `VfxConfig`. Extend it:
+- Vortex: intensity, turns, radius, decay, **colorMode** (speed/age/none).
+- Wake: density, swirl, **expansion**, **lifetime**.
+- Streamlines: count, length, jitter, speed×, **bindToVInf** toggle, **turbulence** (driven from site scenario TI when bound).
+- New "Air around blades" mode: spawn short-lived ribbon traces emitted from blade leading edges (HAWT: helical tip vortices; VAWT: cylindrical sheet around the swept envelope), velocity = `V∞·(1 − a·(1−r̂)) + ω×r`. All ribbon counts auto-scale on mobile via `useIsMobile()`.
+
+## 8. Files
+
+**New:** `src/store/useSimRecorder.ts`, `src/store/useABStore.ts`, `src/components/blade-lab/RecorderBar.tsx`, `src/components/blade-lab/ABCompare.tsx`, `src/components/blade-lab/CalibrationPanel.tsx`, `src/pages/BladeLabDiagnostics.tsx`, `src/aero/troposkein.ts` (Jacobi sn helper).
+**Rewrite:** `src/aero/buildBladeGeometry.ts` (all 4 VAWT builders + supports), `src/components/blade-lab/BladeMesh.tsx` (new scene graph, debris re-parenting), `src/components/blade-lab/GeometryPanel.tsx` (family-aware).
+**Edit:** `src/pages/BladeLab.tsx` (route, recorder bar, A/B toggle, calibration sheet, VFX sliders), `src/components/blade-lab/BladeViewer3D.tsx` (extended VfxConfig + air-around-blades layer), `src/components/wind-simulation/3D/BladePresetTurbine3D.tsx` (mirror scene graph fix), `src/App.tsx` (new diagnostics route).
+
+## Out of scope (deferrable)
+- CAWT/Magnus/Vortex-Bladeless/AWES rotors (the reference doc covers them but you have not asked for them as selectable families — say the word and they get added as separate presets in a follow-up).
+- Full BEM/DMS solver upgrade (current colouring uses the existing simplified solver; only geometry & visuals change here).
+
+Confirm and I'll execute it end-to-end.
