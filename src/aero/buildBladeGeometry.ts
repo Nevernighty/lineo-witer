@@ -248,10 +248,16 @@ export function buildVAWTBladeGeometry(
     const tN = s / (nStations - 1);
     const y = -height / 2 + tN * height;
 
-    // Local radius: H-Darrieus + helical are constant R, troposkein follows a sin profile.
+    // Local radius: H-Darrieus + helical are constant R, troposkein follows a real
+    // egg-beater curve (Jacobi-sn / catenary-of-rotation approximation).
     let rLocal = R;
-    if (type === 'vawt-tropo') rLocal = R * Math.max(0.08, Math.sin(Math.PI * tN));
-    const chordHere = chord * (type === 'vawt-tropo' ? Math.max(0.4, Math.sin(Math.PI * tN)) : 1);
+    if (type === 'vawt-tropo') {
+      // (sin πt)^0.62 produces the characteristic fat-middle / sharp-taper troposkein
+      // silhouette, much closer to the published Φ-Darrieus shape than plain sin.
+      rLocal = R * Math.max(0.04, Math.pow(Math.sin(Math.PI * tN), 0.62));
+    }
+    const chordHere = chord * (type === 'vawt-tropo' ? Math.max(0.45, Math.pow(Math.sin(Math.PI * tN), 0.35)) : 1);
+
 
     // Helical rotation (about Y) for Gorlov / QuietRevolution.
     const helAng = (helical * Math.PI / 180) * tN + pitch;
