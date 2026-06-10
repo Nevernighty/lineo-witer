@@ -248,10 +248,16 @@ export function buildVAWTBladeGeometry(
     const tN = s / (nStations - 1);
     const y = -height / 2 + tN * height;
 
-    // Local radius: H-Darrieus + helical are constant R, troposkein follows a sin profile.
+    // Local radius: H-Darrieus + helical are constant R, troposkein follows a real
+    // egg-beater curve (Jacobi-sn / catenary-of-rotation approximation).
     let rLocal = R;
-    if (type === 'vawt-tropo') rLocal = R * Math.max(0.08, Math.sin(Math.PI * tN));
-    const chordHere = chord * (type === 'vawt-tropo' ? Math.max(0.4, Math.sin(Math.PI * tN)) : 1);
+    if (type === 'vawt-tropo') {
+      // (sin πt)^0.62 produces the characteristic fat-middle / sharp-taper troposkein
+      // silhouette, much closer to the published Φ-Darrieus shape than plain sin.
+      rLocal = R * Math.max(0.04, Math.pow(Math.sin(Math.PI * tN), 0.62));
+    }
+    const chordHere = chord * (type === 'vawt-tropo' ? Math.max(0.45, Math.pow(Math.sin(Math.PI * tN), 0.35)) : 1);
+
 
     // Helical rotation (about Y) for Gorlov / QuietRevolution.
     const helAng = (helical * Math.PI / 180) * tN + pitch;
@@ -325,48 +331,103 @@ export function buildVAWTBladeGeometry(
   return { geometry: geom, stations, volume, helicalTwistDeg: helical };
 }
 
-/** Savonius half-cylinder bucket. Generates one bucket centred on +X; caller mirrors it. */
+/**
+ * Savonius S-rotor — TWO half-cylinder buckets returned in a single mesh.
+ * Includes shell thickness (outer + inner faces) and follows the overlap-ratio
+ * convention from the reference (default 0.15 ≈ peak Cp band).
+ * Optional helical twist along Y produces the Savonius-Gorlov hybrid.
+ *
+ * Geometry: each bucket is a half-cylinder of radius R·0.5 with its straight edge
+ * offset from the central axis by `overlap·R·0.5`. The two buckets are mirrored
+ * across the axis so their concave faces oppose each other — that's the S-shape.
+ */
 export function buildSavoniusBucketGeometry(
-  g: BladeGeometry, viewMode: ViewMode, opts: { height?: number; segments?: number } = {}
+  g: BladeGeometry, viewMode: ViewMode, opts: {
+    height?: number; segments?: number; overlap?: number; helicalDeg?: number;
+  } = {}
 ): BuiltBlade {
   const height = opts.height ?? g.tipRadius * 2.2;
-  const segments = opts.segments ?? 24;
+  const segments = opts.segments ?? 30;
+  const ringCount = 18;
+  const overlap = Math.max(0, Math.min(0.30, opts.overlap ?? 0.15));
+  const helicalDeg = opts.helicalDeg ?? 0;
   const R = g.tipRadius;
-  const shellT = Math.max(0.02, R * 0.04);
+  const rb = R * 0.5;                       // bucket radius
+  const offset = rb * (1 - overlap);        // distance from axis to bucket centre
+  const shellT = Math.max(0.04, R * 0.03);  // visible shell thickness
+  const col = vawtColorAt(viewMode, 0.5, false, -0.4);
+
   const positions: number[] = [];
   const colors: number[] = [];
   const indices: number[] = [];
 
-  const col = vawtColorAt(viewMode, 0.5, false, -0.4);
-  const ringCount = 14;
-  for (let yi = 0; yi <= ringCount; yi++) {
-    const y = -height / 2 + (yi / ringCount) * height;
-    for (let i = 0; i <= segments; i++) {
-      const ang = -Math.PI / 2 + (i / segments) * Math.PI; // half circle
-      const xOut = (R * 0.55) + Math.cos(ang) * (R * 0.5);
-      const zOut = Math.sin(ang) * (R * 0.5);
-      // shell outer
-      positions.push(xOut, y, zOut);
-      colors.push(col.r, col.g, col.b);
+  // Build one bucket as outer + inner rings, then mirror across axis.
+  const buildBucket = (sign: 1 | -1) => {
+    const startIdx = positions.length / 3;
+    // outer ring + inner ring per height level
+    for (let yi = 0; yi <= ringCount; yi++) {
+      const tN = yi / ringCount;
+      const y = -height / 2 + tN * height;
+      // Helical twist: rotate this ring's angular range about Y.
+      const twist = (helicalDeg * Math.PI / 180) * (tN - 0.5);
+      for (let i = 0; i <= segments; i++) {
+        const ang = -Math.PI / 2 + (i / segments) * Math.PI; // half circle
+        // outer
+        const xo = sign * offset + Math.cos(ang) * rb;
+        const zo = Math.sin(ang) * rb;
+        const cx = xo * Math.cos(twist) - zo * Math.sin(twist);
+        const cz = xo * Math.sin(twist) + zo * Math.cos(twist);
+        positions.push(cx, y, cz);
+        colors.push(col.r, col.g, col.b);
+        // inner (shrunk towards bucket centre)
+        const inset = rb - shellT;
+        const xi = sign * offset + Math.cos(ang) * inset;
+        const zi = Math.sin(ang) * inset;
+        const cxi = xi * Math.cos(twist) - zi * Math.sin(twist);
+        const czi = xi * Math.sin(twist) + zi * Math.cos(twist);
+        positions.push(cxi, y, czi);
+        colors.push(col.r * 0.78, col.g * 0.78, col.b * 0.78);
+      }
     }
-  }
-  const rowLen = segments + 1;
-  for (let yi = 0; yi < ringCount; yi++) {
-    for (let i = 0; i < segments; i++) {
-      const a = yi * rowLen + i;
-      const b = a + 1;
-      const c = a + rowLen;
-      const d = c + 1;
-      indices.push(a, c, b, b, c, d);
+    const rowLen = (segments + 1) * 2; // 2 = outer+inner
+    for (let yi = 0; yi < ringCount; yi++) {
+      for (let i = 0; i < segments; i++) {
+        const a = startIdx + yi * rowLen + i * 2;
+        const a2 = a + 1;
+        const b = a + 2;
+        const b2 = a + 3;
+        const c = startIdx + (yi + 1) * rowLen + i * 2;
+        const c2 = c + 1;
+        const d = c + 2;
+        const d2 = c + 3;
+        // outer face
+        if (sign > 0) { indices.push(a, c, b, b, c, d); }
+        else          { indices.push(a, b, c, b, d, c); }
+        // inner face (flipped winding)
+        if (sign > 0) { indices.push(a2, b2, c2, b2, d2, c2); }
+        else          { indices.push(a2, c2, b2, b2, c2, d2); }
+        // rim caps along the straight edges (i=0 and i=segments) — close shell
+        if (i === 0) {
+          indices.push(a, a2, c, c, a2, c2);
+        }
+        if (i === segments - 1) {
+          indices.push(b, c2 + 0, a2 + 2 /* =b2 */, b, d2, c2 + 0);
+        }
+      }
     }
-  }
+  };
+  buildBucket(1);
+  buildBucket(-1);
+
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geom.setIndex(indices);
   geom.computeVertexNormals();
-  return { geometry: geom, stations: [], volume: Math.PI * R * R * shellT * height * 0.5, helicalTwistDeg: 0 };
+  const volume = 2 * Math.PI * rb * shellT * height * 0.5; // two half-cylinder shells
+  return { geometry: geom, stations: [], volume, helicalTwistDeg: helicalDeg };
 }
+
 
 /**
  * Archimedes-spiral rotor blade: a helical ribbon wrapped around the vertical axis

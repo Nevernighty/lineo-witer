@@ -83,7 +83,8 @@ export function BladeMesh({
 
   const isXray = viewMode === 'xray';
   const isWire = viewMode === 'wireframe';
-  const nClones = isSavonius ? 2 : g.nBlades;
+  // Savonius geometry already contains both buckets in one mesh → no cloning.
+  const nClones = isSavonius ? 1 : g.nBlades;
   const vawtHeight = g.tipRadius * 2 * (heightOverDiameter ?? (isSavonius ? 2 : isArchimedes ? 1.8 : 1));
 
   const cloneRotation = (k: number): [number, number, number] => {
@@ -261,15 +262,63 @@ export function BladeMesh({
   const crackEmissive = useMemo(() => new THREE.Color(0xff3322), []);
   const crackIntensity = fClamped > 0.4 ? (fClamped - 0.4) * 1.6 : 0;
 
+  const showStruts = isVAWT && !isSavonius && !isArchimedes;
+  const showEndPlates = isSavonius; // Savonius end discs improve the Coanda jet visualisation.
+
   return (
     <group>
+      {/* All rotating geometry lives under spinRef: hub, spinner, struts, end-plates, blades.
+          This is what fixes the "struts static while blades fly" bug. */}
       <group ref={spinRef}>
+        {/* HAWT hub/spinner — rotates with rotor. */}
+        {!isVAWT && (
+          <group rotation={[Math.PI / 2, 0, 0]}>
+            <mesh castShadow receiveShadow>
+              <cylinderGeometry args={[spinnerR, spinnerR * 0.85, spinnerH, 32]} />
+              <meshStandardMaterial color="#1a1f26" metalness={0.78} roughness={0.3} />
+            </mesh>
+            <mesh position={[0, spinnerH * 0.55, 0]} castShadow>
+              <coneGeometry args={[spinnerR, spinnerR * 1.1, 32]} />
+              <meshStandardMaterial color="#23292f" metalness={0.7} roughness={0.35} />
+            </mesh>
+          </group>
+        )}
+
+        {/* VAWT struts — inside spin so they rotate together with the blades. */}
+        {showStruts && Array.from({ length: nClones }).map((_, i) => {
+          const a = (i * 2 * Math.PI) / nClones;
+          return (
+            <group key={`strut-${i}`} rotation={[0, a, 0]}>
+              {[1, -1].map(s => (
+                <mesh key={s} position={[g.tipRadius * 0.5, vawtHeight * 0.45 * s, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
+                  <cylinderGeometry args={[g.tipRadius * 0.02, g.tipRadius * 0.02, g.tipRadius * 1.0, 12]} />
+                  <meshStandardMaterial color="#46515f" metalness={0.6} roughness={0.42} />
+                </mesh>
+              ))}
+            </group>
+          );
+        })}
+
+        {/* Savonius end discs — required by S-rotor physics. */}
+        {showEndPlates && ([1, -1] as const).map(s => (
+          <mesh key={`endplate-${s}`} position={[0, (vawtHeight / 2) * s, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[g.tipRadius * 1.04, g.tipRadius * 1.04, g.tipRadius * 0.03, 48]} />
+            <meshStandardMaterial color="#2a3038" metalness={0.55} roughness={0.5} />
+          </mesh>
+        ))}
+
+        {/* Compact hub discs for non-Savonius VAWT (Tropo, Gorlov, H-Darrieus, Archimedes). */}
+        {isVAWT && !isSavonius && ([1, -1] as const).map(s => (
+          <mesh key={`disc-${s}`} position={[0, (vawtHeight / 2) * s, 0]} castShadow receiveShadow>
+            <cylinderGeometry args={[g.tipRadius * (isArchimedes ? 0.30 : 0.18), g.tipRadius * (isArchimedes ? 0.30 : 0.18), g.tipRadius * 0.05, 32]} />
+            <meshStandardMaterial color="#2a3038" metalness={0.65} roughness={0.38} />
+          </mesh>
+        ))}
+
+        {/* Blades. */}
         <group ref={flexRef}>
           {Array.from({ length: nClones }).map((_, i) => (
-            <group
-              key={i}
-              rotation={cloneRotation(i)}
-            >
+            <group key={i} rotation={cloneRotation(i)}>
               <group ref={el => { bladeRefs.current[i] = el; }}>
                 <mesh geometry={built.geometry} castShadow receiveShadow>
                   {isWire ? (
@@ -283,8 +332,7 @@ export function BladeMesh({
                   ) : (
                     <meshStandardMaterial
                       vertexColors metalness={0.42} roughness={0.38} side={THREE.DoubleSide}
-                      emissive={crackEmissive}
-                      emissiveIntensity={crackIntensity}
+                      emissive={crackEmissive} emissiveIntensity={crackIntensity}
                     />
                   )}
                 </mesh>
@@ -299,54 +347,19 @@ export function BladeMesh({
         </group>
       </group>
 
-      {/* Hub / shaft / supports — outside the spin group so they don't smear during fast spin. */}
+      {/* Static (non-rotating) world geometry: mast & base. */}
       {isVAWT ? (
         <>
           <mesh castShadow receiveShadow>
             <cylinderGeometry args={[g.tipRadius * 0.04, g.tipRadius * 0.05, vawtHeight * 1.10, 24]} />
             <meshStandardMaterial color="#1a1f26" metalness={0.78} roughness={0.32} />
           </mesh>
-          {([1, -1] as const).map(s => (
-            <mesh key={s} position={[0, (vawtHeight / 2) * s, 0]} castShadow receiveShadow>
-              <cylinderGeometry args={[g.tipRadius * (isArchimedes ? 0.32 : 0.18), g.tipRadius * (isArchimedes ? 0.32 : 0.18), g.tipRadius * 0.05, 32]} />
-              <meshStandardMaterial color="#2a3038" metalness={0.65} roughness={0.38} />
-            </mesh>
-          ))}
           <mesh position={[0, -vawtHeight / 2 - g.tipRadius * 0.5, 0]} castShadow>
             <cylinderGeometry args={[g.tipRadius * 0.08, g.tipRadius * 0.11, g.tipRadius * 1.0, 16]} />
             <meshStandardMaterial color="#2c333d" metalness={0.55} roughness={0.5} />
           </mesh>
         </>
-      ) : (
-        <group rotation={[Math.PI / 2, 0, 0]}>
-          <mesh castShadow receiveShadow>
-            <cylinderGeometry args={[spinnerR, spinnerR * 0.85, spinnerH, 32]} />
-            <meshStandardMaterial color="#1a1f26" metalness={0.78} roughness={0.3} />
-          </mesh>
-          <mesh position={[0, spinnerH * 0.55, 0]} castShadow>
-            <coneGeometry args={[spinnerR, spinnerR * 1.1, 32]} />
-            <meshStandardMaterial color="#23292f" metalness={0.7} roughness={0.35} />
-          </mesh>
-          <mesh position={[0, -spinnerH * 0.55, 0]} castShadow>
-            <cylinderGeometry args={[spinnerR * 0.95, spinnerR * 0.7, spinnerR * 0.4, 32]} />
-            <meshStandardMaterial color="#2a3038" metalness={0.65} roughness={0.38} />
-          </mesh>
-        </group>
-      )}
-
-      {isVAWT && !isSavonius && !isArchimedes && Array.from({ length: nClones }).map((_, i) => {
-        const a = (i * 2 * Math.PI) / nClones;
-        return (
-          <group key={`strut-${i}`} rotation={[0, a, 0]}>
-            {[1, -1].map(s => (
-              <mesh key={s} position={[g.tipRadius * 0.5, vawtHeight * 0.47 * s, 0]} rotation={[0, 0, Math.PI / 2]} castShadow>
-                <cylinderGeometry args={[g.tipRadius * 0.014, g.tipRadius * 0.014, g.tipRadius * 1.0, 10]} />
-                <meshStandardMaterial color="#46515f" metalness={0.6} roughness={0.42} />
-              </mesh>
-            ))}
-          </group>
-        );
-      })}
+      ) : null}
     </group>
   );
 }
