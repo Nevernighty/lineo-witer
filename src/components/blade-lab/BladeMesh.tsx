@@ -232,22 +232,29 @@ export function BladeMesh({
         st.pos.copy(ex.drift).multiplyScalar(d * d);
         st.pos.y -= ex.gravity * d * d * 0.9;
       } else {
-        // Recovery: lerp back to identity smoothly.
+        // Recovery: lerp back to identity smoothly, then snap once close enough.
         st.pos.multiplyScalar(0.78);
         st.quatV.multiplyScalar(0.78);
         if (st.pos.lengthSq() < 1e-4) st.pos.set(0, 0, 0);
         if (st.quatV.lengthSq() < 1e-4) st.quatV.set(0, 0, 0);
       }
 
+      // HARD RESET once fully recovered — kills residual axis drift bug.
+      if (st.detachT < 1e-3 && st.pos.lengthSq() === 0 && st.quatV.lengthSq() === 0) {
+        grp.position.set(0, 0, 0);
+        grp.rotation.set(0, 0, 0);
+        grp.quaternion.identity();
+        grp.scale.setScalar(1);
+        return;
+      }
+
       grp.position.copy(st.pos);
-      // Apply rotation as Euler — keeps axis sane (no quaternion drift accumulation).
       grp.rotation.set(
         st.quatV.x + (!isVAWT ? flutter * flutterScale : 0),
         st.quatV.y,
         st.quatV.z + (isVAWT ? flutter * 0.6 * flutterScale : 0),
       );
 
-      // Shrink slightly as pieces "fade" to suggest debris (recovers smoothly).
       const sc = 1 - d * 0.20;
       grp.scale.setScalar(sc);
     });
