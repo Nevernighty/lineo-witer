@@ -2,7 +2,7 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 import { ChevronDown } from "lucide-react";
 
-interface PanelProps extends React.HTMLAttributes<HTMLDivElement> {
+interface PanelProps extends Omit<React.HTMLAttributes<HTMLDivElement>, "title"> {
   title?: React.ReactNode;
   actions?: React.ReactNode;
   collapsible?: boolean;
