@@ -277,3 +277,19 @@
 .animate-sine-scroll {
   animation: sine-scroll 2s linear infinite;
 }
+
+/* === Global control tightening (Act 1) === */
+/* Kill oversized text inside 3D-overlay panels */
+.sim-ui, .sim-ui * { font-size: var(--fs-base); }
+.sim-ui h1, .sim-ui .title-lg { font-size: var(--fs-lg); font-weight: 600; letter-spacing: -0.01em; }
+.sim-ui h2, .sim-ui .title-md { font-size: var(--fs-md); font-weight: 600; }
+.sim-ui label, .sim-ui .label { font-size: var(--fs-sm); color: hsl(var(--muted-foreground)); }
+.sim-ui .value-mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; font-size: var(--fs-sm); color: hsl(var(--primary)); }
+
+/* Unified radix slider look everywhere (in case someone bypasses the wrapper) */
+[data-radix-slider-track] { height: 3px !important; }
+[data-radix-slider-thumb] { height: 12px !important; width: 12px !important; }
+
+/* Buttons in overlay panels — compact height */
+.sim-ui button:not(.no-compact) { min-height: 26px; }
+
