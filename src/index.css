@@ -33,6 +33,30 @@
     --ring: 120 100% 54%;
     
     --radius: 0.5rem;
+
+    /* === Unified type scale (Act 1 design system) === */
+    --fs-xs: 10px;
+    --fs-sm: 11px;
+    --fs-base: 12px;
+    --fs-md: 13px;
+    --fs-lg: 15px;
+    --fs-xl: 18px;
+    --fs-2xl: 24px;
+
+    /* === Space scale === */
+    --sp-1: 4px;
+    --sp-2: 6px;
+    --sp-3: 8px;
+    --sp-4: 12px;
+    --sp-5: 16px;
+    --sp-6: 20px;
+    --sp-7: 24px;
+
+    /* === Motion === */
+    --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+    --dur-fast: 140ms;
+    --dur: 220ms;
+    --dur-slow: 360ms;
   }
 }
 
