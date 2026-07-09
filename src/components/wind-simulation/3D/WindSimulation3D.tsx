@@ -374,7 +374,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   const activeAnalysisCount = analysisItems.filter(i => i.checked).length;
 
   return (
-    <div className="relative w-full h-full" style={{ isolation: 'isolate' }}>
+    <div className="sim-ui relative w-full h-full" style={{ isolation: 'isolate' }}>
       {/* Mode toggle + Scenario + Analysis buttons */}
       <div className="absolute top-3 left-[195px] z-50 flex gap-1" style={{ pointerEvents: 'auto' }}>
         <button onClick={() => { setInteractionMode('place'); setSelectedObstacleIndex(null); }}
@@ -452,14 +452,33 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </div>
       )}
 
-      <Canvas camera={{ position: [70, 45, 70], fov: 50 }} className="!absolute inset-0" style={{ pointerEvents: 'auto', zIndex: 0 }}
+      <Canvas
+        camera={{ position: [70, 45, 70], fov: 50 }}
+        className="!absolute inset-0"
+        style={{ pointerEvents: 'auto', zIndex: 0 }}
+        shadows="soft"
+        dpr={[1, 1.75]}
+        gl={{ antialias: true, powerPreference: 'high-performance' }}
+        onCreated={({ gl }) => {
+          gl.toneMapping = THREE.ACESFilmicToneMapping;
+          gl.toneMappingExposure = 1.05;
+          gl.outputColorSpace = THREE.SRGBColorSpace;
+        }}
         onPointerDown={handleCanvasPointerDown} onPointerMove={handleCanvasPointerMove} onPointerUp={handleCanvasPointerUp}>
         <Suspense fallback={null}>
-          <ambientLight intensity={0.35} />
-          <directionalLight position={[30, 40, 20]} intensity={0.9} color="#ffffff" />
-          <pointLight position={[-30, 25, -30]} intensity={0.5} color="#39ff14" />
-          <pointLight position={[30, 15, 30]} intensity={0.4} color="#00ffff" />
-          <hemisphereLight args={['#87CEEB', '#363636', 0.3]} />
+          <color attach="background" args={["#0a0f14"]} />
+          <fog attach="fog" args={["#0a0f14", 120, 260]} />
+          <ambientLight intensity={0.28} color="#8fb3c9" />
+          <directionalLight
+            position={[45, 60, 25]} intensity={1.15} color="#fff2d6"
+            castShadow shadow-mapSize-width={1024} shadow-mapSize-height={1024}
+            shadow-camera-left={-80} shadow-camera-right={80}
+            shadow-camera-top={80} shadow-camera-bottom={-80}
+            shadow-bias={-0.0004}
+          />
+          <pointLight position={[-30, 25, -30]} intensity={0.35} color="#39ff14" />
+          <pointLight position={[30, 15, 30]} intensity={0.28} color="#00ffff" />
+          <hemisphereLight args={['#87CEEB', '#0f1418', 0.4]} />
 
           <MouseTracker onPositionChange={setGhostPosition} simulationSize={simulationSize} slopeX={physicsConfig.terrainSlopeX} slopeZ={physicsConfig.terrainSlopeZ} />
 
