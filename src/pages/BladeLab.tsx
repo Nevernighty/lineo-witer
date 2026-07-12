@@ -420,6 +420,8 @@ export default function BladeLab() {
               <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />
               <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
               {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
+              <CinemaPanel lang={lang} director={director} />
+
             </main>
           </ResizablePanel>
           <ResizableHandle withHandle className="bl-resize-handle" />
