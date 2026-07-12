@@ -117,7 +117,10 @@ export default function BladeLab() {
   const [siteId, setSiteId] = useState<string>('lowland_open');
   const [vfx, setVfx] = useState<VfxConfig>(DEFAULT_VFX);
   const [showDiag, setShowDiag] = useState(false);
+  const [turbulenceBoost, setTurbulenceBoost] = useState(0);
+  const [failureBoost, setFailureBoost] = useState(0);
   const navigate = useNavigate();
+
 
   const rho = 1.225;
   const material = getMaterial(materialId);
