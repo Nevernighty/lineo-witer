@@ -205,10 +205,19 @@ export default function BladeLab() {
     showTipVortex: showVortex, showStreamlines: showStream,
     rotorType, heightOverDiameter, helical: helicalDeg,
     failureLevel,
-    bgTint: site.tint, turbulence: site.turbulence,
+    bgTint: site.tint,
+    turbulence: Math.min(1, site.turbulence + turbulenceBoost),
     reactionSpeed, recoverySpeed,
     vfx,
   };
+
+  const director = useDirector({
+    setWindSpeed,
+    setTsr,
+    setTurbulenceBoost,
+    setFailureBoost,
+  });
+
 
   const simCtl = {
     t, lang, windSpeed, setWindSpeed, tsr, setTsr,
