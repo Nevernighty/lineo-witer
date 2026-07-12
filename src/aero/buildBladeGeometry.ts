@@ -524,4 +524,4 @@ export function buildArchimedesBladeGeometry(
   return { geometry: geom, stations: [], volume, helicalTwistDeg: turns * 360 };
 }
 
-}
+
