@@ -147,7 +147,30 @@ export function BladeMesh({
     }));
   }
 
+  // Hard reset scene-graph transforms whenever we switch rotor family. This kills
+  // the "wrong axis after crash / after preset switch" bug where a residual
+  // spinRef.rotation.z from a previous HAWT session poisoned the new VAWT axis.
+  useEffect(() => {
+    if (spinRef.current) spinRef.current.rotation.set(0, 0, 0);
+    if (flexRef.current) flexRef.current.rotation.set(0, 0, 0);
+    for (const s of state.current) {
+      s.detachT = 0;
+      s.pos.set(0, 0, 0);
+      s.quat.identity();
+      s.quatV.set(0, 0, 0);
+    }
+    for (const grp of bladeRefs.current) {
+      if (grp) {
+        grp.position.set(0, 0, 0);
+        grp.rotation.set(0, 0, 0);
+        grp.quaternion.identity();
+        grp.scale.setScalar(1);
+      }
+    }
+  }, [rotorType]);
+
   const frameCounterRef = useRef(0);
+
   const mobileScale = isMobile ? 0.55 : 1;
   const frameSkip = isMobile ? 2 : 1;
 
