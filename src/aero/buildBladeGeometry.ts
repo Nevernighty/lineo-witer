@@ -447,59 +447,81 @@ export function buildSavoniusBucketGeometry(
 export function buildArchimedesBladeGeometry(
   g: BladeGeometry,
   viewMode: ViewMode,
-  opts: { nStations?: number; height?: number; turns?: number; innerRatio?: number } = {}
+  opts: { nStations?: number; height?: number; turns?: number; innerRatio?: number; taper?: number } = {}
 ): BuiltBlade {
-  const nStations = opts.nStations ?? 64;
+  const nStations = opts.nStations ?? 96;
   const height = opts.height ?? g.tipRadius * 2 * 1.8;
-  const turns = opts.turns ?? 1.0;
-  const innerR = (opts.innerRatio ?? 0.18) * g.tipRadius;
+  const turns = opts.turns ?? 1.15;
+  const innerRatio = opts.innerRatio ?? 0.08;
+  const taper = opts.taper ?? 0.55;      // outer radius shrinks by this fraction top→bottom
   const R = g.tipRadius;
-  const thickness = Math.max(0.005, R * 0.04);
+  const shellT = Math.max(0.01, R * 0.035);
 
   const positions: number[] = [];
   const colors: number[] = [];
   const indices: number[] = [];
 
-  // Build a quad strip: inner edge near shaft, outer edge at R, spiraling height.
+  // Per station 4 vertices: inner-bottom, inner-top, outer-bottom, outer-top.
+  // Thickness axis = world Y (small band); the ribbon itself spirals in θ
+  // AND tapers in radius, producing the Liam-F1 nautilus silhouette.
   for (let s = 0; s <= nStations; s++) {
     const tN = s / nStations;
-    const y = -height / 2 + tN * height;
+    const yMid = -height / 2 + tN * height;
     const ang = tN * turns * Math.PI * 2;
+    const outerR = R * (1 - taper * tN);
+    const innerR = R * innerRatio;
+    const cosA = Math.cos(ang), sinA = Math.sin(ang);
     const col = vawtColorAt(viewMode, tN, false, -0.4);
-    for (let edge = 0; edge < 2; edge++) {
-      // inner edge along shaft (slightly raised), outer at R
-      const rr = edge === 0 ? innerR : R;
-      const x = Math.cos(ang) * rr;
-      const z = Math.sin(ang) * rr;
-      positions.push(x, y, z);
-      colors.push(col.r, col.g, col.b);
-      // thickness shell — extrude the same edge slightly outward radially
-      const nx = Math.cos(ang) * thickness * 0.5;
-      const nz = Math.sin(ang) * thickness * 0.5;
-      positions.push(x + nx, y + thickness * 0.5, z + nz);
-      colors.push(col.r * 0.85, col.g * 0.85, col.b * 0.85);
-    }
+    const colDark: [number, number, number] = [col.r * 0.72, col.g * 0.72, col.b * 0.72];
+
+    // inner-bottom
+    positions.push(innerR * cosA, yMid - shellT * 0.5, innerR * sinA);
+    colors.push(...colDark);
+    // inner-top
+    positions.push(innerR * cosA, yMid + shellT * 0.5, innerR * sinA);
+    colors.push(col.r, col.g, col.b);
+    // outer-bottom
+    positions.push(outerR * cosA, yMid - shellT * 0.5, outerR * sinA);
+    colors.push(...colDark);
+    // outer-top
+    positions.push(outerR * cosA, yMid + shellT * 0.5, outerR * sinA);
+    colors.push(col.r, col.g, col.b);
   }
 
-  const rowLen = 4; // [innerTop, innerBot, outerTop, outerBot]
+  const rowLen = 4;
   for (let s = 0; s < nStations; s++) {
-    const a = s * rowLen;
-    const b = (s + 1) * rowLen;
-    // top face (inner-outer along chord direction)
-    indices.push(a + 0, b + 0, a + 2, a + 2, b + 0, b + 2);
-    // bottom face
-    indices.push(a + 1, a + 3, b + 1, b + 1, a + 3, b + 3);
-    // outer edge
-    indices.push(a + 2, b + 2, a + 3, a + 3, b + 2, b + 3);
-    // inner edge
-    indices.push(a + 0, a + 1, b + 0, b + 0, a + 1, b + 1);
+    const a = s * rowLen;      // this station: [iB, iT, oB, oT]
+    const b = (s + 1) * rowLen; // next station
+    const iB = a, iT = a + 1, oB = a + 2, oT = a + 3;
+    const iB2 = b, iT2 = b + 1, oB2 = b + 2, oT2 = b + 3;
+    // top face (facing +Y-ish, upstream)
+    indices.push(iT, oT, iT2,   oT, oT2, iT2);
+    // bottom face (facing -Y-ish, downstream) — reversed winding
+    indices.push(iB, iB2, oB,   oB, iB2, oB2);
+    // outer rim
+    indices.push(oT, oB, oT2,   oB, oB2, oT2);
+    // inner rim
+    indices.push(iT, iT2, iB,   iB, iT2, iB2);
   }
+
+  // End caps at leading and trailing edges so it doesn't look like an open ribbon.
+  const closeCap = (base: number, flip: boolean) => {
+    const iB = base, iT = base + 1, oB = base + 2, oT = base + 3;
+    if (flip) indices.push(iB, oT, iT,  iB, oB, oT);
+    else      indices.push(iB, iT, oT,  iB, oT, oB);
+  };
+  closeCap(0, true);
+  closeCap(nStations * rowLen, false);
 
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geom.setIndex(indices);
   geom.computeVertexNormals();
-  const volume = (Math.PI * R * R - Math.PI * innerR * innerR) * thickness * turns;
+
+  const avgR = R * (1 - taper * 0.5);
+  const volume = Math.PI * (avgR * avgR - (R * innerRatio) ** 2) * shellT * turns;
   return { geometry: geom, stations: [], volume, helicalTwistDeg: turns * 360 };
+}
+
 }
