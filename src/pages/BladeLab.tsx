@@ -128,8 +128,10 @@ export default function BladeLab() {
   const failureLevel = useMemo(() => {
     const lo = material.maxTipSpeed * bendThresholdPct;
     const hi = material.maxTipSpeed * fractureThresholdPct;
-    return Math.max(0, Math.min(1.3, (tipSpeed - lo) / Math.max(0.05, hi - lo)));
-  }, [tipSpeed, material.maxTipSpeed, bendThresholdPct, fractureThresholdPct]);
+    const base = Math.max(0, Math.min(1.3, (tipSpeed - lo) / Math.max(0.05, hi - lo)));
+    return Math.max(0, Math.min(1.3, base + failureBoost));
+  }, [tipSpeed, material.maxTipSpeed, bendThresholdPct, fractureThresholdPct, failureBoost]);
+
 
   // Auto-apply family calibration whenever rotor type changes.
   useEffect(() => {
