@@ -30,6 +30,9 @@ import { exportBladeSTL, downloadSTL } from '@/aero/stlExport';
 import { SITE_SCENARIOS, getSiteScenario } from '@/aero/sitePresets';
 import { calibrationFor } from '@/aero/calibration';
 import { Lang } from '@/utils/i18n';
+import { useDirector } from '@/blade-lab/cinema/useDirector';
+import { CinemaPanel } from '@/blade-lab/cinema/CinemaPanel';
+
 
 const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
   { id: 'solid', ua: 'Поверхня', en: 'Solid' },
