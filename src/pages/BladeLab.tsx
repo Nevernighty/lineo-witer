@@ -30,6 +30,9 @@ import { exportBladeSTL, downloadSTL } from '@/aero/stlExport';
 import { SITE_SCENARIOS, getSiteScenario } from '@/aero/sitePresets';
 import { calibrationFor } from '@/aero/calibration';
 import { Lang } from '@/utils/i18n';
+import { useDirector } from '@/blade-lab/cinema/useDirector';
+import { CinemaPanel } from '@/blade-lab/cinema/CinemaPanel';
+
 
 const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
   { id: 'solid', ua: 'Поверхня', en: 'Solid' },
@@ -117,7 +120,10 @@ export default function BladeLab() {
   const [siteId, setSiteId] = useState<string>('lowland_open');
   const [vfx, setVfx] = useState<VfxConfig>(DEFAULT_VFX);
   const [showDiag, setShowDiag] = useState(false);
+  const [turbulenceBoost, setTurbulenceBoost] = useState(0);
+  const [failureBoost, setFailureBoost] = useState(0);
   const navigate = useNavigate();
+
 
   const rho = 1.225;
   const material = getMaterial(materialId);
@@ -125,8 +131,10 @@ export default function BladeLab() {
   const failureLevel = useMemo(() => {
     const lo = material.maxTipSpeed * bendThresholdPct;
     const hi = material.maxTipSpeed * fractureThresholdPct;
-    return Math.max(0, Math.min(1.3, (tipSpeed - lo) / Math.max(0.05, hi - lo)));
-  }, [tipSpeed, material.maxTipSpeed, bendThresholdPct, fractureThresholdPct]);
+    const base = Math.max(0, Math.min(1.3, (tipSpeed - lo) / Math.max(0.05, hi - lo)));
+    return Math.max(0, Math.min(1.3, base + failureBoost));
+  }, [tipSpeed, material.maxTipSpeed, bendThresholdPct, fractureThresholdPct, failureBoost]);
+
 
   // Auto-apply family calibration whenever rotor type changes.
   useEffect(() => {
@@ -200,10 +208,19 @@ export default function BladeLab() {
     showTipVortex: showVortex, showStreamlines: showStream,
     rotorType, heightOverDiameter, helical: helicalDeg,
     failureLevel,
-    bgTint: site.tint, turbulence: site.turbulence,
+    bgTint: site.tint,
+    turbulence: Math.min(1, site.turbulence + turbulenceBoost),
     reactionSpeed, recoverySpeed,
     vfx,
   };
+
+  const director = useDirector({
+    setWindSpeed,
+    setTsr,
+    setTurbulenceBoost,
+    setFailureBoost,
+  });
+
 
   const simCtl = {
     t, lang, windSpeed, setWindSpeed, tsr, setTsr,
@@ -403,6 +420,8 @@ export default function BladeLab() {
               <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />
               <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
               {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
+              <CinemaPanel lang={lang} director={director} />
+
             </main>
           </ResizablePanel>
           <ResizableHandle withHandle className="bl-resize-handle" />
