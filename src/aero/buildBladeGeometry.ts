@@ -220,21 +220,22 @@ function vawtColorAt(viewMode: ViewMode, tNorm: number, stalled: boolean, cp: nu
   }
 }
 
-/** One vertical airfoil blade for an H-Darrieus / helical VAWT. Returned geometry
- *  is centred at the rotor axis: chord lies tangentially (in X-Z plane) and span
- *  is along +Y. Caller rotates a single blade clone around +Y to fan them out. */
+/** One vertical airfoil blade for an H-Darrieus / helical VAWT / troposkein.
+ *  The whole cross-section is positioned in world coords so a helical blade
+ *  actually wraps around the shaft (screenshot-1 bug fix). The caller still
+ *  clones this mesh with `<group rotation={[0, k·2π/N, 0]}>` to fan blades. */
 export function buildVAWTBladeGeometry(
   g: BladeGeometry,
   viewMode: ViewMode,
   type: 'vawt-h' | 'vawt-helical' | 'vawt-tropo',
   opts: { nStations?: number; helicalTwist?: number; height?: number } = {}
 ): BuiltBlade {
-  const nStations = opts.nStations ?? 32;
-  const height = opts.height ?? (g.tipRadius * 2);  // sensible default: H = D
-  const helical = opts.helicalTwist ?? 0;            // total wrap (deg) over full span
+  const nStations = opts.nStations ?? 40;
+  const height = opts.height ?? (g.tipRadius * 2);
+  const helicalRad = ((opts.helicalTwist ?? 0) * Math.PI) / 180;
   const R = g.tipRadius;
   const chord = (g.chordRoot + g.chordTip) / 2;
-  const pitch = g.pitch * Math.PI / 180;             // collective pitch toe-in
+  const pitchRad = g.pitch * Math.PI / 180;
   const camber = g.airfoil.cl0 > 0 ? Math.min(6, 100 * g.airfoil.cl0 / 4) : 0;
   const profile = naca4Coords(Math.max(2, g.airfoil.thickness), camber, 0.4, 22);
   const profN = profile.length;
@@ -246,49 +247,56 @@ export function buildVAWTBladeGeometry(
 
   for (let s = 0; s < nStations; s++) {
     const tN = s / (nStations - 1);
+
+    // Vertical position along shaft.
     const y = -height / 2 + tN * height;
 
-    // Local radius: H-Darrieus + helical are constant R, troposkein follows a real
-    // egg-beater curve (Jacobi-sn / catenary-of-rotation approximation).
+    // Radial distance from shaft.
     let rLocal = R;
+    let chordHere = chord;
     if (type === 'vawt-tropo') {
-      // (sin πt)^0.62 produces the characteristic fat-middle / sharp-taper troposkein
-      // silhouette, much closer to the published Φ-Darrieus shape than plain sin.
-      rLocal = R * Math.max(0.04, Math.pow(Math.sin(Math.PI * tN), 0.62));
+      // Troposkein Φ-Darrieus egg-beater silhouette.
+      rLocal = R * Math.max(0.06, Math.pow(Math.sin(Math.PI * tN), 0.62));
+      chordHere = chord * Math.max(0.55, Math.pow(Math.sin(Math.PI * tN), 0.35));
     }
-    const chordHere = chord * (type === 'vawt-tropo' ? Math.max(0.45, Math.pow(Math.sin(Math.PI * tN), 0.35)) : 1);
 
+    // Helical wrap: entire section orbits shaft as we climb Y.
+    const theta = helicalRad * (tN - 0.5);
 
-    // Helical rotation (about Y) for Gorlov / QuietRevolution.
-    const helAng = (helical * Math.PI / 180) * tN + pitch;
+    // World-space basis at this section:
+    //   radialOut  = direction from shaft to section center
+    //   tangential = tangent to circle (chord direction for VAWT blades)
+    const cosT = Math.cos(theta), sinT = Math.sin(theta);
+    const radialOutX = cosT,  radialOutZ = sinT;
+    const tangX = -sinT,      tangZ = cosT;
 
-    // Aerodynamic colouring sample (representative; not a full DMS solve).
-    const Vrel = 1; // unit ref so colours don't depend on freestream slider noise
-    const stalled = false;
-    const cp = -0.5;
+    // Section center in world coords.
+    const cx = rLocal * radialOutX;
+    const cz = rLocal * radialOutZ;
 
-    const col = vawtColorAt(viewMode, tN, stalled, cp);
-    stations.push({ r: rLocal, chord: chordHere, twistDeg: helAng * 180 / Math.PI, alpha: 0, cl: 0, cd: 0, cp, reynolds: 0, stress: 0, stalled });
+    // Local pitch (toe-in) around vertical: rotates chord vs radial in the horizontal plane.
+    const cosP = Math.cos(pitchRad), sinP = Math.sin(pitchRad);
 
-    // Section is placed at (+rLocal, y, 0), chord runs tangentially along local Z (rotated by helAng).
-    // Build ring of profN vertices in world space directly so caps stay closed.
-    const cosA = Math.cos(helAng), sinA = Math.sin(helAng);
+    const col = vawtColorAt(viewMode, tN, false, -0.5);
+    stations.push({ r: rLocal, chord: chordHere, twistDeg: (theta + pitchRad) * 180 / Math.PI,
+      alpha: 0, cl: 0, cd: 0, cp: -0.5, reynolds: 0, stress: 0, stalled: false });
+
     for (let p = 0; p < profN; p++) {
       const [px, py] = profile[p];
-      // local chord (tangential) and thickness (radial)
-      const xLocal = (px - 0.25) * chordHere;     // chord direction in local frame
-      const yLocal = py * chordHere;              // thickness in local frame
-      // rotate around vertical by helAng so chord vector follows helix
-      const tangential = xLocal * cosA - yLocal * sinA;
-      const radialIn   = xLocal * sinA + yLocal * cosA;
-      const X = rLocal + radialIn;
-      const Z = tangential;
+      // Local chord-frame vector: chord along X_local, thickness along Y_local.
+      const xLocal = (px - 0.25) * chordHere;
+      const yLocal = py * chordHere;
+      // Apply pitch inside the local tangent/radial plane.
+      const chordAxis = xLocal * cosP - yLocal * sinP;   // along tangential
+      const radialIn  = xLocal * sinP + yLocal * cosP;   // along -radialOut
+      const X = cx + tangX * chordAxis - radialOutX * radialIn;
+      const Z = cz + tangZ * chordAxis - radialOutZ * radialIn;
       positions.push(X, y, Z);
       colors.push(col.r, col.g, col.b);
     }
   }
 
-  // Side panels
+  // Side panels.
   for (let s = 0; s < nStations - 1; s++) {
     for (let p = 0; p < profN; p++) {
       const a = s * profN + p;
@@ -298,7 +306,7 @@ export function buildVAWTBladeGeometry(
       indices.push(a, c, b, b, c, d);
     }
   }
-  // Caps top & bottom
+  // Caps.
   const addCap = (sIdx: number, flip: boolean) => {
     const base = sIdx * profN;
     let cx = 0, cy = 0, cz = 0;
@@ -320,6 +328,7 @@ export function buildVAWTBladeGeometry(
   };
   addCap(0, true);
   addCap(nStations - 1, false);
+
 
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
