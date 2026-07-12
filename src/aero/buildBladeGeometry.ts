@@ -337,7 +337,8 @@ export function buildVAWTBladeGeometry(
   geom.computeVertexNormals();
 
   const volume = 0.685 * (g.airfoil.thickness / 100) * chord * chord * height * 0.35;
-  return { geometry: geom, stations, volume, helicalTwistDeg: helical };
+  return { geometry: geom, stations, volume, helicalTwistDeg: opts.helicalTwist ?? 0 };
+
 }
 
 /**
