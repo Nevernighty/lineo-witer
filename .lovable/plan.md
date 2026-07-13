@@ -1,158 +1,136 @@
 
-# Blade Lab overhaul — Part A (bug fixes) + Part B (grand plan)
+# Blade Lab Cinema v2 — s02 & s03 with real teaching VFX
 
-Two-part plan. Part A is a targeted round of geometry fixes so the visuals stop lying. Part B is a spec-driven roadmap (inspired by github/spec-kit's `constitution → specify → plan → tasks → implement` loop) for turning Blade Lab into a real cinematic-guided teaching tool.
+The current cinema engine only tweens 4 scalars and shows a subtitle. That's why s01 feels primitive. v2 turns each scenario into a directed short film: scripted VFX bursts, camera cues, a live metrics/formula HUD, an event timeline, and per-scenario 3D actors (parapet block, ridge terrain, upstream rotor + wake cone) that visibly cause the numbers to change.
 
----
+## 1. Engine upgrades (`src/blade-lab/cinema/`)
 
-## PART A — Immediate geometry & spin fixes
+### `types.ts` — richer keyframe schema
+Add optional per-keyframe fields (all backward compatible with s01):
+- `helical?: number` — override rotor helical wrap (Gorlov demo).
+- `rotorType?: RotorType`, `preset?: string` — scenario can force geometry.
+- `viewMode?: ViewMode` — auto-switch to Stall / Stress / Pressure at teaching moments.
+- `camera?: { pos: [x,y,z]; look: [x,y,z]; lerp?: number }` — smooth camera cues in R-normalised units.
+- `vfx?: VfxEvent[]` — declarative burst list (see VfxBus).
+- `hud?: { formula?: string; metrics?: Array<{ label: string; value: string; unit?: string; warn?: boolean }> }` — teaching card contents.
+- `chapter?: { ua: string; en: string }` — big chapter title card.
 
-Only these files change in Part A. No feature deletions.
+### `VfxBus.ts` (new)
+Tiny pub/sub with a bounded ring buffer of active events. Event kinds:
+- `arrow` — 3D vector arrow (dir, magnitude, color, ttl) e.g. "gust +4 m/s from parapet"
+- `pulse` — expanding ring at a world point (e.g. shed vortex birth)
+- `shockwave` — spherical wave to mark blade fracture
+- `label3d` — floating billboard text pinned to a world point
+- `highlightBlade` — pulsing rim on blade N
+- `windPatch` — coloured patch on the ground plane showing local speed-up/slow-down
 
-### A1. Gorlov / helical VAWT — real helical wrap (`src/aero/buildBladeGeometry.ts`)
+`useVfxBus()` returns `{ emit, subscribe, active }`. Events auto-expire on their `ttl`.
 
-**Bug (screenshot 1):** blades render as vertical straight strips because `buildVAWTBladeGeometry` places every section at `(+R, y, 0)` and only rotates the *chord* by `helAng`. The airfoil never travels around the shaft, so a "helical" blade looks identical to an H-Darrieus one plus a small twist.
+### `useDirector.ts` — v2
+- Keep existing scalar interpolation.
+- On keyframe crossing (t passes kf.t), fire `vfx` events into VfxBus (one-shot, not interpolated).
+- Apply `viewMode`, `rotorType`, `preset`, `helical` when defined at a kf (once, on crossing).
+- Feed `camera` cues to a `CinemaCamera` component via a ref/subscription — lerp the r3f camera when `cinematic` is on; suppress orbit controls during a cue.
+- Expose `hud` and `chapter` in returned state.
+- Add `speed: 0.5|1|2` playback rate control.
 
-**Fix:** for `vawt-helical` (and hybrid Savonius-Gorlov), position each ring at the helix point:
-```
-θ(t) = θ0 + helicalRad · (t − 0.5)
-X = R·cos(θ(t)),  Z = R·sin(θ(t)),  Y = y
-```
-Then align the chord tangentially: chord axis = `(−sin θ, 0, cos θ)`, thickness axis = radial inward = `(−cos θ, 0, −sin θ)`. Assemble the section in this local basis. Result: the blade traces a real cylindrical helix (Gorlov / QuietRevolution QR5 silhouette).
+### `CinemaPanel.tsx` — v2 layout
+- **Chapter card** (large title, fades in top-centre when `chapter` present).
+- **Narrator subtitle** (existing, restyled two-line: title + body).
+- **Metrics HUD** on the right: formula pretty-printed (`P = ½ρAV³·Cp`), plus live metric chips coloured by `warn`.
+- **Timeline bar** with tick marks at each keyframe, click-to-jump, tooltip = first 40 chars of that kf's message.
+- Playback: play / pause / stop / speed (0.5×/1×/2×) / prev-kf / next-kf.
 
-Add small preset field `helicalMode: 'straight' | 'wrapped'` so the H-Darrieus preset stays straight and Gorlov/QR5 use the new wrapped path.
+## 2. In-scene renderers (`src/blade-lab/cinema/`)
 
-### A2. Archimedes / Liam F1 nautilus shell
+### `VfxLayer.tsx` (new, mounted inside `<Canvas>`)
+Subscribes to `VfxBus.active` and renders each active event with a small dedicated three.js component:
+- Arrows: `<mesh>` cone + cylinder along `dir`, `sizeAttenuation` so far arrows read.
+- Pulses: expanding torus with fade-out.
+- Shockwave: expanding transparent sphere.
+- `label3d`: `<Html>` from drei with a compact glass card.
+- `highlightBlade`: emissive rim shader overlay on `spinRef.children[b]`.
+- `windPatch`: instanced coloured planes on the ground.
 
-**Bug (screenshot 4):** current builder makes a thin flat helical ribbon of constant radius, which renders as stacked plates + a straight fin instead of the recognisable Liam-F1 conical nautilus.
+All events lerp scale/opacity on `1 - age/ttl` so they animate independently of the director tick.
 
-**Fix — rewrite `buildArchimedesBladeGeometry`:**
-- Outer edge follows a **conical spiral**: `r_out(t) = R · (1 − 0.55·t)` (tapers ~55% top-to-bottom), inner edge on shaft `r_in(t) = R · 0.10`.
-- Full wrap = `1.25` turns by default (Liam F1 is ≈ 1 turn per blade, 3 blades × 120°).
-- Extrude the ribbon into a proper 3D shell with:
-  - top face + bottom face + outer rim + inner rim + leading edge cap + trailing edge cap
-  - smooth chord thickness `t(s) = 0.06 · R · (1 − 0.3·s)` so the shell is thicker at the base
-- Wind the vertex order so `computeVertexNormals` gives a matte curved surface, not the current z-fighting shards.
+### `ScenarioStage.tsx` (new)
+Loads scenario-specific 3D actors. Renders based on `scenario.stage`:
+- `'rooftop'`: parapet block + roof slab in world coords upstream of the rotor.
+- `'ridge'`: low ridge profile (gentle bump) with a coloured "speed-up zone" ground patch above its crest.
+- `'wake'`: upstream ghost rotor (semi-transparent), spinning slower, plus a translucent wake cone (expanding + swirling) that visibly hits the main rotor.
 
-Add preset field `archimedesTurns`, `archimedesInnerRatio`, `archimedesTaper` so the panel can tune it.
+### `CinemaCamera.tsx` (new)
+When a `camera` cue is active and `cinematic` is on, replaces the roaming orbit with a lerp to the cue's `pos`/`look`. Auto-releases after `1/lerp` seconds.
 
-### A3. Darrieus troposkein — enable multi-blade + fix cap flip
+## 3. BladeViewer3D integration
+- Accept new prop `cinema?: { stage?: string; vfxBus: VfxBusApi; cameraCue?: CameraCue }`.
+- Mount `<ScenarioStage stage=... />` and `<VfxLayer bus=... />` inside the existing Suspense tree.
+- Mount `<CinemaCamera />` next to `<Cinematic />` — cue takes precedence over the auto-roam.
 
-**Bug (screenshot 2):** the troposkein blade renders correctly but only *one* blade is visible because `buildVAWTBladeGeometry` places the section at `(+rLocal, y, 0)` and then relies on `<group rotation={[0,a,0]}>` for cloning — which works, but the current `flip` argument on the two end caps is inverted for `vawt-tropo`, producing a black inner face that hides half the blade behind fog. Also the section chord is currently ~40% too thin at the equator.
+## 4. BladeLab page glue
+- Add `useMemo(() => createVfxBus(), [])`.
+- Pass extra director hooks: `setViewMode`, `setRotorType`, `setPreset`, `setHelical`, `emitVfx`.
+- Feed `director.hud` and `director.chapter` into the upgraded `CinemaPanel`.
+- Pipe `stage` and `vfxBus` down to `BladeViewer3D`.
 
-**Fix:**
-- Recompute cap winding based on `sign(rLocal)` so both caps face outward.
-- Restore chord scaling: `chordHere = chord · max(0.55, sin(πt)^0.35)` (was 0.45 → made the equator look starved).
-- Add tip endcap fillets (small `torusGeometry`) at the shaft junction so blades read as attached, not floating.
+## 5. Content — s02 & s03
 
-### A4. Savonius top plate offset (screenshot 3)
+### `s02-ridge.ts` — "Ridge speed-up"
+Duration 34s, site `ridge_open`, stage `'ridge'`. Teaches Jackson–Hunt speed-up: `ΔS = 2·H/L` over a low hill; power scales with V³ so a +25 % speed-up ≈ +95 % power, but the flow also tilts (angle of attack shifts up-slope) and separation on the lee side creates a wake pocket.
 
-**Bug:** the copper-tinted disc floats above the buckets because the top end-plate uses `+vawtHeight/2` while the bucket ring goes only to `+height/2 − shellT`. When `heightOverDiameter` ≠ 2 they diverge.
+Keyframes (abridged):
+- t0  V=6, TSR=6, chapter "Ridge speed-up", camera side view of ridge + rotor at crest. HUD formula `ΔS ≈ 2·H/L`.
+- t4  arrow "flow accelerates over crest", windPatch green above crest (`+25 %`). V ramps 6→7.5.
+- t8  label3d at rotor "α_local +3°" — viewMode → 'stall' to show mild root warming.
+- t14 V→8.4, TSR held, HUD chip "P/P₀ ≈ 1.9× (V³)". Camera moves in on rotor.
+- t18 windPatch red on lee side (`−30 %`). arrow curling down = separation bubble. failureBoost 0.05.
+- t22 pulse at blade tip when a lee-side gust hits (turb 0.35), highlightBlade 0. failureBoost 0.15.
+- t26 shockwave suppressed, chapter card fades: "Position matters more than a bigger blade".
+- t30 V smooths back to 7, viewMode → 'solid'. HUD: net gain +40 % vs plain, wake loss −8 %.
+- t34 end.
 
-**Fix:** derive `vawtHeight` from the same `heightOverDiameter` that `buildSavoniusBucketGeometry` uses (pass it explicitly rather than the two computing it independently). Recolour end-plates via `meshStandardMaterial color` to match the shell (`#2a3038`) so the copper artefact goes away — that was an old debug tint.
+### `s03-wake.ts` — "Wake interference"
+Duration 40s, site `wind_farm`, stage `'wake'`. Teaches Jensen wake: `V_w = V·[1 − (1 − √(1−Ct))·(D/(D+2kx))²]`, with `k=0.075` (onshore) and `Ct≈0.8`. At x/D = 3, V_w ≈ 0.72·V; at x/D = 7, ≈ 0.88·V. Also shows +2× turbulence intensity inside the wake and blade-passing frequency (3P) buffet.
 
-### A5. Rotor spin axis correctness after preset switch
+Keyframes:
+- t0  chapter "Wake interference", upstream ghost rotor at 5D. V=9, TSR=7. HUD formula (Jensen). Camera behind main rotor looking upstream.
+- t5  windPatch coloured cone (0.9·V faded blue → 0.7·V at core). arrow along wake axis.
+- t10 V effective drops to 6.5 (interpolated). label3d "V_eff = 0.72·V₀". turbulence 0.35.
+- t15 highlightBlade rotates each blade as it clips the wake edge (1 kf per blade). viewMode → 'pressure'.
+- t22 pulse per blade pass to show 3P buffet, failureBoost 0.15. HUD chip "3P at 4.2 Hz" warn.
+- t28 camera cuts to top-down showing rotor inside wake cone.
+- t32 wake meanders (turbulence 0.5, streamJitter 0.6). failureBoost 0.35.
+- t36 chapter "Solution: stagger rows > 7D or offset by 0.5D lateral".
+- t40 end, boosts to 0.
 
-The wobble that appears when switching to Gorlov is a stale `spinRef.rotation.z` from a previous HAWT session. Add:
-```ts
-useEffect(() => {
-  if (spinRef.current) spinRef.current.rotation.set(0,0,0);
-  for (const s of state.current) { s.detachT=0; s.pos.set(0,0,0); s.quatV.set(0,0,0); }
-}, [rotorType]);
-```
-Guarantees a clean axis reset on preset change (no more mid-flight axis flip).
+### Update `scenarios/index.ts`
+Export `[scenarioRooftop, scenarioRidge, scenarioWake]`; ensure `site` ids exist (add `ridge_open` and `wind_farm` to `sitePresets.ts` if missing).
 
-### A6. Preset table additions
+## 6. Small polish
+- CinemaPanel: increase width to `min(920px, 100vw − 32px)` to fit HUD.
+- Timeline: keyframe ticks styled with `bg-primary/60`.
+- Auto-enable `cinematic` when a scenario loads (user can still toggle off).
+- Auto-restore user's prior `viewMode` / `rotorType` on scenario stop.
 
-Add these preset fields already implied by the code above:
-- `harmony-h9` (Harmony Turbines, HAWT low-cut-in) — already present, tighten twist law.
-- `liam-f1` → set `rotorType: 'vawt-archimedes'`, `archimedesTurns: 1.0`, `heightOverDiameter: 1.6`, 3 blades.
-- `gorlov-qr5` → `rotorType: 'vawt-helical'`, `helicalTwistDeg: 60`, `heightOverDiameter: 3.0`, 3 blades, `helicalMode: 'wrapped'`.
-- `darrieus-phi-3m` (troposkein) → `heightOverDiameter: 1.1`, `nBlades: 2`.
+## Technical notes
+- All new files live under `src/blade-lab/cinema/`; existing s01 stays untouched (still valid, gains chapter + HUD by adding fields).
+- VfxBus keeps a hard cap (32 active events) to protect the render loop; overflow drops oldest.
+- Camera cues are gated behind `cinematic=true` so users who scrub manually keep orbit control.
+- No changes to physics/geometry files — this slice is purely presentation and content.
 
-### A7. QA check
-
-After Part A: click through Liam-F1, Gorlov QR5, Φ-Darrieus, Savonius, H-Darrieus and confirm (i) the mesh silhouette matches published photos, (ii) `Перевантаження` reads 0 % at rest, (iii) blades spin around the correct axis on preset switch and after a crash-and-recover cycle.
-
-**Files touched in Part A:**
-- `src/aero/buildBladeGeometry.ts` (rewrite VAWT sections + Archimedes)
-- `src/aero/presets.ts` (fields + new presets)
-- `src/components/blade-lab/BladeMesh.tsx` (axis reset effect, fillets, end-plate parity)
-- `src/store/useBladePresetStore.ts` (add optional `archimedesTurns`, `helicalMode` passthrough)
-
----
-
-## PART B — Spec-driven grand plan for cinematic Blade Lab
-
-Modeled on spec-kit's phased flow. Every phase produces an artifact that future turns consume — nothing is thrown away.
-
-### B0. Constitution (project-wide rules, one page)
-
-Create `src/blade-lab/constitution.md` fixing invariants we must never break:
-- Scientific fidelity first: every visual delta must map to a physical quantity.
-- One canonical rotor scene graph: `world → spinRef → flexRef → bladeRef[i]`. All future effects hook into it.
-- Every VAWT builder positions vertices in world basis (spin axis = +Y, wind = +X). No section-only rotation tricks.
-- Every teaching overlay is a **narrated scenario**, not a passive tooltip.
-- Mobile-parity: no scenario may cost > 4 ms/frame on iPhone 12.
-
-### B1. Specify — scenario catalogue (`src/blade-lab/scenarios/*.spec.md`)
-
-Each scenario is a Markdown spec with fixed sections: *what/why*, *trigger*, *physics*, *what the user sees*, *tooltip script*, *success signal*. Initial 12 specs:
-
-| id | Scenario | Real problem taught |
-|----|----------|--------------------|
-| s01 | Rooftop turbulence | boundary-layer + eddy shedding from parapet |
-| s02 | Rural ridge | speed-up factor over hills, yaw hunting |
-| s03 | Coastal gust front | dynamic stall on leading edge |
-| s04 | Urban canyon | vortex street between buildings |
-| s05 | Arctic icing | mass imbalance → 1P vibration |
-| s06 | Desert dust | leading-edge erosion, Cd creep |
-| s07 | Storm shutdown | pitch-to-feather sequence |
-| s08 | Grid loss / freewheel | overspeed → tip-loss cascade |
-| s09 | Wake of upstream turbine | Cp collapse, TSR drop |
-| s10 | Bird-strike overload | asymmetric blade root moment |
-| s11 | Yaw misalignment | cos³ power law demo |
-| s12 | Resonance sweep | Campbell diagram, 3P crossings |
-
-Each spec's *tooltip script* is a JSON array of `{ atTime, target: 'blade0'|'hub'|'wake', message, cameraPose }` so the animation loop can drive both a camera and a subtitle track.
-
-### B2. Plan — cinematic engine
-
-`src/blade-lab/cinema/`:
-- `Director.ts` — plays a scenario: advances virtual time, moves camera along a Catmull-Rom spline, triggers physics events at scripted marks.
-- `VfxBus.ts` — declarative FX (`spawnVortex`, `flashOverload`, `showArrows({ from, to, label })`, `pulseBlade(index)`).
-- `Narrator.tsx` — bottom-of-screen chip that types the tooltip line, with a "why" popover linking to the spec section.
-- `RecordingBar.tsx` — play / pause / scrub / A-B compare (already partly stubbed in earlier turns; finish it here).
-- Cinematic camera uses existing `PostFX` + a new depth-of-field pass so the highlighted blade stays sharp while the rest blurs.
-
-### B3. Tasks — implementation slices
-
-Ship in this order (one PR-sized slice each):
-1. **Director + Narrator + s01 rooftop** end-to-end, no other scenarios. Proves the pipeline.
-2. Add VfxBus effects (arrows, vortex burst, pulse). Hook into s02, s03.
-3. Camera splines + DoF. Retro-fit s01–s03.
-4. Scenarios s04–s07 (all normal-operation cases).
-5. Scenarios s08–s10 (failure cases) — reuse existing `failureLevel` and `explosion` state.
-6. Campbell diagram overlay for s12; icing mass overlay for s05.
-7. A/B comparison scrubber (record two runs, split-screen viewer).
-8. Export scenario as MP4 via `MediaRecorder` on the canvas + subtitle track.
-
-### B4. Converge — quality gates before each slice ships
-
-Borrowed from spec-kit's `analyze`:
-- Every scenario must be reproducible from its JSON spec alone (no hidden state).
-- Every camera pose must be reachable on 375-px-wide screens (mobile parity).
-- Every tooltip must cite a physics reference (URL or textbook page) inside the spec.
-- Frame time budget stays under 16 ms with 3 particles-per-blade-tip vortices.
-
-### B5. UX polish rolled through all slices
-
-- Unified typography scale already in `index.css`; audit `text-*` classes so no scenario introduces a new size.
-- Cinema HUD lives in a single `<CinemaHud>` overlay, not scattered chips.
-- All scenario controls collapsible into the DaVinci-style top menu we already have; nothing floats free.
-
----
-
-## Deliverable this turn (once approved)
-
-Part A (bug fixes) — implement immediately. Part B is documented as the grand plan and its first slice (`Director + Narrator + scenario s01`) is scheduled for the *next* approved turn so this response stays reviewable.
+## Deliverables
+- new: `src/blade-lab/cinema/VfxBus.ts`
+- new: `src/blade-lab/cinema/VfxLayer.tsx`
+- new: `src/blade-lab/cinema/ScenarioStage.tsx`
+- new: `src/blade-lab/cinema/CinemaCamera.tsx`
+- new: `src/blade-lab/cinema/scenarios/s02-ridge.ts`
+- new: `src/blade-lab/cinema/scenarios/s03-wake.ts`
+- edit: `src/blade-lab/cinema/types.ts`
+- edit: `src/blade-lab/cinema/useDirector.ts`
+- edit: `src/blade-lab/cinema/CinemaPanel.tsx`
+- edit: `src/blade-lab/cinema/scenarios/index.ts`
+- edit: `src/blade-lab/cinema/scenarios/s01-rooftop.ts` (add chapter/hud/vfx, no breaking changes)
+- edit: `src/components/blade-lab/BladeViewer3D.tsx` (mount VfxLayer + ScenarioStage + CinemaCamera)
+- edit: `src/pages/BladeLab.tsx` (create bus, extended director adapters, pipe stage/hud)
+- edit: `src/aero/sitePresets.ts` (ensure `ridge_open`, `wind_farm` presets)
