@@ -11,7 +11,8 @@ export type VfxEvent =
   | { kind: 'highlightBlade'; id: string; born: number; ttl: number; index: number; color?: string }
   | { kind: 'windPatch'; id: string; born: number; ttl: number; pos: Vec3; size: number; color: string; label?: string };
 
-export type VfxEventInput = Omit<VfxEvent, 'id' | 'born'> & Partial<Pick<VfxEvent, 'id' | 'born'>>;
+type DistributiveOmit<T, K extends keyof any> = T extends any ? Omit<T, K> : never;
+export type VfxEventInput = DistributiveOmit<VfxEvent, 'id' | 'born'> & { id?: string; born?: number };
 
 const MAX = 32;
 
