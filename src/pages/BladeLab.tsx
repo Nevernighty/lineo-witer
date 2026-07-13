@@ -32,6 +32,7 @@ import { calibrationFor } from '@/aero/calibration';
 import { Lang } from '@/utils/i18n';
 import { useDirector } from '@/blade-lab/cinema/useDirector';
 import { CinemaPanel } from '@/blade-lab/cinema/CinemaPanel';
+import { createVfxBus } from '@/blade-lab/cinema/VfxBus';
 
 
 const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
@@ -203,6 +204,20 @@ export default function BladeLab() {
     downloadSTL(name, stl);
   }, [geometry, presetId, exportScaleMM, windSpeed, tsr, rotorType, heightOverDiameter, helicalDeg]);
 
+  const vfxBus = useMemo(() => createVfxBus(), []);
+
+  const director = useDirector({
+    setWindSpeed,
+    setTsr,
+    setTurbulenceBoost,
+    setFailureBoost,
+    setViewMode,
+    setRotorType,
+    setHelical: setHelicalDeg,
+    setPreset: applyPreset,
+    vfxBus,
+  });
+
   const viewerProps = {
     geometry, viewMode, windSpeed, tsr, cinematic, postFX,
     showTipVortex: showVortex, showStreamlines: showStream,
@@ -212,14 +227,12 @@ export default function BladeLab() {
     turbulence: Math.min(1, site.turbulence + turbulenceBoost),
     reactionSpeed, recoverySpeed,
     vfx,
+    cinema: {
+      stage: director.scenario?.stage,
+      vfxBus,
+      cameraCue: director.cameraCue,
+    },
   };
-
-  const director = useDirector({
-    setWindSpeed,
-    setTsr,
-    setTurbulenceBoost,
-    setFailureBoost,
-  });
 
 
   const simCtl = {

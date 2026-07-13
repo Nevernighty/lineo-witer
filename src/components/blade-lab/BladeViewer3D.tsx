@@ -7,6 +7,11 @@ import { BladeMesh } from './BladeMesh';
 import type { BladeGeometry } from '@/aero/bem';
 import type { ViewMode, RotorType } from '@/aero/buildBladeGeometry';
 import { useIsMobile } from '@/hooks/use-mobile';
+import type { VfxBus } from '@/blade-lab/cinema/VfxBus';
+import type { StageId, CameraCue } from '@/blade-lab/cinema/types';
+import { VfxLayer } from '@/blade-lab/cinema/VfxLayer';
+import { ScenarioStage } from '@/blade-lab/cinema/ScenarioStage';
+import { CinemaCamera } from '@/blade-lab/cinema/CinemaCamera';
 
 interface VfxConfig {
   vortexIntensity: number;  // 0..1.5
@@ -42,6 +47,7 @@ interface Props {
   reactionSpeed?: number;
   recoverySpeed?: number;
   vfx: VfxConfig;
+  cinema?: { stage?: StageId; vfxBus?: VfxBus; cameraCue?: CameraCue | null };
 }
 
 function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity, turns, radiusFactor, decay }:
@@ -287,7 +293,7 @@ function GroundDisc({ R, yPos }: { R: number; yPos: number }) {
 export function BladeViewer3D({
   geometry, viewMode, windSpeed, tsr, cinematic, showTipVortex, showStreamlines, postFX = true, helical = 0,
   rotorType = 'hawt', heightOverDiameter, failureLevel = 0,
-  bgTint, turbulence = 0, reactionSpeed = 1, recoverySpeed = 1, vfx,
+  bgTint, turbulence = 0, reactionSpeed = 1, recoverySpeed = 1, vfx, cinema,
 }: Props) {
   const isVAWT = rotorType !== 'hawt';
   const R = geometry.tipRadius;
@@ -341,6 +347,10 @@ export function BladeViewer3D({
           : <StreamlinesHAWT R={R} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
         )}
         {vfx.airAroundBlades && <AirAroundBlades R={R} isVAWT={isVAWT} V={windSpeed} />}
+        {cinema?.stage && cinema.stage !== 'none' && (
+          <ScenarioStage stage={cinema.stage} R={R} H={H} isVAWT={isVAWT} V={windSpeed} />
+        )}
+        {cinema?.vfxBus && <VfxLayer bus={cinema.vfxBus} />}
         <GroundDisc R={Math.max(R, H * 0.5)} yPos={groundY} />
         <Grid
           args={[Math.max(R, H) * 8, Math.max(R, H) * 8]}
@@ -350,8 +360,9 @@ export function BladeViewer3D({
           cellSize={Math.max(R, H) * 0.2} sectionSize={Math.max(R, H)}
         />
       </Suspense>
-      <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} />
-      <Cinematic enabled={cinematic} R={R} H={H} isVAWT={isVAWT} />
+      <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} enabled={!cinema?.cameraCue} />
+      <Cinematic enabled={cinematic && !cinema?.cameraCue} R={R} H={H} isVAWT={isVAWT} />
+      <CinemaCamera cue={cinema?.cameraCue ?? null} enabled={!!cinema?.cameraCue} />
       {postFX && !isMobile && (
         <EffectComposer multisampling={0}>
           <Bloom intensity={0.4} luminanceThreshold={0.6} luminanceSmoothing={0.3} mipmapBlur />
