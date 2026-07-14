@@ -33,6 +33,8 @@ import { Lang } from '@/utils/i18n';
 import { useDirector } from '@/blade-lab/cinema/useDirector';
 import { CinemaPanel } from '@/blade-lab/cinema/CinemaPanel';
 import { createVfxBus } from '@/blade-lab/cinema/VfxBus';
+import { startTeleport } from '@/store/useTeleportStore';
+import { useCloudSync } from '@/hooks/useCloudSync';
 
 
 const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
@@ -180,8 +182,10 @@ export default function BladeLab() {
     setVfx(DEFAULT_VFX);
   };
 
-  const applyToSimulation = useCallback((silent = false) => {
+  const { user, savePreset, logHistory } = useCloudSync();
+  const applyToSimulation = useCallback((silent = false, originEl?: HTMLElement | null) => {
     const p = PRESETS.find(x => x.id === presetId);
+    const name = p?.[lang === 'ua' ? 'nameUA' : 'nameEN'] ?? (lang === 'ua' ? 'Користувацька' : 'Custom');
     setActiveBladePreset({
       id: presetId || 'custom',
       nameUA: p?.nameUA || 'Користувацька',
@@ -191,10 +195,24 @@ export default function BladeLab() {
       bendThresholdPct, fractureThresholdPct,
     });
     if (!silent) {
+      const rect = originEl?.getBoundingClientRect();
+      const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+      let thumb: string | undefined;
+      try { thumb = canvas?.toDataURL('image/png'); } catch { /* tainted */ }
+      startTeleport({
+        thumbnail: thumb,
+        presetName: name,
+        fromRect: rect ? { x: rect.left + rect.width/2, y: rect.top + rect.height/2, w: rect.width, h: rect.height } : undefined,
+      });
+      if (user) {
+        savePreset({ name, rotor_type: rotorType, material_id: materialId, geometry: geometry as any, thumbnail_url: null });
+        logHistory('blade_apply', presetId || 'custom', name);
+      }
       toast({ title: t.appliedToast });
-      setTimeout(() => navigate('/'), 600);
+      setTimeout(() => navigate('/'), 1500);
     }
-  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate]);
+  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate, lang, user, savePreset, logHistory]);
+
 
   useEffect(() => { applyToSimulation(true); }, [applyToSimulation]);
 
@@ -345,7 +363,7 @@ export default function BladeLab() {
                 <MenubarContent className="z-[120] w-80 p-2 bl-menu-panel" onCloseAutoFocus={(e) => e.preventDefault()}>
                   <SimMenuPanel {...simCtl} />
                   <MenubarSeparator />
-                  <MenubarItem onSelect={() => applyToSimulation(false)} className="bl-menu-item">
+                  <MenubarItem onSelect={() => applyToSimulation(false, null)} className="bl-menu-item">
                     <Wind className="w-3 h-3 mr-2" /> {t.applySim}
                   </MenubarItem>
                 </MenubarContent>
@@ -368,7 +386,7 @@ export default function BladeLab() {
                 {failureLevel >= 1 ? t.failure : t.overload}
               </div>
             )}
-            <button onClick={() => applyToSimulation(false)}
+            <button onClick={(e) => applyToSimulation(false, e.currentTarget)}
               className="h-7 px-2 bl-btn-text rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1">
               <Wind className="w-3 h-3" /> <span className="hidden sm:inline">{t.applySim}</span>
             </button>

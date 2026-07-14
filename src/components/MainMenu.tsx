@@ -2,6 +2,9 @@ import { motion } from "framer-motion";
 import { Wind, Recycle, Cloud, BookOpen, Settings, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
 import { type Lang } from "@/utils/i18n";
+import { SceneBackdrop } from "@/components/backgrounds/SceneBackdrop";
+import { GoogleAuthPill } from "@/components/GoogleAuthPill";
+import { RecentlyUsedRibbon } from "@/components/RecentlyUsedRibbon";
 
 interface MainMenuProps {
   lang: Lang;
@@ -66,21 +69,28 @@ export const MainMenu = ({
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-20" style={{
-        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23222832' fill-opacity='0.4'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
-      }} />
+      {/* Live 3D backdrop with uploaded turbine GLBs */}
+      <SceneBackdrop
+        actors={[
+          { model: "hawtHero",     position: [ 0.0, -0.4, -2.5], scale: 1.6, spin: 0.9 },
+          { model: "vawtHero",     position: [-4.5, -0.8, -4.0], scale: 1.1, spin: 1.4 },
+          { model: "savoniusMain", position: [ 4.2, -1.2, -3.8], scale: 0.9, spin: 1.8 },
+        ]}
+      />
 
-      {/* Language toggle top-right */}
-      <div className="absolute top-4 right-4 z-10 flex bg-card/60 rounded-lg border border-border/30 p-0.5 backdrop-blur-sm">
-        <button onClick={() => onLangChange('ua')}
-          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
-          UA
-        </button>
-        <button onClick={() => onLangChange('en')}
-          className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
-          EN
-        </button>
+      {/* Top-right controls: Google login + language toggle */}
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <GoogleAuthPill lang={lang} />
+        <div className="flex bg-card/60 rounded-lg border border-border/30 p-0.5 backdrop-blur-sm">
+          <button onClick={() => onLangChange('ua')}
+            className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
+            UA
+          </button>
+          <button onClick={() => onLangChange('en')}
+            className={`px-3 py-1.5 rounded text-xs font-semibold transition-colors ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground hover:text-primary'}`}>
+            EN
+          </button>
+        </div>
       </div>
 
       <motion.div variants={containerVariants} initial="hidden" animate="visible" className="relative z-10 flex flex-col items-center max-w-lg w-full px-3 sm:px-4">
@@ -93,6 +103,10 @@ export const MainMenu = ({
             <span className="text-foreground">WITER</span>
           </h1>
         </motion.div>
+
+        <RecentlyUsedRibbon lang={lang} />
+
+
 
         {/* Geometry / Form lab tile (half-transparent, premium) */}
         <motion.div variants={itemVariants} className="w-full mb-3">

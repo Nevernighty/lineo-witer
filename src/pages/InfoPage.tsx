@@ -13,6 +13,13 @@ import { TechnicalSpecs } from '@/components/info/TechnicalSpecs';
 import { PrintingConsiderations } from '@/components/info/PrintingConsiderations';
 import { type Lang, t } from '@/utils/i18n';
 import { motion, AnimatePresence } from 'framer-motion';
+import { SceneBackdrop } from '@/components/backgrounds/SceneBackdrop';
+const SceneBackdropLazy = () => (
+  <SceneBackdrop clouds={false} intensity={0.4} actors={[
+    { model: 'phoenix', position: [0, -1.2, -3], scale: 1.2, spin: 0.8 },
+    { model: 'archimedes', position: [4, -0.5, -5], scale: 1.1, spin: 1.5, axis: 'z' },
+  ]} />
+);
 
 const tabItems = [
   { value: 'fundamentals', icon: Zap, label_ua: 'Основи', label_en: 'Fundamentals', color: 'hsl(120 100% 54%)' },
@@ -40,7 +47,10 @@ const InfoPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background relative">
+      <div className="fixed inset-0 opacity-40 pointer-events-none">
+        <SceneBackdropLazy />
+      </div>
       <header className="sticky top-0 z-50 border-b backdrop-blur-sm" style={{ backgroundColor: 'hsl(222 28% 13% / 0.95)', borderColor: 'hsl(var(--border) / 0.3)' }}>
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
