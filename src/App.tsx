@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import InfoPage from "./pages/InfoPage";
 import TurbineAnalysis from "./pages/TurbineAnalysis";
+import { BladeTeleport } from "./components/BladeTeleport";
 
 const BladeLab = lazy(() => import("./pages/BladeLab"));
 
@@ -26,6 +27,7 @@ const App: React.FC = () => (
             <Route path="/blade-lab" element={<BladeLab />} />
           </Routes>
         </Suspense>
+        <BladeTeleport />
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
