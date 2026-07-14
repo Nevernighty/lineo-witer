@@ -363,7 +363,7 @@ export default function BladeLab() {
                 <MenubarContent className="z-[120] w-80 p-2 bl-menu-panel" onCloseAutoFocus={(e) => e.preventDefault()}>
                   <SimMenuPanel {...simCtl} />
                   <MenubarSeparator />
-                  <MenubarItem onSelect={() => applyToSimulation(false)} className="bl-menu-item">
+                  <MenubarItem onSelect={() => applyToSimulation(false, null)} className="bl-menu-item">
                     <Wind className="w-3 h-3 mr-2" /> {t.applySim}
                   </MenubarItem>
                 </MenubarContent>
@@ -386,7 +386,7 @@ export default function BladeLab() {
                 {failureLevel >= 1 ? t.failure : t.overload}
               </div>
             )}
-            <button onClick={() => applyToSimulation(false)}
+            <button onClick={(e) => applyToSimulation(false, e.currentTarget)}
               className="h-7 px-2 bl-btn-text rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1">
               <Wind className="w-3 h-3" /> <span className="hidden sm:inline">{t.applySim}</span>
             </button>
