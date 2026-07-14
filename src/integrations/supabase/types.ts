@@ -14,7 +14,99 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      user_history: {
+        Row: {
+          id: string
+          kind: string
+          label: string | null
+          opened_at: string
+          ref_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          kind: string
+          label?: string | null
+          opened_at?: string
+          ref_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          kind?: string
+          label?: string | null
+          opened_at?: string
+          ref_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_presets: {
+        Row: {
+          created_at: string
+          extra: Json | null
+          geometry: Json
+          id: string
+          material_id: string | null
+          name: string
+          rotor_type: string
+          thumbnail_url: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          extra?: Json | null
+          geometry: Json
+          id?: string
+          material_id?: string | null
+          name: string
+          rotor_type: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          extra?: Json | null
+          geometry?: Json
+          id?: string
+          material_id?: string | null
+          name?: string
+          rotor_type?: string
+          thumbnail_url?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_settings: {
+        Row: {
+          generator_spec: Json | null
+          lang: string | null
+          site_id: string | null
+          updated_at: string
+          user_id: string
+          wind_speed: number | null
+        }
+        Insert: {
+          generator_spec?: Json | null
+          lang?: string | null
+          site_id?: string | null
+          updated_at?: string
+          user_id: string
+          wind_speed?: number | null
+        }
+        Update: {
+          generator_spec?: Json | null
+          lang?: string | null
+          site_id?: string | null
+          updated_at?: string
+          user_id?: string
+          wind_speed?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
