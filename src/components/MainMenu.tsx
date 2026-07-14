@@ -104,6 +104,10 @@ export const MainMenu = ({
           </h1>
         </motion.div>
 
+        <RecentlyUsedRibbon lang={lang} />
+
+
+
         {/* Geometry / Form lab tile (half-transparent, premium) */}
         <motion.div variants={itemVariants} className="w-full mb-3">
           <Link to="/blade-lab"
