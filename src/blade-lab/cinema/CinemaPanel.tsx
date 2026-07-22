@@ -149,7 +149,19 @@ export function CinemaPanel({ lang, director }: Props) {
         <span className="w-14 text-right tabular-nums text-[11px] text-muted-foreground">
           {director.elapsed.toFixed(1)}s / {s ? s.duration.toFixed(0) : '–'}s
         </span>
+        {(hasNarrator || hasChapter || hasHud) && (
+          <button
+            className="p-1 rounded hover:bg-muted"
+            onClick={() => setCollapsed(v => !v)}
+            aria-label={collapsed ? 'Expand narration' : 'Collapse narration'}
+            title={collapsed ? (lang === 'ua' ? 'Показати оповідача' : 'Show narrator') : (lang === 'ua' ? 'Приховати' : 'Hide')}
+          >
+            {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        )}
+      </div>
       </div>
     </div>
   );
 }
+
