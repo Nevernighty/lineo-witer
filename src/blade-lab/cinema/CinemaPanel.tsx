@@ -41,7 +41,7 @@ export function CinemaPanel({ lang, director }: Props) {
 
 
       {/* Narrator + HUD row */}
-      {(hasNarrator || hasHud) && (
+      {showRich && (hasNarrator || hasHud) && (
         <div className="mx-auto mb-2 flex gap-2 items-stretch animate-fade-in">
           {hasNarrator && (
             <div className="flex-1 rounded-md border border-border/60 bg-background/85 backdrop-blur px-3 py-2 text-[13px] leading-snug shadow-lg pointer-events-auto">
@@ -56,7 +56,7 @@ export function CinemaPanel({ lang, director }: Props) {
             </div>
           )}
           {hasHud && (
-            <div className="w-[260px] shrink-0 rounded-md border border-primary/30 bg-background/85 backdrop-blur px-3 py-2 shadow-lg pointer-events-auto">
+            <div className="w-[260px] max-w-[45%] shrink-0 rounded-md border border-primary/30 bg-background/85 backdrop-blur px-3 py-2 shadow-lg pointer-events-auto">
               {director.hud!.formula && (
                 <div className="font-mono text-[11px] text-primary/90 mb-1 truncate" title={director.hud!.formula}>
                   {director.hud!.formula}
@@ -78,6 +78,7 @@ export function CinemaPanel({ lang, director }: Props) {
           )}
         </div>
       )}
+
 
       {/* Control ribbon */}
       <div className="mx-auto flex items-center gap-2 rounded-md border border-border/60 bg-background/85 backdrop-blur px-2 py-1.5 shadow-lg pointer-events-auto">
