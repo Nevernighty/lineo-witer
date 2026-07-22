@@ -382,8 +382,11 @@ export function buildSavoniusBucketGeometry(
       const twist = (helicalDeg * Math.PI / 180) * (tN - 0.5);
       for (let i = 0; i <= segments; i++) {
         const ang = -Math.PI / 2 + (i / segments) * Math.PI; // half circle
+        // Mirror the ARC direction for the second bucket so both concave faces
+        // oppose each other (true S-rotor). Previously both arcs opened in +X.
+        const dirX = sign; // arc opens toward +X for sign=1, -X for sign=-1
         // outer
-        const xo = sign * offset + Math.cos(ang) * rb;
+        const xo = sign * offset + dirX * Math.cos(ang) * rb;
         const zo = Math.sin(ang) * rb;
         const cx = xo * Math.cos(twist) - zo * Math.sin(twist);
         const cz = xo * Math.sin(twist) + zo * Math.cos(twist);
@@ -391,7 +394,7 @@ export function buildSavoniusBucketGeometry(
         colors.push(col.r, col.g, col.b);
         // inner (shrunk towards bucket centre)
         const inset = rb - shellT;
-        const xi = sign * offset + Math.cos(ang) * inset;
+        const xi = sign * offset + dirX * Math.cos(ang) * inset;
         const zi = Math.sin(ang) * inset;
         const cxi = xi * Math.cos(twist) - zi * Math.sin(twist);
         const czi = xi * Math.sin(twist) + zi * Math.cos(twist);

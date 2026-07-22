@@ -72,11 +72,12 @@ export const MainMenu = ({
       {/* Live 3D backdrop with uploaded turbine GLBs */}
       <SceneBackdrop
         actors={[
-          { model: "hawtHero",     position: [ 0.0, -0.4, -2.5], scale: 1.6, spin: 0.9 },
-          { model: "vawtHero",     position: [-4.5, -0.8, -4.0], scale: 1.1, spin: 1.4 },
-          { model: "savoniusMain", position: [ 4.2, -1.2, -3.8], scale: 0.9, spin: 1.8 },
+          { model: "hawtHero",     position: [-6.5, 0.2, -6], scale: 0.55, spin: 0.28 },
+          { model: "vawtHero",     position: [ 6.5, -0.5, -7], scale: 0.4,  spin: 0.35 },
+          { model: "savoniusMain", position: [ 0.0, -2.2, -9], scale: 0.35, spin: 0.5  },
         ]}
       />
+
 
       {/* Top-right controls: Google login + language toggle */}
       <div className="absolute top-4 right-4 z-10 flex items-center gap-2">

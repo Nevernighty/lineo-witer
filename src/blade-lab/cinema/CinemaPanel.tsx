@@ -1,7 +1,8 @@
-// Bottom-of-viewport cinema HUD v2: chapter card + narrator + metrics HUD +
-// tick-annotated timeline + play controls with speed & prev/next kf.
+// Bottom-of-viewport cinema HUD v3: responsive width driven by side-panel CSS vars,
+// collapsible chapter/HUD strip, and safer scrubbing.
 
-import { Play, Pause, Square, Film, ChevronLeft, ChevronRight, Gauge } from 'lucide-react';
+import { useState } from 'react';
+import { Play, Pause, Square, Film, ChevronLeft, ChevronRight, Gauge, ChevronDown, ChevronUp } from 'lucide-react';
 import { CINEMA_SCENARIOS } from './scenarios';
 import type { DirectorState } from './useDirector';
 
@@ -12,17 +13,22 @@ interface Props {
 
 export function CinemaPanel({ lang, director }: Props) {
   const s = director.scenario;
+  const [collapsed, setCollapsed] = useState(false);
   const hasNarrator = !!director.message;
   const hasChapter = !!director.chapter;
   const hasHud = !!director.hud && ((director.hud.metrics?.length ?? 0) > 0 || !!director.hud.formula);
+  const showRich = !collapsed && (hasNarrator || hasChapter || hasHud);
 
   return (
     <div
-      className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-none"
-      style={{ bottom: 74, width: 'min(920px, calc(100vw - 32px))' }}
+      className="absolute z-30 pointer-events-none"
+      style={{ bottom: 74, left: 12, right: 12 }}
     >
+      <div className="mx-auto" style={{ maxWidth: 920 }}>
+
+
       {/* Chapter title card */}
-      {hasChapter && (
+      {showRich && hasChapter && (
         <div className="mx-auto mb-2 text-center animate-fade-in">
           <div className="inline-block px-4 py-1 rounded-md border border-primary/40 bg-background/85 backdrop-blur text-primary tracking-wide font-semibold text-[14px] shadow-lg">
             {lang === 'ua' ? director.chapter!.ua : director.chapter!.en}
@@ -30,8 +36,9 @@ export function CinemaPanel({ lang, director }: Props) {
         </div>
       )}
 
+
       {/* Narrator + HUD row */}
-      {(hasNarrator || hasHud) && (
+      {showRich && (hasNarrator || hasHud) && (
         <div className="mx-auto mb-2 flex gap-2 items-stretch animate-fade-in">
           {hasNarrator && (
             <div className="flex-1 rounded-md border border-border/60 bg-background/85 backdrop-blur px-3 py-2 text-[13px] leading-snug shadow-lg pointer-events-auto">
@@ -46,7 +53,7 @@ export function CinemaPanel({ lang, director }: Props) {
             </div>
           )}
           {hasHud && (
-            <div className="w-[260px] shrink-0 rounded-md border border-primary/30 bg-background/85 backdrop-blur px-3 py-2 shadow-lg pointer-events-auto">
+            <div className="w-[260px] max-w-[45%] shrink-0 rounded-md border border-primary/30 bg-background/85 backdrop-blur px-3 py-2 shadow-lg pointer-events-auto">
               {director.hud!.formula && (
                 <div className="font-mono text-[11px] text-primary/90 mb-1 truncate" title={director.hud!.formula}>
                   {director.hud!.formula}
@@ -68,6 +75,7 @@ export function CinemaPanel({ lang, director }: Props) {
           )}
         </div>
       )}
+
 
       {/* Control ribbon */}
       <div className="mx-auto flex items-center gap-2 rounded-md border border-border/60 bg-background/85 backdrop-blur px-2 py-1.5 shadow-lg pointer-events-auto">
@@ -138,7 +146,19 @@ export function CinemaPanel({ lang, director }: Props) {
         <span className="w-14 text-right tabular-nums text-[11px] text-muted-foreground">
           {director.elapsed.toFixed(1)}s / {s ? s.duration.toFixed(0) : '–'}s
         </span>
+        {(hasNarrator || hasChapter || hasHud) && (
+          <button
+            className="p-1 rounded hover:bg-muted"
+            onClick={() => setCollapsed(v => !v)}
+            aria-label={collapsed ? 'Expand narration' : 'Collapse narration'}
+            title={collapsed ? (lang === 'ua' ? 'Показати оповідача' : 'Show narrator') : (lang === 'ua' ? 'Приховати' : 'Hide')}
+          >
+            {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+          </button>
+        )}
+      </div>
       </div>
     </div>
   );
 }
+
