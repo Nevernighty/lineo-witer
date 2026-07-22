@@ -15,10 +15,11 @@ import { type Lang, t } from '@/utils/i18n';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SceneBackdrop } from '@/components/backgrounds/SceneBackdrop';
 const SceneBackdropLazy = () => (
-  <SceneBackdrop clouds={false} intensity={0.4} actors={[
-    { model: 'phoenix', position: [0, -1.2, -3], scale: 1.2, spin: 0.8 },
-    { model: 'archimedes', position: [4, -0.5, -5], scale: 1.1, spin: 1.5, axis: 'z' },
+  <SceneBackdrop intensity={0.4} actors={[
+    { model: 'phoenix', position: [-5, -0.5, -4], scale: 0.5, spin: 0.3 },
+    { model: 'archimedes', position: [5, -0.3, -5], scale: 0.5, spin: 0.4, axis: 'z' },
   ]} />
+
 );
 
 const tabItems = [
