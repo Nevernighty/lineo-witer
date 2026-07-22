@@ -1,7 +1,8 @@
-// Bottom-of-viewport cinema HUD v2: chapter card + narrator + metrics HUD +
-// tick-annotated timeline + play controls with speed & prev/next kf.
+// Bottom-of-viewport cinema HUD v3: responsive width driven by side-panel CSS vars,
+// collapsible chapter/HUD strip, and safer scrubbing.
 
-import { Play, Pause, Square, Film, ChevronLeft, ChevronRight, Gauge } from 'lucide-react';
+import { useState } from 'react';
+import { Play, Pause, Square, Film, ChevronLeft, ChevronRight, Gauge, ChevronDown, ChevronUp } from 'lucide-react';
 import { CINEMA_SCENARIOS } from './scenarios';
 import type { DirectorState } from './useDirector';
 
@@ -12,15 +13,23 @@ interface Props {
 
 export function CinemaPanel({ lang, director }: Props) {
   const s = director.scenario;
+  const [collapsed, setCollapsed] = useState(false);
   const hasNarrator = !!director.message;
   const hasChapter = !!director.chapter;
   const hasHud = !!director.hud && ((director.hud.metrics?.length ?? 0) > 0 || !!director.hud.formula);
+  const showRich = !collapsed && (hasNarrator || hasChapter || hasHud);
 
   return (
     <div
-      className="absolute left-1/2 -translate-x-1/2 z-30 pointer-events-none"
-      style={{ bottom: 74, width: 'min(920px, calc(100vw - 32px))' }}
+      className="absolute z-30 pointer-events-none"
+      style={{
+        bottom: 74,
+        left: 'calc(var(--panel-l, 0px) + 12px)',
+        right: 'calc(var(--panel-r, 0px) + 12px)',
+      }}
     >
+      <div className="mx-auto" style={{ maxWidth: 920 }}>
+
       {/* Chapter title card */}
       {hasChapter && (
         <div className="mx-auto mb-2 text-center animate-fade-in">
