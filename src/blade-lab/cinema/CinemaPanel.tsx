@@ -31,13 +31,14 @@ export function CinemaPanel({ lang, director }: Props) {
       <div className="mx-auto" style={{ maxWidth: 920 }}>
 
       {/* Chapter title card */}
-      {hasChapter && (
+      {showRich && hasChapter && (
         <div className="mx-auto mb-2 text-center animate-fade-in">
           <div className="inline-block px-4 py-1 rounded-md border border-primary/40 bg-background/85 backdrop-blur text-primary tracking-wide font-semibold text-[14px] shadow-lg">
             {lang === 'ua' ? director.chapter!.ua : director.chapter!.en}
           </div>
         </div>
       )}
+
 
       {/* Narrator + HUD row */}
       {(hasNarrator || hasHud) && (
