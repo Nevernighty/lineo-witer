@@ -22,13 +22,10 @@ export function CinemaPanel({ lang, director }: Props) {
   return (
     <div
       className="absolute z-30 pointer-events-none"
-      style={{
-        bottom: 74,
-        left: 'calc(var(--panel-l, 0px) + 12px)',
-        right: 'calc(var(--panel-r, 0px) + 12px)',
-      }}
+      style={{ bottom: 74, left: 12, right: 12 }}
     >
       <div className="mx-auto" style={{ maxWidth: 920 }}>
+
 
       {/* Chapter title card */}
       {showRich && hasChapter && (
