@@ -5,6 +5,16 @@ export interface TeleportPayload {
   thumbnail?: string;       // dataURL
   presetName?: string;
   fromRect?: { x: number; y: number; w: number; h: number };
+  /** How many silhouette blades to fan out in phase B. */
+  nBlades?: number;
+  /** Rotor family — controls silhouette shape. */
+  rotorType?: string;
+  /** Optional wind speed carried over so sim can hydrate. */
+  windSpeed?: number;
+  /** Optional TSR. */
+  tsr?: number;
+  /** Optional site id (e.g. 'roof'). */
+  siteId?: string;
   startedAt: number;
 }
 
@@ -14,13 +24,13 @@ const listeners = new Set<() => void>();
 export function startTeleport(p: Omit<TeleportPayload, "startedAt">) {
   state = { ...p, startedAt: performance.now() };
   listeners.forEach((l) => l());
-  // auto-clear after 2.5s
+  // auto-clear after 2.6s (matches BladeTeleport phase C end + buffer)
   setTimeout(() => {
     if (state && performance.now() - state.startedAt >= 2400) {
       state = null;
       listeners.forEach((l) => l());
     }
-  }, 2500);
+  }, 2600);
 }
 
 export function clearTeleport() {

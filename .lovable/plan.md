@@ -1,126 +1,157 @@
 
-# Grand Overhaul Plan — Blade Lab, Cinema, Menu, Auth
+# Grand Overhaul v2 — Blade Lab, Wind Sim, Teleport, Profile
 
-This plan addresses everything visible in the screenshots plus the connective tissue that was skipped: cinematic backdrop that doesn't dominate the menu, correct Savonius bucket facing, working cinema camera/scenarios that respect side panels, a real animated Blade→Simulation teleport, and a deep Google-linked profile page with preset/history management.
-
----
-
-## 1. Main menu backdrop — fix the huge ugly turbines
-
-**Problem:** GLB actors are too large, spin visibly wrong through their own bodies, and dominate the UI.
-
-**Fix in `SceneBackdrop.tsx` + `MainMenu.tsx`:**
-- Push camera back (fov 28, z=14), tilt down slightly, and move actors to the outer edges (behind logo/panel).
-- Reduce actor scale to 0.4–0.7; slow spin to 0.15–0.35 rad/s.
-- Add a **radial vignette mask** and a stronger bottom→top gradient so the center (where menu lives) is dim and legible.
-- Add subtle `Float` (drei) drift instead of forced spin on the whole model.
-- Add heavy **DoF blur** (via `MeshTransmissionMaterial`-free approach: postprocessing `DepthOfField`) so backdrop reads as ambience, not content.
-- Cap dpr at 1.0 on the backdrop canvas for perf.
-- Add reduced-motion + mobile fallback: static poster image (a rendered snapshot) instead of Canvas.
-
-## 2. Savonius facing bug
-
-**Problem:** Two of three buckets face the same direction (screenshot 2). In `buildBladeGeometry.ts` the S-rotor buckets get rotation `(i / n) * 2π`, but the arc's own opening is not counter-rotated per bucket, so the concave side lands on the same hemisphere for adjacent buckets.
-
-**Fix:** In the Savonius builder, generate each bucket as a half-cylinder whose local +X is the concave normal, then rotate around Y by `i * (2π/n)`. Alternate buckets get a `π` flip only when `n=2` (classic S). For `n>=3` remove the flip entirely — every bucket is offset by `2π/n` from the previous. Also apply the correct overlap offset along the concave-normal (−X_local), not along world X. Verify visually with `n=3` (screenshot case).
-
-## 3. Cinema camera & panel — usability meltdown
-
-**Problems from screenshot 3 & 4:**
-- Camera sinks into the ground / inside the tower (no clamp, no framing of the rotor).
-- Cinema panel is covered by left/right side panels.
-- Scenario labels, chapter card, and HUD stack on top of each other and get clipped.
-- Play controls appear to work but scrubbing overshoots.
-
-**Fixes:**
-
-**`CinemaCamera.tsx`:**
-- Clamp `camera.position.y >= 0.6` (never below floor) and enforce `distance(camera, rotorCenter) >= rotorRadius * 1.4`.
-- If a cue targets inside the rotor, project it outward along the horizontal vector from center.
-- Save/restore user's orbit position on scenario stop so returning to free camera doesn't leave it inside geometry.
-- Disable `OrbitControls` when a cue is active; re-enable on stop with a smooth handoff (copy final `look` into `controls.target`).
-
-**`CinemaPanel.tsx` — responsive layout:**
-- Panel width becomes `min(760px, calc(100vw - <side panels width>))` using CSS vars set by `BladeLab.tsx` when panels open/collapse (`--panel-l`, `--panel-r`).
-- On <900px viewport: collapse chapter+HUD into a single tabbed drawer above controls; auto-hide HUD when scenario has no metrics.
-- Move panel to `bottom: 16px` on mobile with `left/right: var(--panel-l/r)` so it never underlaps side panels.
-- Add a **hide/show toggle** (chevron) so user can dismiss the cinema HUD entirely.
-
-**Scenario stability:**
-- On scenario switch, reset director state (elapsed=0, playing=false), fire `resetTransforms()` on the blade root, and re-run camera cue.
-- Add error boundary around `<ScenarioStage/>` so a broken actor doesn't blank the canvas.
-
-## 4. Blade → Simulation teleport — properly animated hand-off
-
-**Current state:** `BladeTeleport.tsx` exists but the transition is a flash; the sim starts with no continuity.
-
-**Overhaul:**
-1. **Capture** — on "Apply to simulation", render the current blade to an offscreen canvas (`gl.domElement.toDataURL`) and grab its bounding rect. Save into `useTeleportStore` along with the full geometry payload.
-2. **FLIP overlay** (`BladeTeleport.tsx` rewrite):
-   - Phase A (0–0.6s): thumbnail flies from Blade Lab rect → center, spinning, with streamline sweep + shockwave.
-   - Phase B (0.6–1.2s): thumbnail explodes into 3 blade silhouettes that fan out to form the turbine rotor.
-   - Phase C (1.2–1.8s): silhouettes fade into a wireframe of the real turbine (`BladePresetTurbine3D`), then dissolve as the sim scene fades in.
-3. **Route transition** — navigate to `/` (sim) at Phase B start with a Framer `AnimatePresence` cross-fade so the sim renders behind the overlay.
-4. **Continuity data** — pass current wind speed, TSR, and site preset through the store so the sim boots with matching conditions (no jarring reset).
-5. **Sim entry cinematic** — 2s scripted camera zoom-in on the newly-placed turbine with a "PRESET APPLIED" toast showing preset name + Cp.
-
-## 5. Google profile page — deep, structured, actionable
-
-**New route `/profile` (linked from `GoogleAuthPill` when signed in).**
-
-Sections:
-- **Header**: avatar, name, email, sign-out, "since" date.
-- **Recent activity** (from `user_history`): grouped by kind (blade / scenario / weather site), each row clickable → re-opens exact context (loads preset, jumps to scenario, restores wind).
-- **My presets** (`user_presets`): grid of blade cards with thumbnail, Cp, rotor type, material, actions: **Load**, **Send to Sim** (triggers teleport), **Duplicate**, **Rename**, **Delete**, **Export STL**.
-- **Simulation snapshots** (new table `user_snapshots`): saved sim states (wind speed, site, turbine layout, camera cue) with thumbnail; **Restore** action.
-- **Settings sync**: preferred language, default wind speed, default site — pulled from `user_settings`, editable inline, upserted on change.
-- **Activity chart**: 14-day sparkline of actions per day (uses existing `user_history.opened_at`).
-
-Wire deeply into cloud sync:
-- Every apply/save/scenario-play/weather-open logs a `user_history` row with a rich `label` and a re-open ref.
-- `GoogleAuthPill` grows a dropdown: profile link, snapshots, sign-out.
-- Anonymous users see a "Sign in to save your work" CTA that preserves current action and resumes after auth.
-
-## 6. Auxiliary polish (skipped previously)
-
-- **`GeometryPanel` sensitivity strip**: verify it's rendering; if not, hook `computeGeoImpact` on every slider change with a 120ms debounce (already stubbed, needs mounting).
-- **`BladeMesh` axis reset**: extend the reset effect to also clear `spinGroup.rotation` and any inherited scale poisoning when switching *material* (fixes some Gorlov post-crash spin bugs).
-- **Cinema scenarios**: add `cameraSafeRadius` field to `types.ts` and honor it in `CinemaCamera`.
-- **Backdrop** on `/info` and `/settings`: reuse the same lightened backdrop, but with different actor sets (Archimedes on info, Phoenix on settings) at the same reduced intensity.
+Focused on the concrete regressions in the screenshots and the deferred scope from last turn. No new rotor families or physics rewrites — geometry stays as-is; this pass is UX, VFX, wiring, and content.
 
 ---
 
-## Technical details
+## 1. Main menu backdrop — kill the oversized turbine
 
-**Files to add**
+**Symptom:** one GLB still spans the viewport and covers the central panel.
+
+Fix in `SceneBackdrop.tsx` + `MainMenu.tsx`:
+- Compute per-actor auto-fit: after GLB load, measure `Box3`, normalize to a target world size (0.8–1.2 units) via a wrapper `<group scale={target/bboxMax}>`. No more relying on hard-coded `scale`.
+- Move actors to a ring at radius 6, y=1.2, behind the panel (never in front of camera frustum center). Camera fov 24, z=18.
+- Add a **center exclusion mask**: any actor whose projected screen bbox intersects the central 42%×62% zone is culled that frame (cheap AABB test in `useFrame`).
+- Strengthen radial vignette to `hsl(var(--background)/0.92)` at center.
+- Keep mobile poster fallback.
+
+## 2. Upload user buildings as CDN assets + city scenario stages
+
+New assets from user upload (10 GLBs: apartments, panel buildings, kiosk, station, spire, university, palace of culture). Upload via `lovable-assets` into `src/assets/buildings/` as `.asset.json` pointers.
+
+New registry `src/assets/buildings/index.ts` exposing `BUILDING_MODELS` typed keys with human labels + rough footprint metadata (width, depth, height in meters, roof type).
+
+Wire into `ScenarioStage.tsx`:
+- `stage: 'urban_canyon'` — two panel buildings + kiosk forming a Venturi funnel; add wake cones + turbulence VFX between them.
+- `stage: 'rooftop_5floor'` — Slavutych 5-floor apartment as base, turbine on roof with parapet separation zone.
+- `stage: 'ridge_spire'` — Kryvyi Rih spire as ridge silhouette.
+- Extend `StageId` union in `cinema/types.ts`.
+
+## 3. Cinema scenarios — actually illustrative
+
+Add three richer scenarios and rewrite existing ones to spend more time in explanation, less in raw camera fly.
+
+- `s04-urban-canyon.ts` — Venturi speed-up between two panel buildings. HUD shows `V_gap = V∞ × (A_open/A_gap)`; VFX: colored streamlines that compress through the gap, arrows accelerating, tip-vortex pulses on turbine.
+- `s05-rooftop-parapet.ts` — replaces s01 role. Highlights recirculation bubble (rotating arrow band), shows why turbine placed <1.5×parapet fails; failure boost ramps as camera dips into the bubble.
+- `s06-cold-start.ts` — Savonius/Darrieus self-start at low TSR. Shows Cp curve, torque needle, when the rotor "catches".
+
+Each scenario:
+- 6–10 keyframes with narrator text (UA/EN), formula card, and at least 3 VFX bursts.
+- Highlighted DOM tooltip anchored to a 3D point (`Html` from drei) with fade+arrow — new component `CinemaTooltip.tsx`.
+- Persistent left-side "chapter progress" rail (dots per keyframe) — added to `CinemaPanel.tsx`.
+
+Also raise `CinemaCamera` `safeRadius` to `rotorRadius*1.6` and add a top clamp so it never tips upside-down.
+
+## 4. 3D wind simulation HUD/popups — stop blocking the flow
+
+**Symptom:** 2D popups sit on top of turbines and obscure particle flow.
+
+New component `src/components/wind-simulation/3D/TurbineHudCard.tsx` (drei `Html` with `occlude` + `transform=false`, distance-attenuated):
+- Anchored to a **fixed offset above+beside** each turbine (e.g. `[+1.4, +2.2, 0]` in turbine local frame), with a thin leader line drawn via `<Line>`.
+- Auto-flip to the side away from camera-forward projection so it never overlaps rotor disk (compute each frame from `camera.position` vs turbine position).
+- Compact metrics: current P (W), rolling avg P, cumulative kJ, hits/s, TI%, wake status. Expand-on-hover reveals full breakdown (per-blade load, RPM, TSR, Cp).
+- Small sparkline (last 60 s) rendered in SVG.
+
+Replace inline popup usage in `WindSimulation3D.tsx` and remove any DOM overlays sitting on the canvas center.
+
+Add a "HUD density" toggle in `AdvancedWindControls.tsx`: Off / Compact / Full.
+
+Collision popups (`LocalHitPopup.tsx`): move to a screen-edge stack (top-right toast rail) instead of anchoring to particle world position; keep a tiny 3D pulse at the hit point so causality remains visible.
+
+## 5. Aerodynamics detail bump (visualization only)
+
+Not a physics rewrite. Enhancements in `AnalysisVisualizations.tsx` + particle system:
+- Color particles by local speed magnitude (blue→cyan→amber→red LUT), not uniform.
+- Add optional **pressure ribbons** on blade suction side (already partly there — expose density/opacity in `AdvancedWindControls`).
+- Wake ribbons: expose density, decay, radius, turbulence sliders (previous ask — verify all four bind to shader uniforms, not just density).
+- Show total instantaneous kJ delivered to rotor as a large corner readout with color pulse on spikes.
+
+## 6. 3-phase teleport rewrite
+
+Rewrite `BladeTeleport.tsx` per prior plan:
+- Phase A (0–0.55 s): captured thumbnail flies from Blade Lab canvas rect → screen center, spins, shockwave ring.
+- Phase B (0.55–1.15 s): thumbnail bursts into `nBlades` silhouette blades that fan out into rotor arrangement.
+- Phase C (1.15–1.8 s): silhouettes morph into a wireframe copy of the target turbine, then dissolve as `Index.tsx` fades in behind.
+
+Extend `useTeleportStore.ts` payload:
+```ts
+geometry: BladeGeometryPayload;
+rotorType: RotorType;
+nBlades: number;
+windSpeed: number;
+tsr: number;
+siteId?: string;
+```
+
+`useTeleportBridge.ts` new hook: `capture(canvasRef, presetInfo) → startTeleport(...) → navigate('/') → hydrate sim store`.
+
+On sim entry: 1.5 s scripted camera pan onto the freshly placed turbine + "PRESET APPLIED" toast with preset name + Cp.
+
+## 7. `/profile` page (Google-linked)
+
+New route `/profile` + `Profile.tsx`. Sections:
+- Header: avatar, name, email, sign-out, member-since.
+- **Recent activity** — `user_history` grouped by kind (blade / scenario / weather / snapshot); each row re-opens exact context via a small router in `useCloudSync.ts`.
+- **My presets** — `user_presets` grid using `PresetCard.tsx` (thumb, Cp, rotor type, material). Actions: Load, Send to Sim (fires teleport bridge), Duplicate, Rename, Delete, Export STL.
+- **Settings sync** — inline editors for language, default wind speed, default site → upserts `user_settings`.
+- **14-day activity sparkline** — `ActivitySparkline.tsx` from `user_history.opened_at`.
+
+`GoogleAuthPill.tsx` grows a dropdown: Profile, Sign out.
+
+No new tables this pass (snapshots deferred — `user_history` already covers re-open refs).
+
+## 8. GeometryPanel sensitivity strip — wire it
+
+`GeometryPanel.tsx`: mount `computeGeoImpact` on every slider change with a 120 ms debounce. Render a 5-bar sparkline strip per parameter (Cp Δ, torque Δ, vibration Δ, mass Δ, cost Δ) with color-coded delta arrows. This has been stubbed since v1 — this turn actually wires the hook and renders.
+
+---
+
+## Files
+
+**New**
+- `src/assets/buildings/index.ts` + 10 `.asset.json` pointers
+- `src/blade-lab/cinema/scenarios/s04-urban-canyon.ts`
+- `src/blade-lab/cinema/scenarios/s05-rooftop-parapet.ts`
+- `src/blade-lab/cinema/scenarios/s06-cold-start.ts`
+- `src/blade-lab/cinema/CinemaTooltip.tsx`
+- `src/components/wind-simulation/3D/TurbineHudCard.tsx`
 - `src/pages/Profile.tsx`
-- `src/components/profile/PresetCard.tsx`, `HistoryList.tsx`, `SnapshotGrid.tsx`, `ActivitySparkline.tsx`
-- `src/hooks/useTeleportBridge.ts` — encapsulates capture→navigate→hydrate flow
+- `src/components/profile/PresetCard.tsx`
+- `src/components/profile/HistoryList.tsx`
+- `src/components/profile/ActivitySparkline.tsx`
+- `src/hooks/useTeleportBridge.ts`
 
-**Files to rewrite**
-- `src/components/backgrounds/SceneBackdrop.tsx` — DoF, vignette, mobile poster fallback, `Float` drift
-- `src/components/BladeTeleport.tsx` — 3-phase FLIP with wireframe morph
-- `src/blade-lab/cinema/CinemaCamera.tsx` — clamps + safe-radius + controls handoff
-- `src/blade-lab/cinema/CinemaPanel.tsx` — responsive width via CSS vars, collapse toggle, mobile tabs
-- `src/store/useTeleportStore.ts` — extend payload (geometry, wind, tsr, site)
+**Rewrite**
+- `src/components/backgrounds/SceneBackdrop.tsx` — auto-fit + center-exclusion cull
+- `src/components/BladeTeleport.tsx` — 3-phase FLIP
+- `src/blade-lab/cinema/ScenarioStage.tsx` — building stages
+- `src/store/useTeleportStore.ts` — extended payload
 
-**Files to edit**
-- `src/aero/buildBladeGeometry.ts` — Savonius bucket facing fix (n>=3 branch)
-- `src/components/MainMenu.tsx` — actor scale/positions
-- `src/pages/BladeLab.tsx` — expose `--panel-l/--panel-r` CSS vars; wire teleport bridge
-- `src/pages/Index.tsx` — sim entry cinematic + teleport receiver
-- `src/components/GoogleAuthPill.tsx` — dropdown menu with profile link
+**Edit**
+- `src/blade-lab/cinema/CinemaPanel.tsx` — chapter rail + tooltip host
+- `src/blade-lab/cinema/CinemaCamera.tsx` — top clamp, larger safeRadius
+- `src/blade-lab/cinema/types.ts` — extended StageId
+- `src/blade-lab/cinema/scenarios/index.ts` — register new scenarios
+- `src/blade-lab/cinema/scenarios/s01-rooftop.ts` — polish narrator text
+- `src/components/MainMenu.tsx` — actor ring layout
+- `src/components/GoogleAuthPill.tsx` — dropdown w/ Profile link
+- `src/components/wind-simulation/3D/WindSimulation3D.tsx` — swap popups for `TurbineHudCard`
+- `src/components/wind-simulation/3D/LocalHitPopup.tsx` — screen-edge stack
+- `src/components/wind-simulation/3D/AdvancedWindControls.tsx` — HUD density, wake sliders bound
+- `src/components/wind-simulation/3D/AnalysisVisualizations.tsx` — speed-LUT particles, pressure ribbon density
+- `src/components/blade-lab/GeometryPanel.tsx` — sensitivity strip mount
+- `src/pages/BladeLab.tsx` — use `useTeleportBridge`
+- `src/pages/Index.tsx` — teleport receiver + entry cinematic
 - `src/App.tsx` — `/profile` route
 
-**Migration**
-- Add `user_snapshots` table (user_id, name, thumbnail_url, wind_speed, site_id, turbine_config jsonb, camera jsonb, timestamps) with RLS + GRANTs per Cloud rules.
+## Verification
 
-**Verification**
-- Manual Playwright pass: menu screenshot (no huge turbines), Savonius render with n=3 (buckets face 120° apart), scenario play (camera stays outside rotor, panel not clipped), Apply-to-Sim (3-phase overlay visible), /profile loads with data.
-- Typecheck must be clean.
+- `bun run build` clean.
+- Manual Playwright pass: menu (no oversized model over panel), Blade Lab scenario s04 (streamlines compress through building gap, narrator visible), Sim (HUD cards not over rotor, sparklines update), Apply-to-Sim (3 phases visible), `/profile` loads with presets + history + sparkline.
 
-## Out of scope (this plan)
+## Out of scope
 
-- New scenarios beyond the existing s01–s03.
-- New rotor families.
-- Real BEM revalidation — only visualization/UX fixes here.
+- Snapshot table (`user_snapshots`).
+- New rotor families or BEM revalidation.
+- Full audio pass for new scenarios.

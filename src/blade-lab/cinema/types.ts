@@ -44,7 +44,7 @@ export interface CinemaKeyframe {
   target?: 'blade' | 'hub' | 'wake' | 'inflow' | null;
 }
 
-export type StageId = 'none' | 'rooftop' | 'ridge' | 'wake';
+export type StageId = 'none' | 'rooftop' | 'ridge' | 'wake' | 'urban_canyon' | 'rooftop_5floor' | 'ridge_spire';
 
 export interface CinemaScenario {
   id: string;

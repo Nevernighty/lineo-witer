@@ -10,6 +10,7 @@ import TurbineAnalysis from "./pages/TurbineAnalysis";
 import { BladeTeleport } from "./components/BladeTeleport";
 
 const BladeLab = lazy(() => import("./pages/BladeLab"));
+const Profile  = lazy(() => import("./pages/Profile"));
 
 const queryClient = new QueryClient();
 
@@ -25,6 +26,7 @@ const App: React.FC = () => (
             <Route path="/info" element={<InfoPage />} />
             <Route path="/turbine" element={<TurbineAnalysis />} />
             <Route path="/blade-lab" element={<BladeLab />} />
+            <Route path="/profile" element={<Profile />} />
           </Routes>
         </Suspense>
         <BladeTeleport />
