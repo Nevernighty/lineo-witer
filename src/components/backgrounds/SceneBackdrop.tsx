@@ -1,5 +1,6 @@
-// Full-screen ambient 3D backdrop. Actors sit far behind the UI, drift with Float,
-// and are heavily faded by fog + radial vignette so text stays crisp.
+// Full-screen ambient 3D backdrop. Actors sit far behind on a wide ring,
+// auto-fitted to a small world size so no single GLB can dominate the frame.
+// A strong center vignette guarantees UI legibility.
 import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
 import { Environment, Float, PerspectiveCamera } from "@react-three/drei";
@@ -10,8 +11,14 @@ import * as THREE from "three";
 
 export interface BackdropActor {
   model: TurbineModelKey;
-  position: [number, number, number];
-  scale?: number;
+  /** Angle around the ring in radians. 0 = straight ahead (behind panel), π = behind camera. */
+  angle: number;
+  /** Ring radius from origin (metres). Default 9. */
+  radius?: number;
+  /** Vertical position (metres). Default 0.6. */
+  y?: number;
+  /** Target world size (largest bbox axis, metres). Default 1.6. */
+  size?: number;
   spin?: number;
   axis?: "x" | "y" | "z";
 }
@@ -31,7 +38,6 @@ export function SceneBackdrop({ actors, intensity = 0.55, className }: SceneBack
     () => typeof window !== "undefined" && window.matchMedia?.("(max-width: 640px)").matches,
     []
   );
-  // On tiny screens the 3D backdrop just fights the UI — skip it.
   if (isSmall) {
     return (
       <div
@@ -58,51 +64,57 @@ export function SceneBackdrop({ actors, intensity = 0.55, className }: SceneBack
         gl={{ antialias: true, alpha: true, toneMapping: THREE.ACESFilmicToneMapping }}
         style={{ width: "100%", height: "100%" }}
       >
-        <PerspectiveCamera makeDefault position={[0, 2.5, 16]} fov={26} />
-        {/* Fog kills the far turbines so they read as atmosphere, not props. */}
-        <fog attach="fog" args={["#0d1117", 12, 26]} />
-        <ambientLight intensity={0.28 * intensity} />
-        <directionalLight position={[6, 8, 4]} intensity={0.9 * intensity} color="#e6f2ff" />
-        <directionalLight position={[-6, 3, -4]} intensity={0.35 * intensity} color="#88a" />
+        <PerspectiveCamera makeDefault position={[0, 2.2, 22]} fov={20} />
+        {/* Aggressive fog so far actors just wash into background. */}
+        <fog attach="fog" args={["#0d1117", 14, 30]} />
+        <ambientLight intensity={0.22 * intensity} />
+        <directionalLight position={[6, 8, 4]} intensity={0.7 * intensity} color="#e6f2ff" />
+        <directionalLight position={[-6, 3, -4]} intensity={0.3 * intensity} color="#88a" />
         <Suspense fallback={null}>
-          {actors.map((a, i) => (
-            <Float
-              key={i}
-              speed={0.6}
-              rotationIntensity={reduce ? 0 : 0.15}
-              floatIntensity={reduce ? 0 : 0.25}
-              floatingRange={[-0.15, 0.15]}
-            >
-              <GlbModel
-                url={TURBINE_MODELS[a.model]}
-                position={a.position}
-                scale={a.scale ?? 0.5}
-                spin={reduce ? 0 : a.spin ?? 0.25}
-                axis={a.axis ?? "y"}
-              />
-            </Float>
-          ))}
+          {actors.map((a, i) => {
+            const r = a.radius ?? 9;
+            const x = Math.sin(a.angle) * r;
+            const z = -Math.abs(Math.cos(a.angle)) * r; // always behind the camera plane
+            const y = a.y ?? 0.6;
+            return (
+              <Float
+                key={i}
+                speed={0.5}
+                rotationIntensity={reduce ? 0 : 0.1}
+                floatIntensity={reduce ? 0 : 0.2}
+                floatingRange={[-0.12, 0.12]}
+              >
+                <GlbModel
+                  url={TURBINE_MODELS[a.model]}
+                  position={[x, y, z]}
+                  fitSize={a.size ?? 1.6}
+                  groundAlign
+                  spin={reduce ? 0 : a.spin ?? 0.22}
+                  axis={a.axis ?? "y"}
+                />
+              </Float>
+            );
+          })}
           <Environment preset="sunset" />
         </Suspense>
         <EffectComposer enableNormalPass={false}>
-          <Bloom intensity={0.25} luminanceThreshold={0.72} luminanceSmoothing={0.25} />
-          <Vignette eskil={false} offset={0.15} darkness={0.85} />
+          <Bloom intensity={0.2} luminanceThreshold={0.75} luminanceSmoothing={0.25} />
+          <Vignette eskil={false} offset={0.1} darkness={0.95} />
         </EffectComposer>
       </Canvas>
-      {/* Centre radial mask keeps the UI panel legible. */}
+      {/* Strong center mask so no GLB fragment ever competes with UI copy. */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "radial-gradient(ellipse 60% 55% at 50% 50%, hsl(var(--background) / 0.82) 0%, hsl(var(--background) / 0.5) 40%, hsl(var(--background) / 0.15) 75%, hsl(var(--background) / 0) 100%)",
+            "radial-gradient(ellipse 55% 60% at 50% 50%, hsl(var(--background) / 0.94) 0%, hsl(var(--background) / 0.7) 38%, hsl(var(--background) / 0.25) 72%, hsl(var(--background) / 0) 100%)",
         }}
       />
-      {/* Bottom fade for stats bar / footer. */}
       <div
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            "linear-gradient(to bottom, hsl(var(--background) / 0) 0%, hsl(var(--background) / 0.4) 55%, hsl(var(--background) / 0.92) 100%)",
+            "linear-gradient(to bottom, hsl(var(--background) / 0) 0%, hsl(var(--background) / 0.4) 55%, hsl(var(--background) / 0.94) 100%)",
         }}
       />
     </div>

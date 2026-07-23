@@ -69,12 +69,14 @@ export const MainMenu = ({
       exit={{ opacity: 0, scale: 0.98 }}
       transition={{ duration: 0.4 }}
     >
-      {/* Live 3D backdrop with uploaded turbine GLBs */}
+      {/* Live 3D backdrop — actors auto-fitted small and pushed to the far ring so
+          no GLB can dominate the centre where the menu lives. */}
       <SceneBackdrop
         actors={[
-          { model: "hawtHero",     position: [-6.5, 0.2, -6], scale: 0.55, spin: 0.28 },
-          { model: "vawtHero",     position: [ 6.5, -0.5, -7], scale: 0.4,  spin: 0.35 },
-          { model: "savoniusMain", position: [ 0.0, -2.2, -9], scale: 0.35, spin: 0.5  },
+          { model: "hawtHero",     angle: -0.9, radius: 10, y: 0.4, size: 1.8, spin: 0.22 },
+          { model: "vawtHero",     angle:  0.9, radius: 11, y: 0.2, size: 1.5, spin: 0.32 },
+          { model: "savoniusMain", angle:  0.0, radius: 13, y: 0.1, size: 1.2, spin: 0.45 },
+          { model: "phoenix",      angle: -1.4, radius: 12, y: 0.6, size: 1.4, spin: 0.18 },
         ]}
       />
 
