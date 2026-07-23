@@ -16,10 +16,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { SceneBackdrop } from '@/components/backgrounds/SceneBackdrop';
 const SceneBackdropLazy = () => (
   <SceneBackdrop intensity={0.4} actors={[
-    { model: 'phoenix', position: [-5, -0.5, -4], scale: 0.5, spin: 0.3 },
-    { model: 'archimedes', position: [5, -0.3, -5], scale: 0.5, spin: 0.4, axis: 'z' },
+    { model: 'phoenix',    angle: -0.8, radius: 10, y: 0.4, size: 1.6, spin: 0.25 },
+    { model: 'archimedes', angle:  0.8, radius: 11, y: 0.3, size: 1.4, spin: 0.35, axis: 'z' },
   ]} />
-
 );
 
 const tabItems = [
