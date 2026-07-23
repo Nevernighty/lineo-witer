@@ -15,7 +15,7 @@ export const scenarioColdStart: CinemaScenario = {
   stage: 'wake',
   reference: 'Sheldahl & Klimas SAND80-2114; Menet Savonius (2004)',
   keyframes: [
-    { t: 0, windSpeed: 3.5, tsr: 0.2, turbulence: 0.08, rotorType: 'savonius',
+    { t: 0, windSpeed: 3.5, tsr: 0.2, turbulence: 0.08, rotorType: 'vawt-savonius',
       chapter: { ua: 'Холодний старт', en: 'Cold start' },
       camera: { pos: [6, 2.5, 6], look: [0, 0.5, 0], lerp: 0.04 },
       hud: { formula: 'τ_start = ρ·A·R·V² · C_τ(0)',
@@ -34,7 +34,7 @@ export const scenarioColdStart: CinemaScenario = {
       message: { ua: 'TSR росте, аеродинамічний опір знижує подальше прискорення.',
                  en: 'TSR climbs, aero drag brakes further acceleration.' } },
 
-    { t: 13, tsr: 2.6, windSpeed: 5, rotorType: 'darrieus',
+    { t: 13, tsr: 2.6, windSpeed: 5, rotorType: 'vawt-tropo',
       camera: { pos: [4, 1.5, 4], look: [0, 0.8, 0], lerp: 0.06 },
       vfx: [{ kind: 'label3d', pos: [0, 2, 0], text: 'Cτ(0) ≈ 0', color: '#ff5566', ttl: 4 }],
       message: { ua: 'Перемикаю на Darrieus: при ω=0 симетричний профіль не бачить AoA.',
