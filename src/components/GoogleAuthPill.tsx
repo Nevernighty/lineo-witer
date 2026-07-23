@@ -1,15 +1,20 @@
 import { useState } from "react";
-import { LogIn, LogOut, User as UserIcon, Loader2 } from "lucide-react";
+import { LogIn, LogOut, User as UserIcon, Loader2, ChevronDown } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import { lovable } from "@/integrations/lovable/index";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthUser } from "@/hooks/useAuthUser";
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent,
+  DropdownMenuItem, DropdownMenuSeparator, DropdownMenuLabel,
+} from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import type { Lang } from "@/utils/i18n";
 
 const L = {
-  ua: { signIn: "Увійти з Google", signOut: "Вийти", welcome: "Привіт" },
-  en: { signIn: "Sign in with Google", signOut: "Sign out", welcome: "Hi" },
+  ua: { signIn: "Увійти з Google", signOut: "Вийти", profile: "Профіль" },
+  en: { signIn: "Sign in with Google", signOut: "Sign out", profile: "Profile" },
 };
 
 export function GoogleAuthPill({ lang }: { lang: Lang }) {
@@ -44,34 +49,39 @@ export function GoogleAuthPill({ lang }: { lang: Lang }) {
   return (
     <AnimatePresence mode="wait">
       {user ? (
-        <motion.div
-          key="in"
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg bg-card/60 border border-primary/25 backdrop-blur-sm"
-        >
-          {user.user_metadata?.avatar_url ? (
-            <img
-              src={user.user_metadata.avatar_url}
-              alt=""
-              className="w-6 h-6 rounded-full ring-1 ring-primary/40"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
-              <UserIcon className="w-3.5 h-3.5 text-primary" />
-            </div>
-          )}
-          <span className="text-[11px] font-medium text-foreground max-w-[110px] truncate">
-            {user.user_metadata?.full_name ?? user.email}
-          </span>
-          <button
-            onClick={handleSignOut}
-            className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-            title={t.signOut}
-          >
-            <LogOut className="w-3 h-3" />
-          </button>
+        <motion.div key="in" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center gap-2 pl-1 pr-2 py-1 rounded-lg bg-card/60 border border-primary/25 backdrop-blur-sm hover:border-primary/50 transition-colors">
+                {user.user_metadata?.avatar_url ? (
+                  <img src={user.user_metadata.avatar_url} alt="" className="w-6 h-6 rounded-full ring-1 ring-primary/40" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center">
+                    <UserIcon className="w-3.5 h-3.5 text-primary" />
+                  </div>
+                )}
+                <span className="text-[11px] font-medium text-foreground max-w-[110px] truncate">
+                  {user.user_metadata?.full_name ?? user.email}
+                </span>
+                <ChevronDown className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 z-[200]">
+              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                {user.email}
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem asChild>
+                <Link to="/profile" className="flex items-center gap-2 cursor-pointer">
+                  <UserIcon className="w-3.5 h-3.5" /> {t.profile}
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="flex items-center gap-2 text-destructive focus:text-destructive cursor-pointer">
+                <LogOut className="w-3.5 h-3.5" /> {t.signOut}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </motion.div>
       ) : (
         <motion.button
