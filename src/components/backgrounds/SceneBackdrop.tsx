@@ -2,7 +2,7 @@
 // auto-fitted to a small world size so no single GLB can dominate the frame.
 // A strong center vignette guarantees UI legibility.
 import { Suspense, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Float, PerspectiveCamera } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
 import { type TurbineModelKey } from "@/assets/models";
@@ -130,22 +130,8 @@ function AmbientTurbine({ position, size, spin, vertical }: { position: [number,
 }
 
 function RotorAnimator({ target, spin, vertical }: { target: { current: THREE.Group | null }; spin: number; vertical: boolean }) {
-  useFrameSafe(target, spin, vertical);
+  useFrame((_, dt) => {
+    if (target.current) target.current.rotation[vertical ? 'y' : 'z'] += spin * Math.min(dt, 0.05);
+  });
   return null;
-}
-
-function useFrameSafe(target: { current: THREE.Group | null }, spin: number, vertical: boolean) {
-  // Kept local to this fallback so external GLB animation failures cannot affect the menu.
-  const state = useMemo(() => ({ last: performance.now() }), []);
-  useMemo(() => {
-    const tick = () => {
-      const now = performance.now();
-      const dt = Math.min(0.05, (now - state.last) / 1000);
-      state.last = now;
-      if (target.current) target.current.rotation[vertical ? 'y' : 'z'] += spin * dt;
-      requestAnimationFrame(tick);
-    };
-    const id = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(id);
-  }, [target, spin, vertical, state]);
 }
