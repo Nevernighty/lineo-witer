@@ -16,6 +16,7 @@ interface Props {
   safeRadius?: number;
   /** Minimum camera Y (floor clearance). */
   floorY?: number;
+  sceneScale: number;
 }
 
 const _target = new THREE.Vector3();
@@ -28,14 +29,21 @@ export function CinemaCamera({
   rotorCenter = [0, 1, 0],
   safeRadius = 3.2,
   floorY = 0.6,
+  sceneScale,
 }: Props) {
-  const { camera } = useThree();
+  const { camera, size } = useThree();
   const centre = useRef(new THREE.Vector3(...rotorCenter));
 
   useFrame(() => {
     if (!enabled || !cue) return;
-    _target.set(...cue.pos);
-    _look.set(...cue.look);
+    const cueScale = Math.max(0.15, sceneScale / 3);
+    _target.set(...cue.pos).multiplyScalar(cueScale);
+    _look.set(...cue.look).multiplyScalar(cueScale);
+    if (size.width < size.height) {
+      const radial = Math.max(1.2, size.height / Math.max(1, size.width));
+      _target.x *= radial;
+      _target.z *= radial;
+    }
 
     // Clamp: never below the floor.
     if (_target.y < floorY) _target.y = floorY;
@@ -54,8 +62,11 @@ export function CinemaCamera({
       _target.z = centre.current.z + _radial.z;
     }
 
-    const k = cue.lerp ?? 0.06;
+    const k = 1 - Math.pow(1 - (cue.lerp ?? 0.06), 1.5);
     camera.position.lerp(_target, k);
+    camera.near = Math.max(0.02, sceneScale * 0.004);
+    camera.far = Math.max(500, sceneScale * 40);
+    camera.updateProjectionMatrix();
     camera.lookAt(_look);
   });
   return null;

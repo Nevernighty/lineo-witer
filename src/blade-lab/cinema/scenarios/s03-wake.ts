@@ -23,6 +23,10 @@ export const scenarioWake: CinemaScenario = {
         { label: 'x/D', value: '5' },
         { label: 'k',   value: '0.075' },
         { label: 'Ct',  value: '0.8' },
+      ], legend: [
+        { labelUA: 'Вільний потік', labelEN: 'Free stream', color: '#7be7ff' },
+        { labelUA: 'Дефіцит сліду', labelEN: 'Wake deficit', color: '#3366cc' },
+        { labelUA: 'Стрибок навантаження', labelEN: 'Load transient', color: '#ff8844' },
       ] },
       message: { ua: 'Верхнє за потоком колесо стоїть на 5 діаметрах попереду.',
                  en: 'An upstream rotor sits 5 diameters ahead.' } },

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect } from 'react';
+import { useMemo, useRef, useEffect, useState } from 'react';
 import * as THREE from 'three';
 import { useFrame } from '@react-three/fiber';
 import type { BladeGeometry } from '@/aero/bem';
@@ -12,6 +12,7 @@ import {
 } from '@/aero/buildBladeGeometry';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { pushDiag } from '@/store/useDiagnosticsStore';
+import type { VfxBus } from '@/blade-lab/cinema/VfxBus';
 
 interface Props {
   geometry: BladeGeometry;
@@ -30,6 +31,8 @@ interface Props {
   recoverySpeed?: number;
   /** Reaction speed multiplier for entering failure. */
   reactionSpeed?: number;
+  highlightTarget?: 'blade' | 'hub' | 'wake' | 'inflow' | null;
+  vfxBus?: VfxBus;
 }
 
 /**
@@ -56,7 +59,10 @@ export function BladeMesh({
   geometry: g, viewMode, windSpeed, tsr, helical = 0, rotorType = 'hawt', heightOverDiameter,
   flex = 0.25, failureLevel = 0, spin = true,
   turbulence = 0, recoverySpeed = 1, reactionSpeed = 1,
+  highlightTarget = null, vfxBus,
 }: Props) {
+  const [, setVfxRevision] = useState(0);
+  useEffect(() => vfxBus?.subscribe(() => setVfxRevision(v => v + 1)), [vfxBus]);
   const isVAWT = rotorType !== 'hawt';
   const isSavonius = rotorType === 'vawt-savonius';
   const isArchimedes = rotorType === 'vawt-archimedes';
@@ -294,6 +300,8 @@ export function BladeMesh({
 
   const showStruts = isVAWT && !isSavonius && !isArchimedes;
   const showEndPlates = isSavonius; // Savonius end discs improve the Coanda jet visualisation.
+  const activeHighlight = [...(vfxBus?.active ?? [])].reverse().find(e => e.kind === 'highlightBlade' && performance.now() / 1000 - e.born < e.ttl);
+  const highlightedIndex = activeHighlight?.kind === 'highlightBlade' ? activeHighlight.index % Math.max(1, nClones) : -1;
 
   return (
     <group>
@@ -366,6 +374,11 @@ export function BladeMesh({
                     />
                   )}
                 </mesh>
+                {(highlightTarget === 'blade' || highlightedIndex === i) && (
+                  <mesh geometry={built.geometry} scale={1.015}>
+                    <meshBasicMaterial color={highlightedIndex === i ? '#ffb24a' : '#66e8ff'} transparent opacity={highlightedIndex === i ? 0.48 : 0.14} side={THREE.DoubleSide} depthWrite={false} blending={THREE.AdditiveBlending} />
+                  </mesh>
+                )}
                 {isXray && (
                   <mesh geometry={built.geometry}>
                     <meshBasicMaterial color="#39ff14" wireframe transparent opacity={0.25} />

@@ -21,6 +21,8 @@ export interface GlbModelProps {
   fitSize?: number;
   /** If true, drop the model so its lowest bbox point sits on y=position[1]. */
   groundAlign?: boolean;
+  /** Reports the fitted local-space bounds for camera/framing systems. */
+  onMeasured?: (box: THREE.Box3) => void;
 }
 
 const ROTOR_HINTS = /rotor|blade|prop|hub|spinner|impeller|savonius|darrieus|helix|fan/i;
@@ -46,6 +48,7 @@ export function GlbModel({
   isRotorNode,
   fitSize,
   groundAlign,
+  onMeasured,
 }: GlbModelProps) {
   const gltf = useGLTF(url);
   const outerRef = useRef<THREE.Group>(null);
@@ -81,7 +84,12 @@ export function GlbModel({
     } else {
       setFitOffsetY(0);
     }
-  }, [scene, fitSize, groundAlign]);
+    const fitted = box.clone();
+    fitted.min.multiplyScalar(s);
+    fitted.max.multiplyScalar(s);
+    if (groundAlign) fitted.translate(new THREE.Vector3(0, -box.min.y * s, 0));
+    onMeasured?.(fitted);
+  }, [scene, fitSize, groundAlign, onMeasured]);
 
   useFrame((_, dt) => {
     if (names.length > 0) return;

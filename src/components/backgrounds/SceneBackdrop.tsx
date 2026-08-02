@@ -2,11 +2,10 @@
 // auto-fitted to a small world size so no single GLB can dominate the frame.
 // A strong center vignette guarantees UI legibility.
 import { Suspense, useMemo } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame } from "@react-three/fiber";
 import { Environment, Float, PerspectiveCamera } from "@react-three/drei";
 import { EffectComposer, Bloom, Vignette } from "@react-three/postprocessing";
-import { GlbModel } from "@/three/GlbModel";
-import { TURBINE_MODELS, type TurbineModelKey } from "@/assets/models";
+import { type TurbineModelKey } from "@/assets/models";
 import * as THREE from "three";
 
 export interface BackdropActor {
@@ -84,14 +83,7 @@ export function SceneBackdrop({ actors, intensity = 0.55, className }: SceneBack
                 floatIntensity={reduce ? 0 : 0.2}
                 floatingRange={[-0.12, 0.12]}
               >
-                <GlbModel
-                  url={TURBINE_MODELS[a.model]}
-                  position={[x, y, z]}
-                  fitSize={a.size ?? 1.6}
-                  groundAlign
-                  spin={reduce ? 0 : a.spin ?? 0.22}
-                  axis={a.axis ?? "y"}
-                />
+                <AmbientTurbine position={[x, y, z]} size={a.size ?? 1.6} spin={reduce ? 0 : a.spin ?? 0.22} vertical={a.axis === 'y'} />
               </Float>
             );
           })}
@@ -119,4 +111,27 @@ export function SceneBackdrop({ actors, intensity = 0.55, className }: SceneBack
       />
     </div>
   );
+}
+
+function AmbientTurbine({ position, size, spin, vertical }: { position: [number, number, number]; size: number; spin: number; vertical: boolean }) {
+  const rotor = useMemo(() => ({ current: null as THREE.Group | null }), []);
+  return (
+    <group position={position} scale={size / 3}>
+      <mesh position={[0, 1, 0]}><cylinderGeometry args={[0.035, 0.08, 2, 10]} /><meshStandardMaterial color="#70808a" metalness={0.55} roughness={0.45} /></mesh>
+      <group position={[0, 2, 0]} rotation={vertical ? [0, 0, 0] : [0, Math.PI / 2, 0]}>
+        <group ref={(node) => { rotor.current = node; }} onUpdate={(node) => { node.userData.spin = spin; }}>
+          {[0, 1, 2].map(i => <mesh key={i} rotation={[0, 0, i * Math.PI * 2 / 3]} position={[0, 0.6, 0]}><boxGeometry args={[0.08, 1.15, 0.035]} /><meshStandardMaterial color="#b5c9d2" metalness={0.35} roughness={0.42} /></mesh>)}
+          <mesh><sphereGeometry args={[0.13, 16, 12]} /><meshStandardMaterial color="#8fa5ae" metalness={0.7} roughness={0.3} /></mesh>
+        </group>
+      </group>
+      <RotorAnimator target={rotor} spin={spin} vertical={vertical} />
+    </group>
+  );
+}
+
+function RotorAnimator({ target, spin, vertical }: { target: { current: THREE.Group | null }; spin: number; vertical: boolean }) {
+  useFrame((_, dt) => {
+    if (target.current) target.current.rotation[vertical ? 'y' : 'z'] += spin * Math.min(dt, 0.05);
+  });
+  return null;
 }

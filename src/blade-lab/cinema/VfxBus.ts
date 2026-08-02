@@ -26,12 +26,13 @@ export interface VfxBus {
 
 export function createVfxBus(): VfxBus {
   const listeners = new Set<() => void>();
+  let serial = 0;
   const bus: VfxBus = {
     active: [],
     emit(e) {
       const ev = {
         ...e,
-        id: e.id ?? `${e.kind}-${Math.random().toString(36).slice(2, 9)}`,
+        id: e.id ?? `${e.kind}-${serial++}`,
         born: e.born ?? performance.now() / 1000,
       } as VfxEvent;
       bus.active = [...bus.active, ev].slice(-MAX);

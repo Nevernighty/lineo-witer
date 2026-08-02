@@ -2,7 +2,7 @@
 // collapsible chapter/HUD strip, and safer scrubbing.
 
 import { useState } from 'react';
-import { Play, Pause, Square, Film, ChevronLeft, ChevronRight, Gauge, ChevronDown, ChevronUp } from 'lucide-react';
+import { Play, Pause, Square, Film, ChevronLeft, ChevronRight, Gauge, ChevronDown, ChevronUp, Camera } from 'lucide-react';
 import { CINEMA_SCENARIOS } from './scenarios';
 import type { DirectorState } from './useDirector';
 
@@ -22,7 +22,7 @@ export function CinemaPanel({ lang, director }: Props) {
   return (
     <div
       className="absolute z-30 pointer-events-none"
-      style={{ bottom: 74, left: 12, right: 12 }}
+      style={{ bottom: 70, left: 8, right: 8 }}
     >
       <div className="mx-auto" style={{ maxWidth: 920 }}>
 
@@ -39,7 +39,7 @@ export function CinemaPanel({ lang, director }: Props) {
 
       {/* Narrator + HUD row */}
       {showRich && (hasNarrator || hasHud) && (
-        <div className="mx-auto mb-2 flex gap-2 items-stretch animate-fade-in">
+        <div className="mx-auto mb-2 flex flex-col sm:flex-row gap-2 items-stretch animate-fade-in">
           {hasNarrator && (
             <div className="flex-1 rounded-md border border-border/60 bg-background/85 backdrop-blur px-3 py-2 text-[13px] leading-snug shadow-lg pointer-events-auto">
               <div className="text-foreground">
@@ -53,7 +53,7 @@ export function CinemaPanel({ lang, director }: Props) {
             </div>
           )}
           {hasHud && (
-            <div className="w-[260px] max-w-[45%] shrink-0 rounded-md border border-primary/30 bg-background/85 backdrop-blur px-3 py-2 shadow-lg pointer-events-auto">
+            <div className="sm:w-[260px] sm:max-w-[45%] shrink-0 rounded-md border border-primary/30 bg-background/85 backdrop-blur px-3 py-2 shadow-lg pointer-events-auto">
               {director.hud!.formula && (
                 <div className="font-mono text-[11px] text-primary/90 mb-1 truncate" title={director.hud!.formula}>
                   {director.hud!.formula}
@@ -71,6 +71,11 @@ export function CinemaPanel({ lang, director }: Props) {
                   ))}
                 </div>
               )}
+              {director.hud?.legend && (
+                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 border-t border-border/40 pt-1">
+                  {director.hud.legend.map((item) => <span key={item.labelEN} className="inline-flex items-center gap-1 text-[9px] text-muted-foreground"><i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color }} />{lang === 'ua' ? item.labelUA : item.labelEN}</span>)}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -78,7 +83,7 @@ export function CinemaPanel({ lang, director }: Props) {
 
 
       {/* Control ribbon */}
-      <div className="mx-auto flex items-center gap-2 rounded-md border border-border/60 bg-background/85 backdrop-blur px-2 py-1.5 shadow-lg pointer-events-auto">
+      <div className="mx-auto flex flex-wrap items-center gap-1.5 rounded-md border border-border/60 bg-background/85 backdrop-blur px-2 py-1.5 shadow-lg pointer-events-auto">
         <Film size={14} className="text-muted-foreground shrink-0" />
         <select
           className="min-w-[180px] flex-1 bg-transparent text-[12px] outline-none"
@@ -111,6 +116,7 @@ export function CinemaPanel({ lang, director }: Props) {
         <button className="p-1 rounded hover:bg-muted disabled:opacity-30" onClick={director.stop} disabled={!s} aria-label="Stop">
           <Square size={14} />
         </button>
+        <button className="p-1 rounded hover:bg-muted disabled:opacity-30" onClick={director.releaseCamera} disabled={!director.cameraControlled} aria-label="Release camera" title={lang === 'ua' ? 'Ручна камера' : 'Manual camera'}><Camera size={14} /></button>
 
         <div className="relative flex-1 min-w-[140px] h-6 flex items-center">
           <input
@@ -146,6 +152,7 @@ export function CinemaPanel({ lang, director }: Props) {
         <span className="w-14 text-right tabular-nums text-[11px] text-muted-foreground">
           {director.elapsed.toFixed(1)}s / {s ? s.duration.toFixed(0) : '–'}s
         </span>
+        {s?.reference && <span className="basis-full truncate text-[9px] text-muted-foreground/80" title={s.reference}>{s.reference}</span>}
         {(hasNarrator || hasChapter || hasHud) && (
           <button
             className="p-1 rounded hover:bg-muted"

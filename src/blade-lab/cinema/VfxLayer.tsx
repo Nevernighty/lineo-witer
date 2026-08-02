@@ -6,16 +6,16 @@ import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { VfxBus, VfxEvent } from './VfxBus';
 
-interface Props { bus: VfxBus; }
+interface Props { bus: VfxBus; scale?: number; }
 
-export function VfxLayer({ bus }: Props) {
+export function VfxLayer({ bus, scale = 1 }: Props) {
   const [, tick] = useState(0);
   useEffect(() => bus.subscribe(() => tick(n => n + 1)), [bus]);
   useFrame(() => {
     if (bus.prune(performance.now() / 1000)) tick(n => n + 1);
   });
   return (
-    <group>
+    <group scale={scale}>
       {bus.active.map(ev => <VfxItem key={ev.id} ev={ev} />)}
     </group>
   );
