@@ -31,6 +31,7 @@ export interface DirectorState {
   chapter: { ua: string; en: string } | null;
   hud: HudCard | null;
   cameraCue: CameraCue | null;
+  cameraControlled: boolean;
   keyframeTimes: number[];
   play: () => void;
   pause: () => void;
@@ -41,6 +42,7 @@ export interface DirectorState {
   nextKf: () => void;
   prevKf: () => void;
   load: (s: CinemaScenario | null) => void;
+  releaseCamera: () => void;
 }
 
 function lerp(a: number, b: number, t: number) { return a + (b - a) * t; }
@@ -84,6 +86,7 @@ export function useDirector(adapters: DirectorAdapters): DirectorState {
   const [chapter, setChapter] = useState<{ ua: string; en: string } | null>(null);
   const [hud, setHud] = useState<HudCard | null>(null);
   const [cameraCue, setCameraCue] = useState<CameraCue | null>(null);
+  const [cameraControlled, setCameraControlled] = useState(false);
 
   const rafRef = useRef<number | null>(null);
   const lastTsRef = useRef<number>(0);
@@ -181,11 +184,12 @@ export function useDirector(adapters: DirectorAdapters): DirectorState {
     speed,
     message, target, chapter, hud, cameraCue,
     keyframeTimes: scenario?.keyframes.map(k => k.t) ?? [],
-    play: () => { if (scenario) setPlaying(true); },
-    pause: () => setPlaying(false),
-    toggle: () => setPlaying(p => (scenario ? !p : false)),
-    stop: () => { setPlaying(false); seek(0); },
-    scrub: seek,
+    cameraControlled,
+    play: () => { if (scenario) { setCameraControlled(true); setPlaying(true); } },
+    pause: () => { setPlaying(false); setCameraControlled(false); },
+    toggle: () => setPlaying(p => { const next = scenario ? !p : false; setCameraControlled(next); return next; }),
+    stop: () => { setPlaying(false); setCameraControlled(false); seek(0); },
+    scrub: (t) => { setCameraControlled(true); seek(t); },
     setSpeed: (s: number) => setSpeed(s),
     nextKf: () => {
       if (!scenario) return;
@@ -197,6 +201,7 @@ export function useDirector(adapters: DirectorAdapters): DirectorState {
       const prior = [...scenario.keyframes].reverse().find(k => k.t < elapsed - 0.01);
       seek(prior ? prior.t : 0);
     },
-    load: (s) => { setPlaying(false); setScenario(s); },
+    load: (s) => { setPlaying(false); setCameraControlled(!!s); setScenario(s); },
+    releaseCamera: () => setCameraControlled(false),
   };
 }

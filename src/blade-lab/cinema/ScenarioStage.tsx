@@ -44,11 +44,11 @@ function RooftopStage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean 
 function Rooftop5Stage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean }) {
   const gY = groundY(R, H, isVAWT);
   const spec = BUILDING_MODELS.slavutych5;
-  const targetSize = R * 6; // scale building so it dwarfs the rotor
+  const targetSize = Math.min(R * 4.2, Math.max(R, H) * 3.4);
   return (
     <group>
       <Suspense fallback={null}>
-        <GlbModel url={spec.url} position={[0, gY, 0]} fitSize={targetSize} groundAlign spin={0} />
+         <GlbModel url={spec.url} position={[0, gY, R * 2.4]} fitSize={targetSize} groundAlign spin={0} />
       </Suspense>
       {/* Parapet upstream to keep the recirculation lesson intact */}
       <mesh position={[0, gY + spec.roofHeight * (targetSize / spec.targetSize) + R * 0.35, -R * 0.9]}>
@@ -104,8 +104,8 @@ function UrbanCanyonStage({ R, H, isVAWT, V }: { R: number; H: number; isVAWT: b
   return (
     <group>
       <Suspense fallback={null}>
-        <GlbModel url={left.url}  position={[-R * 3.2, gY, -R * 0.5]} fitSize={R * 5} groundAlign spin={0} />
-        <GlbModel url={right.url} position={[ R * 3.2, gY, -R * 0.5]} fitSize={R * 5} groundAlign spin={0} />
+         <GlbModel url={left.url}  position={[-R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
+         <GlbModel url={right.url} position={[ R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
         <GlbModel url={kiosk.url} position={[ R * 0.0, gY,  R * 3.8]} fitSize={R * 1.4} groundAlign spin={0} />
       </Suspense>
       {/* Air-gap indicator: subtle green plane between the buildings */}

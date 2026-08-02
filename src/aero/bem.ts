@@ -35,6 +35,18 @@ export interface BemResult {
   cp: number; ct: number; tsr: number; rotorRadius: number;
   sweptArea?: number;
   rotorType?: 'hawt' | 'vawt';
+  perBlade: BladeLoadResult[];
+}
+
+export interface BladeLoadResult {
+  bladeIndex: number;
+  thrust: number;
+  torque: number;
+  power: number;
+  cpContribution: number;
+  meanAlpha: number;
+  stallFraction: number;
+  peakLoadStation: number;
 }
 
 function localChord(g: BladeGeometry, r: number): number {
@@ -106,7 +118,12 @@ export function solveBEM(g: BladeGeometry, flow: FlowConditions, nStations = 20)
   const pAvail = 0.5 * flow.rho * sweptArea * Math.pow(flow.V, 3);
   const cp = Math.max(0, Math.min(0.593, power / Math.max(1, pAvail)));
   const ct = thrust / Math.max(1, 0.5 * flow.rho * sweptArea * flow.V * flow.V);
-  return { elements, thrust, torque, power, cp, ct, tsr, rotorRadius: R };
+  const bladePower = power / Math.max(1, g.nBlades);
+  const stalled = elements.filter(e => e.stalled).length / Math.max(1, elements.length);
+  const meanAlpha = elements.reduce((sum, e) => sum + e.alpha, 0) / Math.max(1, elements.length);
+  const peak = elements.reduce((best, e) => Math.abs(e.dT) > Math.abs(best.dT) ? e : best, elements[0] ?? { r: 0, dT: 0 } as BemElementResult);
+  const perBlade = Array.from({ length: g.nBlades }, (_, bladeIndex) => ({ bladeIndex, thrust: thrust / g.nBlades, torque: torque / g.nBlades, power: bladePower, cpContribution: cp / g.nBlades, meanAlpha, stallFraction: stalled, peakLoadStation: peak.r }));
+  return { elements, thrust, torque, power, cp, ct, tsr, rotorRadius: R, perBlade };
 }
 
 /** Power curve P(V) sweeping a fixed TSR controller until rated, then pitch-limited flat. */
@@ -187,7 +204,14 @@ export function solveVAWT(g: BladeGeometry, flow: FlowConditions, options: VAWTO
       dT: thrust / nStations, dQ, F: 1, stalled: Math.abs(alpha) > g.airfoil.alphaStall || rel < flow.V * 0.35,
     });
   }
-  return { elements, thrust, torque, power, cp, ct, tsr, rotorRadius: R, sweptArea, rotorType: 'vawt' };
+  const perBlade = Array.from({ length: g.nBlades }, (_, bladeIndex) => {
+    const bladeElements = elements.filter((_, i) => i % g.nBlades === bladeIndex);
+    const meanAlpha = bladeElements.reduce((sum, e) => sum + e.alpha, 0) / Math.max(1, bladeElements.length);
+    const stallFraction = bladeElements.filter(e => e.stalled).length / Math.max(1, bladeElements.length);
+    const peak = bladeElements.reduce((best, e) => Math.abs(e.dT) > Math.abs(best.dT) ? e : best, bladeElements[0] ?? elements[0]);
+    return { bladeIndex, thrust: thrust / g.nBlades, torque: torque / g.nBlades, power: power / g.nBlades, cpContribution: cp / g.nBlades, meanAlpha, stallFraction, peakLoadStation: peak?.r ?? R };
+  });
+  return { elements, thrust, torque, power, cp, ct, tsr, rotorRadius: R, sweptArea, rotorType: 'vawt', perBlade };
 }
 
 export function cpLambdaCurveVAWT(g: BladeGeometry, V = 10, rho = 1.225, options: VAWTOptions = {}): { lambda: number; cp: number; ct: number }[] {

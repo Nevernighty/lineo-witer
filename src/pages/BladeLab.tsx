@@ -249,6 +249,8 @@ export default function BladeLab() {
       stage: director.scenario?.stage,
       vfxBus,
       cameraCue: director.cameraCue,
+      cameraControlled: director.cameraControlled,
+      target: director.target,
     },
   };
 

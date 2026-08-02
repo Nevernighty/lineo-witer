@@ -14,10 +14,11 @@ export interface HudMetric {
 export interface HudCard {
   formula?: string;
   metrics?: HudMetric[];
+  legend?: Array<{ labelUA: string; labelEN: string; color: string }>;
 }
 
 export interface CameraCue {
-  /** World-space camera position (in metres, same frame as rotor). */
+  /** Cue-space position. The viewer scales cue-space to the live rotor envelope. */
   pos: [number, number, number];
   /** World-space look-at point. */
   look: [number, number, number];

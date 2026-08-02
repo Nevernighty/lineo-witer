@@ -47,7 +47,7 @@ interface Props {
   reactionSpeed?: number;
   recoverySpeed?: number;
   vfx: VfxConfig;
-  cinema?: { stage?: StageId; vfxBus?: VfxBus; cameraCue?: CameraCue | null };
+  cinema?: { stage?: StageId; vfxBus?: VfxBus; cameraCue?: CameraCue | null; cameraControlled?: boolean; target?: 'blade' | 'hub' | 'wake' | 'inflow' | null };
 }
 
 function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity, turns, radiusFactor, decay }:
@@ -334,6 +334,8 @@ export function BladeViewer3D({
           turbulence={turbulence}
           reactionSpeed={reactionSpeed}
           recoverySpeed={recoverySpeed}
+          highlightTarget={cinema?.target ?? null}
+          vfxBus={cinema?.vfxBus}
         />
 
         {showTipVortex && (isVAWT
@@ -350,7 +352,7 @@ export function BladeViewer3D({
         {cinema?.stage && cinema.stage !== 'none' && (
           <ScenarioStage stage={cinema.stage} R={R} H={H} isVAWT={isVAWT} V={windSpeed} />
         )}
-        {cinema?.vfxBus && <VfxLayer bus={cinema.vfxBus} />}
+        {cinema?.vfxBus && <VfxLayer bus={cinema.vfxBus} scale={Math.max(R, H) / 3} />}
         <GroundDisc R={Math.max(R, H * 0.5)} yPos={groundY} />
         <Grid
           args={[Math.max(R, H) * 8, Math.max(R, H) * 8]}
@@ -360,9 +362,9 @@ export function BladeViewer3D({
           cellSize={Math.max(R, H) * 0.2} sectionSize={Math.max(R, H)}
         />
       </Suspense>
-      <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} enabled={!cinema?.cameraCue} />
-      <Cinematic enabled={cinematic && !cinema?.cameraCue} R={R} H={H} isVAWT={isVAWT} />
-      <CinemaCamera cue={cinema?.cameraCue ?? null} enabled={!!cinema?.cameraCue} />
+      <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} enabled={!cinema?.cameraControlled} />
+      <Cinematic enabled={cinematic && !cinema?.cameraControlled && !cinema?.stage} R={R} H={H} isVAWT={isVAWT} />
+      <CinemaCamera cue={cinema?.cameraCue ?? null} enabled={!!cinema?.cameraCue && !!cinema?.cameraControlled} sceneScale={Math.max(R, H)} rotorCenter={[0, 0, 0]} safeRadius={Math.max(R, H) * 1.15} floorY={groundY + Math.max(R, H) * 0.12} />
       {postFX && !isMobile && (
         <EffectComposer multisampling={0}>
           <Bloom intensity={0.4} luminanceThreshold={0.6} luminanceSmoothing={0.3} mipmapBlur />
