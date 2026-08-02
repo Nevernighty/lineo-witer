@@ -1,12 +1,13 @@
 import React, { useRef, useMemo, useState } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html, Cylinder, Box, Sphere } from '@react-three/drei';
+import { Cylinder, Box, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
 import { Obstacle, GeneratorSubtype, GENERATOR_SUBTYPES } from '../types';
 import { WindPhysicsConfig, calculateWindShear } from './WindPhysicsEngine';
 import { useActiveBladePreset } from '@/store/useBladePresetStore';
 import { computePowerFromBladeGeometry } from '@/components/wind-simulation/EnergyCalculator';
 import { BladePresetTurbine3D } from './BladePresetTurbine3D';
+import { TurbineHudCard } from './TurbineHudCard';
 
 interface WindGenerator3DProps {
   obstacle: Obstacle;
@@ -320,7 +321,8 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const nacelleSize = obstacle.width * 0.35;
   const wobbleRef = useRef<THREE.Group>(null);
   const wobblePhase = useRef(Math.random() * Math.PI * 2);
-  const [showDetails, setShowDetails] = useState(false);
+  const energyRef = useRef({ kj: 0, avg: 0 });
+  const [telemetry, setTelemetry] = useState({ kj: 0, avg: 0 });
 
   const power = useMemo(() => {
     const presetPower = calculateBladePresetPower(activePreset, config.airDensity, config.windSpeed, towerHeight + obstacle.y, config.referenceHeight, config.surfaceRoughness);
@@ -351,7 +353,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
     };
   }, [power, adjustedSpeed, rotorDiameter, config.airDensity, towerHeight, obstacle.y]);
 
-  useFrame((state) => {
+  useFrame((state, dt) => {
     if (!wobbleRef.current) return;
     const time = state.clock.elapsedTime;
     const windStrength = Math.min(config.windSpeed / 20, 1);
@@ -361,6 +363,9 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
       + Math.cos(angleRad) * wobbleIntensity * 0.5;
     wobbleRef.current.rotation.z = Math.cos(time * 0.8 + wobblePhase.current) * wobbleIntensity * 0.6
       + Math.sin(angleRad) * wobbleIntensity * 0.5;
+    energyRef.current.kj += power * Math.min(dt, 0.05) / 1000;
+    energyRef.current.avg += (power - energyRef.current.avg) * Math.min(1, dt / 3);
+    if (Math.floor(time * 4) !== Math.floor((time - dt) * 4)) setTelemetry({ ...energyRef.current });
   });
 
   const position: [number, number, number] = [
@@ -397,32 +402,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         <EnergyAbsorptionEffect towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} power={power} adjustedSpeed={adjustedSpeed} />
       )}
 
-      <Html position={[0, towerHeight + 4, 0]} center style={{ pointerEvents: 'auto' }}>
-        <div 
-          className="rounded px-1.5 py-0.5 text-center border shadow-lg cursor-pointer transition-all hover:scale-105"
-          style={{ backgroundColor: 'rgba(0,0,0,0.85)', borderColor: `${statusColor}40`, minWidth: '55px' }}
-          onClick={() => setShowDetails(!showDetails)}
-        >
-          <div className="text-[6px] font-mono" style={{ color: `${statusColor}cc` }}>{activePreset ? `Blade Lab · ${activePreset.nameUA}` : subtypeName}</div>
-          {statusLabel ? (
-            <div className="text-[9px] font-bold" style={{ color: statusColor }}>{statusLabel}</div>
-          ) : (
-            <div className="text-[9px] font-semibold" style={{ color: statusColor }}>⚡ {powerStr}</div>
-          )}
-          <div className="text-[6px]" style={{ color: `${statusColor}99` }}>{adjustedSpeed.toFixed(1)} m/s</div>
-          
-          {showDetails && (
-            <div className="mt-1 pt-1 border-t text-left space-y-0.5" style={{ borderColor: `${statusColor}20` }}>
-              <div className="text-[6px] text-cyan-400">📐 {detailData.sweptArea} m² | H={detailData.hubHeight}m</div>
-              <div className="text-[6px] text-yellow-400">η={detailData.efficiency}% | CF={detailData.capacityFactor}%</div>
-              <div className="text-[6px] text-orange-400">AEP ≈ {detailData.aep}</div>
-              <div className="text-[5px] text-muted-foreground">
-                {specs.cutIn}-{specs.cutOut} m/s
-              </div>
-            </div>
-          )}
-        </div>
-      </Html>
+      <TurbineHudCard position={[0, towerHeight * 0.72, 0]} radius={rotorDiameter / 2} height={towerHeight} density={isSelected || isHovered ? 'full' : 'compact'} label={activePreset ? `Blade Lab · ${activePreset.nameUA}` : subtypeName} data={{ power, avgPower: telemetry.avg, cumulativeKJ: telemetry.kj, rpm: adjustedSpeed * 60 / Math.max(1, rotorDiameter * Math.PI), tsr: adjustedSpeed > 0 ? 4.5 : 0, cp: Number(detailData.efficiency) * 0.00593, ti: config.turbulenceIntensity }} />
 
       {/* Neomorphic glow selection */}
       {isSelected && (

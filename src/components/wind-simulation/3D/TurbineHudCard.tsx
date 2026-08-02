@@ -36,12 +36,18 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
   const { camera } = useThree();
   const anchor = useRef(new THREE.Vector3());
   const [side, setSide] = useState<1 | -1>(1);
+  const [opacity, setOpacity] = useState(1);
 
   useFrame(() => {
     // Flip the card to the side of the turbine facing away from the camera-forward,
     // so it hovers next to the rotor rather than in front of it.
     const dx = camera.position.x - position[0];
-    setSide(dx >= 0 ? 1 : -1);
+    const nextSide = dx >= 0 ? 1 : -1;
+    if (nextSide !== side) setSide(nextSide);
+    anchor.current.set(...position);
+    const d = camera.position.distanceTo(anchor.current);
+    const nextOpacity = THREE.MathUtils.clamp(1 - Math.max(0, d - radius * 7) / Math.max(1, radius * 10), 0.15, 1);
+    if (Math.abs(nextOpacity - opacity) > 0.04) setOpacity(nextOpacity);
   });
 
   const anchorPos = useMemo<[number, number, number]>(() => {
@@ -58,9 +64,9 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
         position={anchorPos}
         center
         distanceFactor={compact ? 14 : 12}
-        occlude={false}
-        zIndexRange={[10, 0]}
-        style={{ pointerEvents: "none" }}
+        occlude
+        zIndexRange={[4, 0]}
+        style={{ pointerEvents: "none", opacity }}
       >
         <div
           className="rounded-lg border border-primary/40 bg-background/85 backdrop-blur px-2.5 py-1.5 shadow-[0_4px_20px_hsl(var(--primary)/0.25)]"
