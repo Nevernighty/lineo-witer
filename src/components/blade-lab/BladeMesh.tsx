@@ -300,7 +300,7 @@ export function BladeMesh({
 
   const showStruts = isVAWT && !isSavonius && !isArchimedes;
   const showEndPlates = isSavonius; // Savonius end discs improve the Coanda jet visualisation.
-  const activeHighlight = vfxBus?.active.findLast?.(e => e.kind === 'highlightBlade' && performance.now() / 1000 - e.born < e.ttl);
+  const activeHighlight = [...(vfxBus?.active ?? [])].reverse().find(e => e.kind === 'highlightBlade' && performance.now() / 1000 - e.born < e.ttl);
   const highlightedIndex = activeHighlight?.kind === 'highlightBlade' ? activeHighlight.index % Math.max(1, nClones) : -1;
 
   return (
