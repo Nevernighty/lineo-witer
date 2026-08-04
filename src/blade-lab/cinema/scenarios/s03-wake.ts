@@ -18,7 +18,7 @@ export const scenarioWake: CinemaScenario = {
   keyframes: [
     { t: 0, windSpeed: 9, tsr: 7, turbulence: 0.10,
       chapter: { ua: 'Взаємодія зі слідом', en: 'Wake interference' },
-      camera: { pos: [0, 2, 12], look: [0, 0, -6], lerp: 0.04 },
+      camera: { pos: [7.5, 3.2, 9], look: [0, 0, -5.5], lerp: 0.055 },
       hud: { formula: 'V_w = V·[1 − (1−√(1−Ct))·(D/(D+2kx))²]', metrics: [
         { label: 'x/D', value: '5' },
         { label: 'k',   value: '0.075' },
@@ -78,7 +78,7 @@ export const scenarioWake: CinemaScenario = {
       message: { ua: '3P-буферинг: три удари за оберт — швидко втомлює корінь лопаті.',
                  en: '3P buffet: three hits per revolution — root fatigue accelerates.' } },
 
-    { t: 28, camera: { pos: [0, 14, 0.01], look: [0, 0, -4], lerp: 0.04 },
+    { t: 28, camera: { pos: [0.2, 12, 3.5], look: [0, 0, -5], lerp: 0.05 },
       message: { ua: 'Вигляд згори: наш ротор глибоко всередині конуса сліду.',
                  en: 'Top-down: our rotor sits deep inside the wake cone.' } },
 

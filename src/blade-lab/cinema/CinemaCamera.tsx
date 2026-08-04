@@ -39,6 +39,9 @@ export function CinemaCamera({
     const cueScale = Math.max(0.15, sceneScale / 3);
     _target.set(...cue.pos).multiplyScalar(cueScale);
     _look.set(...cue.look).multiplyScalar(cueScale);
+    // The cinematic telemetry occupies the lower viewport. Aim slightly below
+    // the physical target so the active rotor/stage sits in the clear upper 62%.
+    _look.y -= sceneScale * (size.height < 760 ? 0.34 : 0.24);
     if (size.width < size.height) {
       const radial = Math.max(1.2, size.height / Math.max(1, size.width));
       _target.x *= radial;
