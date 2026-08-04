@@ -391,6 +391,25 @@ export function BladeMesh({
       </group>
 
       {/* Static (non-rotating) world geometry: mast & base. */}
+      {highlightTarget === 'hub' && (
+        <group>
+          <mesh rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[g.tipRadius * 0.23, g.tipRadius * 0.018, 8, 56]} />
+            <meshBasicMaterial color="#33ff99" transparent opacity={0.8} depthWrite={false} />
+          </mesh>
+          <pointLight color="#33ff99" intensity={1.4} distance={g.tipRadius * 1.8} />
+        </group>
+      )}
+      {highlightTarget === 'inflow' && (
+        <group position={isVAWT ? [-g.tipRadius * 1.4, 0, 0] : [0, 0, -g.tipRadius * 0.8]}>
+          {[-0.55, 0, 0.55].map((offset) => (
+            <mesh key={offset} position={isVAWT ? [0, offset * g.tipRadius, 0] : [offset * g.tipRadius, 0, 0]} rotation={isVAWT ? [0, 0, -Math.PI / 2] : [Math.PI / 2, 0, 0]}>
+              <coneGeometry args={[g.tipRadius * 0.06, g.tipRadius * 0.22, 12]} />
+              <meshBasicMaterial color="#7be7ff" transparent opacity={0.75} />
+            </mesh>
+          ))}
+        </group>
+      )}
       {isVAWT ? (
         <>
           <mesh castShadow receiveShadow>
