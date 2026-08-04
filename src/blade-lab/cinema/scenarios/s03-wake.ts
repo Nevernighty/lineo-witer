@@ -18,7 +18,7 @@ export const scenarioWake: CinemaScenario = {
   keyframes: [
     { t: 0, windSpeed: 9, tsr: 7, turbulence: 0.10,
       chapter: { ua: 'Взаємодія зі слідом', en: 'Wake interference' },
-      camera: { pos: [7.5, 3.2, 9], look: [0, 0, -5.5], lerp: 0.055 },
+      camera: { pos: [6.6, 2.8, 8], look: [0, 0, -5.4], lerp: 0.055 },
       hud: { formula: 'V_w = V·[1 − (1−√(1−Ct))·(D/(D+2kx))²]', metrics: [
         { label: 'x/D', value: '5' },
         { label: 'k',   value: '0.075' },
