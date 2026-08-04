@@ -1,8 +1,6 @@
-// Bottom-of-viewport cinema HUD v3: responsive width driven by side-panel CSS vars,
-// collapsible chapter/HUD strip, and safer scrubbing.
-
 import { useState } from 'react';
-import { Play, Pause, Square, Film, ChevronLeft, ChevronRight, Gauge, ChevronDown, ChevronUp, Camera } from 'lucide-react';
+import { Camera, ChevronDown, ChevronLeft, ChevronRight, ChevronUp, Film, Pause, Play, Square } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { CINEMA_SCENARIOS } from './scenarios';
 import type { DirectorState } from './useDirector';
 
@@ -12,160 +10,38 @@ interface Props {
 }
 
 export function CinemaPanel({ lang, director }: Props) {
-  const s = director.scenario;
+  const scenario = director.scenario;
   const [collapsed, setCollapsed] = useState(false);
-  const hasNarrator = !!director.message;
-  const hasChapter = !!director.chapter;
-  const hasHud = !!director.hud && ((director.hud.metrics?.length ?? 0) > 0 || !!director.hud.formula);
-  const showRich = !collapsed && (hasNarrator || hasChapter || hasHud);
+  const rich = !collapsed && !!scenario;
+  const currentStep = scenario
+    ? Math.max(0, scenario.keyframes.reduce((last, keyframe, index) => keyframe.t <= director.elapsed ? index : last, 0))
+    : 0;
 
   return (
-    <div
-      className="absolute z-30 pointer-events-none"
-      style={{ bottom: 70, left: 8, right: 8 }}
-    >
-      <div className="mx-auto" style={{ maxWidth: 920 }}>
-
-
-      {/* Chapter title card */}
-      {showRich && hasChapter && (
-        <div className="mx-auto mb-2 text-center animate-fade-in">
-          <div className="inline-block px-4 py-1 rounded-md border border-primary/40 bg-background/85 backdrop-blur text-primary tracking-wide font-semibold text-[14px] shadow-lg">
-            {lang === 'ua' ? director.chapter!.ua : director.chapter!.en}
+    <section className="absolute inset-x-2 bottom-14 z-30 pointer-events-none" aria-label={lang === 'ua' ? 'Кінематографічний сценарій' : 'Cinematic scenario'}>
+      <div className="mx-auto max-w-[760px] overflow-hidden rounded-md border border-border/70 bg-background/90 shadow-2xl backdrop-blur-xl pointer-events-auto">
+        {rich && <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(210px,0.8fr)] gap-3 border-b border-border/50 px-3 py-2 max-[620px]:grid-cols-1">
+          <div className="min-w-0 border-l-2 border-primary pl-3">
+            <div className="mb-1 flex items-center gap-2 text-[10px] uppercase text-muted-foreground"><span>{lang === 'ua' ? 'Крок' : 'Step'} {currentStep + 1}/{scenario?.keyframes.length ?? 0}</span>{director.target && <span className="rounded-sm bg-primary/15 px-1.5 py-0.5 text-primary">{director.target}</span>}</div>
+            <h2 className="truncate text-sm font-semibold text-primary">{director.chapter ? (lang === 'ua' ? director.chapter.ua : director.chapter.en) : (lang === 'ua' ? scenario?.nameUA : scenario?.nameEN)}</h2>
+            {director.message && <p className="mt-1 text-[12px] leading-4 text-foreground">{lang === 'ua' ? director.message.ua : director.message.en}</p>}
           </div>
+          <div className="min-w-0 border-l border-border/60 pl-3">
+            {director.hud?.formula && <div className="truncate font-mono text-[11px] text-primary" title={director.hud.formula}>{director.hud.formula}</div>}
+            <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5">{director.hud?.metrics?.map((metric) => <div key={`${metric.label}-${metric.value}`} className="flex min-w-0 items-baseline justify-between gap-2 text-[10px]"><span className="truncate text-muted-foreground">{metric.label}</span><span className={metric.warn ? 'font-mono text-orange-400' : 'font-mono text-primary'}>{metric.value}{metric.unit ? ` ${metric.unit}` : ''}</span></div>)}</div>
+            {director.hud?.legend && <div className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 border-t border-border/40 pt-1.5">{director.hud.legend.map((item) => <span key={item.labelEN} className="inline-flex items-center gap-1 text-[9px] text-muted-foreground"><i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color }} />{lang === 'ua' ? item.labelUA : item.labelEN}</span>)}</div>}
+          </div>
+        </div>}
+
+        <div className="grid grid-cols-[minmax(170px,1.1fr)_auto_minmax(150px,1fr)_auto] items-center gap-2 px-2 py-1.5 max-[620px]:grid-cols-[1fr_auto]">
+          <label className="flex min-w-0 items-center gap-2"><Film className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /><select className="h-7 min-w-0 flex-1 truncate rounded-sm border border-border/50 bg-card px-2 text-[11px] text-foreground outline-none focus:border-primary" value={scenario?.id ?? ''} onChange={(event) => director.load(CINEMA_SCENARIOS.find((item) => item.id === event.target.value) ?? null)}><option value="">{lang === 'ua' ? 'Оберіть сценарій' : 'Choose scenario'}</option>{CINEMA_SCENARIOS.map((item) => <option key={item.id} value={item.id}>{lang === 'ua' ? item.nameUA : item.nameEN}</option>)}</select></label>
+          <div className="flex items-center"><Button variant="ghost" size="icon" className="h-7 w-7" onClick={director.prevKf} disabled={!scenario} aria-label="Previous step"><ChevronLeft /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={director.toggle} disabled={!scenario} aria-label={director.playing ? 'Pause' : 'Play'}>{director.playing ? <Pause /> : <Play />}</Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={director.nextKf} disabled={!scenario} aria-label="Next step"><ChevronRight /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={director.stop} disabled={!scenario} aria-label="Stop"><Square /></Button></div>
+          <div className="relative flex h-7 min-w-0 items-center max-[620px]:col-span-2 max-[620px]:row-start-2"><input className="absolute inset-0 z-10 w-full accent-primary" type="range" min={0} max={scenario?.duration ?? 1} step={0.05} value={director.elapsed} onChange={(event) => director.scrub(Number(event.target.value))} disabled={!scenario} aria-label="Scenario timeline" />{scenario && <div className="pointer-events-none absolute inset-x-2 top-1/2 h-px bg-border">{director.keyframeTimes.map((time) => <i key={time} className="absolute top-1/2 h-1.5 w-px -translate-y-1/2 bg-primary/70" style={{ left: `${(time / scenario.duration) * 100}%` }} />)}</div>}</div>
+          <div className="flex items-center justify-end gap-1 text-[10px] text-muted-foreground"><span className="w-[72px] text-right tabular-nums">{director.elapsed.toFixed(1)} / {scenario?.duration ?? 0}s</span><Button variant="ghost" size="icon" className="h-7 w-7" onClick={director.releaseCamera} disabled={!director.cameraControlled} title={lang === 'ua' ? 'Ручна камера' : 'Manual camera'} aria-label="Release camera"><Camera /></Button><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setCollapsed((value) => !value)} disabled={!scenario} aria-label={collapsed ? 'Expand' : 'Collapse'}>{collapsed ? <ChevronUp /> : <ChevronDown />}</Button></div>
         </div>
-      )}
-
-
-      {/* Narrator + HUD row */}
-      {showRich && (hasNarrator || hasHud) && (
-        <div className="mx-auto mb-2 flex flex-col sm:flex-row gap-2 items-stretch animate-fade-in">
-          {hasNarrator && (
-            <div className="flex-1 rounded-md border border-border/60 bg-background/85 backdrop-blur px-3 py-2 text-[13px] leading-snug shadow-lg pointer-events-auto">
-              <div className="text-foreground">
-                {lang === 'ua' ? director.message!.ua : director.message!.en}
-              </div>
-              {director.target && (
-                <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
-                  {lang === 'ua' ? 'фокус' : 'focus'}: {director.target}
-                </div>
-              )}
-            </div>
-          )}
-          {hasHud && (
-            <div className="sm:w-[260px] sm:max-w-[45%] shrink-0 rounded-md border border-primary/30 bg-background/85 backdrop-blur px-3 py-2 shadow-lg pointer-events-auto">
-              {director.hud!.formula && (
-                <div className="font-mono text-[11px] text-primary/90 mb-1 truncate" title={director.hud!.formula}>
-                  {director.hud!.formula}
-                </div>
-              )}
-              {director.hud!.metrics && (
-                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
-                  {director.hud!.metrics.map((m, i) => (
-                    <div key={i} className="flex items-baseline justify-between text-[11px] gap-1">
-                      <span className="text-muted-foreground truncate">{m.label}</span>
-                      <span className={`font-mono tabular-nums ${m.warn ? 'text-orange-400' : 'text-primary'}`}>
-                        {m.value}{m.unit ? <span className="text-muted-foreground ml-0.5">{m.unit}</span> : null}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {director.hud?.legend && (
-                <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 border-t border-border/40 pt-1">
-                  {director.hud.legend.map((item) => <span key={item.labelEN} className="inline-flex items-center gap-1 text-[9px] text-muted-foreground"><i className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: item.color }} />{lang === 'ua' ? item.labelUA : item.labelEN}</span>)}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-
-      {/* Control ribbon */}
-      <div className="mx-auto flex flex-wrap items-center gap-1.5 rounded-md border border-border/60 bg-background/85 backdrop-blur px-2 py-1.5 shadow-lg pointer-events-auto">
-        <Film size={14} className="text-muted-foreground shrink-0" />
-        <select
-          className="min-w-[180px] flex-1 bg-transparent text-[12px] outline-none"
-          value={s?.id ?? ''}
-          onChange={(e) => {
-            const sc = CINEMA_SCENARIOS.find(x => x.id === e.target.value) ?? null;
-            director.load(sc);
-          }}
-        >
-          <option value="">{lang === 'ua' ? '— Оберіть сценарій —' : '— Choose scenario —'}</option>
-          {CINEMA_SCENARIOS.map(sc => (
-            <option key={sc.id} value={sc.id}>{lang === 'ua' ? sc.nameUA : sc.nameEN}</option>
-          ))}
-        </select>
-
-        <button className="p-1 rounded hover:bg-muted disabled:opacity-30" onClick={director.prevKf} disabled={!s} aria-label="Prev keyframe">
-          <ChevronLeft size={14} />
-        </button>
-        <button
-          className="p-1 rounded hover:bg-muted disabled:opacity-30"
-          onClick={director.toggle}
-          disabled={!s}
-          aria-label={director.playing ? 'Pause' : 'Play'}
-        >
-          {director.playing ? <Pause size={14} /> : <Play size={14} />}
-        </button>
-        <button className="p-1 rounded hover:bg-muted disabled:opacity-30" onClick={director.nextKf} disabled={!s} aria-label="Next keyframe">
-          <ChevronRight size={14} />
-        </button>
-        <button className="p-1 rounded hover:bg-muted disabled:opacity-30" onClick={director.stop} disabled={!s} aria-label="Stop">
-          <Square size={14} />
-        </button>
-        <button className="p-1 rounded hover:bg-muted disabled:opacity-30" onClick={director.releaseCamera} disabled={!director.cameraControlled} aria-label="Release camera" title={lang === 'ua' ? 'Ручна камера' : 'Manual camera'}><Camera size={14} /></button>
-
-        <div className="relative flex-1 min-w-[140px] h-6 flex items-center">
-          <input
-            type="range" min={0} max={s ? s.duration : 1} step={0.05}
-            value={director.elapsed}
-            onChange={(e) => director.scrub(parseFloat(e.target.value))}
-            disabled={!s}
-            className="absolute inset-0 w-full accent-primary z-10"
-          />
-          {/* keyframe ticks */}
-          {s && (
-            <div className="absolute inset-x-2 top-1/2 -translate-y-1/2 h-[2px] bg-border/40 pointer-events-none">
-              {director.keyframeTimes.map((kt, i) => (
-                <div key={i}
-                  className="absolute top-1/2 -translate-y-1/2 w-[2px] h-[8px] bg-primary/60 rounded-full"
-                  style={{ left: `${(kt / s.duration) * 100}%` }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
-          <Gauge size={11} />
-          {[0.5, 1, 2].map(sp => (
-            <button key={sp}
-              onClick={() => director.setSpeed(sp)}
-              className={`px-1 rounded ${director.speed === sp ? 'bg-primary/20 text-primary' : 'hover:bg-muted'}`}
-            >{sp}×</button>
-          ))}
-        </div>
-
-        <span className="w-14 text-right tabular-nums text-[11px] text-muted-foreground">
-          {director.elapsed.toFixed(1)}s / {s ? s.duration.toFixed(0) : '–'}s
-        </span>
-        {s?.reference && <span className="basis-full truncate text-[9px] text-muted-foreground/80" title={s.reference}>{s.reference}</span>}
-        {(hasNarrator || hasChapter || hasHud) && (
-          <button
-            className="p-1 rounded hover:bg-muted"
-            onClick={() => setCollapsed(v => !v)}
-            aria-label={collapsed ? 'Expand narration' : 'Collapse narration'}
-            title={collapsed ? (lang === 'ua' ? 'Показати оповідача' : 'Show narrator') : (lang === 'ua' ? 'Приховати' : 'Hide')}
-          >
-            {collapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-          </button>
-        )}
+        {rich && scenario?.reference && <div className="truncate border-t border-border/40 px-3 py-1 text-[9px] text-muted-foreground" title={scenario.reference}>{scenario.reference}</div>}
       </div>
-      </div>
-    </div>
+    </section>
   );
 }
 

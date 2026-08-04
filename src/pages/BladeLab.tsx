@@ -450,7 +450,7 @@ export default function BladeLab() {
           <ResizablePanel defaultSize={54} minSize={28} className="min-w-0">
             <main className="relative h-full min-w-0">
               <BladeViewer3D {...viewerProps} />
-              <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />
+              {!director.scenario && <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />}
               <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
               {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
               <CinemaPanel lang={lang} director={director} />

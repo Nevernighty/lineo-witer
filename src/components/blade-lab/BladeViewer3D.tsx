@@ -261,9 +261,10 @@ function Cinematic({ enabled, R, isVAWT, H }: { enabled: boolean; R: number; isV
   return null;
 }
 
-function CameraFit({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean }) {
+function CameraFit({ R, H, isVAWT, locked }: { R: number; H: number; isVAWT: boolean; locked: boolean }) {
   const { camera } = useThree();
   useEffect(() => {
+    if (locked) return;
     if (isVAWT) {
       const reach = Math.max(R * 4.2, H * 1.45);
       camera.position.set(reach * 0.95, H * 0.28, reach * 0.95);
@@ -277,7 +278,7 @@ function CameraFit({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean }) 
     }
     camera.updateProjectionMatrix();
     camera.lookAt(0, 0, 0);
-  }, [R, H, isVAWT, camera]);
+  }, [R, H, isVAWT, camera, locked]);
   return null;
 }
 
@@ -320,7 +321,7 @@ export function BladeViewer3D({
       dpr={[1, isMobile ? 1.3 : 1.6]}
       style={canvasStyle}
     >
-      <CameraFit R={R} H={H} isVAWT={isVAWT} />
+      <CameraFit R={R} H={H} isVAWT={isVAWT} locked={!!cinema?.cameraControlled} />
       <ambientLight intensity={0.35} />
       <directionalLight position={[R, R * 1.2, R * 0.8]} intensity={1.1} color="#bfeaff" castShadow shadow-mapSize={[1024, 1024]} />
       <directionalLight position={[-R * 0.8, -R * 0.3, -R * 0.6]} intensity={0.45} color="#ff8866" />
@@ -338,13 +339,13 @@ export function BladeViewer3D({
           vfxBus={cinema?.vfxBus}
         />
 
-        {showTipVortex && (isVAWT
+        {showTipVortex && !cinema?.stage && (isVAWT
           ? <TipVortexVAWT R={R} H={H} color={vortexColor} intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns} swirl={vfx.wakeSwirl} />
           : <TipVortexHAWT R={R} nBlades={geometry.nBlades} V={windSpeed} tsr={tsr} color={vortexColor}
               intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns}
               radiusFactor={vfx.vortexRadiusFactor} decay={vfx.vortexDecay} />
         )}
-        {showStreamlines && (isVAWT
+        {showStreamlines && !cinema?.stage && (isVAWT
           ? <StreamlinesVAWT R={R} H={H} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
           : <StreamlinesHAWT R={R} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
         )}
@@ -362,7 +363,7 @@ export function BladeViewer3D({
           cellSize={Math.max(R, H) * 0.2} sectionSize={Math.max(R, H)}
         />
       </Suspense>
-      <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} enabled={!cinema?.cameraControlled} />
+       <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} enabled={!cinema?.cameraControlled && !cinematic} />
       <Cinematic enabled={cinematic && !cinema?.cameraControlled && !cinema?.stage} R={R} H={H} isVAWT={isVAWT} />
       <CinemaCamera cue={cinema?.cameraCue ?? null} enabled={!!cinema?.cameraCue && !!cinema?.cameraControlled} sceneScale={Math.max(R, H)} rotorCenter={[0, 0, 0]} safeRadius={Math.max(R, H) * 1.15} floorY={groundY + Math.max(R, H) * 0.12} />
       {postFX && !isMobile && (

@@ -16,7 +16,7 @@ export const scenarioRooftopParapet: CinemaScenario = {
   keyframes: [
     { t: 0, windSpeed: 5, tsr: 4.5, turbulence: 0.15,
       chapter: { ua: 'Дах 5-поверхівки', en: '5-storey rooftop' },
-      camera: { pos: [8, 4, 8], look: [0, 1.5, 0], lerp: 0.04 },
+      camera: { pos: [8.5, 5.5, 10], look: [0, 0.2, 2.8], lerp: 0.055 },
       hud: { formula: 'h_bubble ≈ 3·h_parapet',
         metrics: [{ label: 'V̄', value: '5.0', unit: 'm/s' }, { label: 'h_parapet', value: '0.8', unit: 'm' }] },
       message: { ua: 'Реальний будинок, реальний парапет. Куди поставити ротор?',
@@ -41,7 +41,7 @@ export const scenarioRooftopParapet: CinemaScenario = {
                  en: 'Rotor inside the bubble sees only 2.8 m/s — below cut-in!' } },
 
     { t: 15, target: 'hub',
-      camera: { pos: [0, 4, 4], look: [0, 2.5, 0], lerp: 0.05 },
+       camera: { pos: [5.5, 5.5, 7], look: [0, 0.8, 1.4], lerp: 0.06 },
       vfx: [{ kind: 'arrow', pos: [0, 3, 0], dir: [0, 2, 0], color: '#33ff99', ttl: 4, label: 'raise 1.5×h' }],
       message: { ua: 'Правило: підніми втулку на ≥1.5× висоти парапета.',
                  en: 'Rule of thumb: raise the hub ≥1.5× parapet height.' } },

@@ -39,8 +39,14 @@ export function CinemaCamera({
     const cueScale = Math.max(0.15, sceneScale / 3);
     _target.set(...cue.pos).multiplyScalar(cueScale);
     _look.set(...cue.look).multiplyScalar(cueScale);
+    // The cinematic telemetry occupies the lower viewport. Aim slightly below
+    // the physical target so the active rotor/stage sits in the clear upper 62%.
+    _look.y -= sceneScale * (size.height < 760 ? 0.34 : 0.24);
     if (size.width < size.height) {
-      const radial = Math.max(1.2, size.height / Math.max(1, size.width));
+      // Resizable sidebars can make the canvas extremely tall and narrow.
+      // Unbounded aspect compensation used to zoom 2–3× away, leaving a dead
+      // upper half. A modest cap preserves framing without shrinking the actors.
+      const radial = Math.min(1.28, Math.max(1.08, size.height / Math.max(1, size.width)));
       _target.x *= radial;
       _target.z *= radial;
     }

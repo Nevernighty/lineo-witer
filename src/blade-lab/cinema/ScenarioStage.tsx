@@ -1,7 +1,7 @@
 // ScenarioStage — 3D actors specific to a scenario. Now supports urban stages
 // backed by the user-uploaded building GLBs.
 
-import { useRef, useMemo, Suspense } from 'react';
+import { Component, type ErrorInfo, type ReactNode, useRef, useMemo, Suspense } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import type { StageId } from './types';
@@ -9,6 +9,30 @@ import { GlbModel } from '@/three/GlbModel';
 import { BUILDING_MODELS } from '@/assets/buildings';
 
 interface Props { stage: StageId; R: number; H: number; isVAWT: boolean; V: number; }
+
+class StageAssetBoundary extends Component<{ fallback: ReactNode; children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(_error: Error, _info: ErrorInfo) { /* procedural fallback keeps the canvas alive */ }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
+
+function BuildingFallback({ position, size }: { position: [number, number, number]; size: number }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, size * 0.42, 0]} castShadow receiveShadow>
+        <boxGeometry args={[size * 0.8, size * 0.84, size * 0.38]} />
+        <meshStandardMaterial color="#303943" roughness={0.92} />
+      </mesh>
+      {[-0.22, 0, 0.22].map((x) => [-0.16, 0.08, 0.32, 0.56].map((y) => (
+        <mesh key={`${x}-${y}`} position={[x * size, y * size, size * 0.195]}>
+          <planeGeometry args={[size * 0.11, size * 0.1]} />
+          <meshBasicMaterial color="#7d9dad" />
+        </mesh>
+      )))}
+    </group>
+  );
+}
 
 export function ScenarioStage({ stage, R, H, isVAWT, V }: Props) {
   if (stage === 'rooftop')        return <RooftopStage R={R} H={H} isVAWT={isVAWT} />;
@@ -47,9 +71,11 @@ function Rooftop5Stage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean
   const targetSize = Math.min(R * 4.2, Math.max(R, H) * 3.4);
   return (
     <group>
-      <Suspense fallback={null}>
-         <GlbModel url={spec.url} position={[0, gY, R * 2.4]} fitSize={targetSize} groundAlign spin={0} />
-      </Suspense>
+      <StageAssetBoundary fallback={<BuildingFallback position={[0, gY, R * 2.4]} size={targetSize} />}>
+        <Suspense fallback={<BuildingFallback position={[0, gY, R * 2.4]} size={targetSize} />}>
+          <GlbModel url={spec.url} position={[0, gY, R * 2.4]} fitSize={targetSize} groundAlign spin={0} />
+        </Suspense>
+      </StageAssetBoundary>
       {/* Parapet upstream to keep the recirculation lesson intact */}
       <mesh position={[0, gY + spec.roofHeight * (targetSize / spec.targetSize) + R * 0.35, -R * 0.9]}>
         <boxGeometry args={[R * 5, R * 0.7, R * 0.15]} />
@@ -88,9 +114,11 @@ function RidgeSpireStage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boole
   return (
     <group>
       <RidgeStage R={R} H={H} isVAWT={isVAWT} />
-      <Suspense fallback={null}>
-        <GlbModel url={spec.url} position={[-R * 4, gY, -R * 3]} fitSize={R * 4} groundAlign spin={0} />
-      </Suspense>
+      <StageAssetBoundary fallback={<BuildingFallback position={[-R * 4, gY, -R * 3]} size={R * 4} />}>
+        <Suspense fallback={<BuildingFallback position={[-R * 4, gY, -R * 3]} size={R * 4} />}>
+          <GlbModel url={spec.url} position={[-R * 4, gY, -R * 3]} fitSize={R * 4} groundAlign spin={0} />
+        </Suspense>
+      </StageAssetBoundary>
     </group>
   );
 }
@@ -103,11 +131,13 @@ function UrbanCanyonStage({ R, H, isVAWT, V }: { R: number; H: number; isVAWT: b
   const kiosk = BUILDING_MODELS.kiosk;
   return (
     <group>
-      <Suspense fallback={null}>
-         <GlbModel url={left.url}  position={[-R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
-         <GlbModel url={right.url} position={[ R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
-        <GlbModel url={kiosk.url} position={[ R * 0.0, gY,  R * 3.8]} fitSize={R * 1.4} groundAlign spin={0} />
-      </Suspense>
+      <StageAssetBoundary fallback={<><BuildingFallback position={[-R * 4.1, gY, -R * 0.5]} size={R * 3} /><BuildingFallback position={[R * 4.1, gY, -R * 0.5]} size={R * 3} /></>}>
+        <Suspense fallback={<><BuildingFallback position={[-R * 4.1, gY, -R * 0.5]} size={R * 3} /><BuildingFallback position={[R * 4.1, gY, -R * 0.5]} size={R * 3} /></>}>
+          <GlbModel url={left.url} position={[-R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
+          <GlbModel url={right.url} position={[R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
+          <GlbModel url={kiosk.url} position={[0, gY, R * 3.8]} fitSize={R * 1.4} groundAlign spin={0} />
+        </Suspense>
+      </StageAssetBoundary>
       {/* Air-gap indicator: subtle green plane between the buildings */}
       <mesh position={[0, gY + R * 0.8, 0]} rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[R * 2.4, R * 4]} />
@@ -120,10 +150,10 @@ function UrbanCanyonStage({ R, H, isVAWT, V }: { R: number; H: number; isVAWT: b
 function WakeStage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean; V: number }) {
   const spinRef = useRef<THREE.Group>(null);
   useFrame((_, dt) => { if (spinRef.current) spinRef.current.rotation.z += dt * 0.6; });
-  const upstreamZ = -R * 10;
+  const upstreamZ = -R * 4.6;
   const coneGeom = useMemo(() => {
-    const len = Math.abs(upstreamZ) + R * 2;
-    const g = new THREE.CylinderGeometry(R * 0.95, R * 1.6, len, 32, 1, true);
+    const len = Math.abs(upstreamZ) + R * 1.3;
+    const g = new THREE.CylinderGeometry(R * 0.9, R * 1.42, len, 48, 1, true);
     g.rotateX(Math.PI / 2);
     g.translate(0, 0, upstreamZ + len / 2);
     return g;
@@ -145,8 +175,24 @@ function WakeStage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean; V:
         </group>
       </group>
       <mesh geometry={coneGeom}>
-        <meshBasicMaterial color="#4488cc" transparent opacity={0.10} side={THREE.DoubleSide} depthWrite={false} />
+        <meshBasicMaterial color="#4488cc" transparent opacity={0.11} side={THREE.DoubleSide} depthWrite={false} wireframe />
       </mesh>
+      {Array.from({ length: 7 }).map((_, i) => {
+        const z = upstreamZ + (i + 1) * (Math.abs(upstreamZ) / 8);
+        const radius = R * (0.92 + i * 0.065);
+        return (
+          <mesh key={i} position={[0, 0, z]} rotation={[Math.PI / 2, 0, 0]}>
+            <torusGeometry args={[radius, R * 0.012, 6, 64]} />
+            <meshBasicMaterial color={i > 4 ? '#ff8844' : '#4f8fe8'} transparent opacity={0.28} depthWrite={false} />
+          </mesh>
+        );
+      })}
+      {[-0.62, 0, 0.62].map((x, i) => (
+        <mesh key={x} position={[x * R, 0, upstreamZ * 0.45]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[R * 0.018, R * 0.018, Math.abs(upstreamZ) * 0.82, 8]} />
+          <meshBasicMaterial color={i === 1 ? '#7be7ff' : '#4f8fe8'} transparent opacity={0.38} />
+        </mesh>
+      ))}
     </group>
   );
 }
