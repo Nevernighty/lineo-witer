@@ -440,6 +440,13 @@ export default function BladeLab() {
                 {failureLevel >= 1 ? t.failure : t.overload}
               </div>
             )}
+            <PresetManager
+              lang={lang}
+              snapshot={presetSnapshot}
+              onApply={loadCloudPreset}
+              onSend={(row) => { loadCloudPreset(row); setTimeout(() => applyToSimulation(false), 120); }}
+            />
+
             <button onClick={(e) => applyToSimulation(false, e.currentTarget)}
               className="h-7 px-2 bl-btn-text rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1">
               <Wind className="w-3 h-3" /> <span className="hidden sm:inline">{t.applySim}</span>
