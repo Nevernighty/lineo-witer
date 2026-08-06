@@ -314,6 +314,10 @@ export function BladeViewer3D({
   const groundY = isVAWT ? -H / 2 - R * 0.1 : -R * 1.1;
   const isMobile = useIsMobile();
   const mobileMul = isMobile ? 0.45 : 1;
+  const hudInsets = useHudInsets();
+  // Everything that must stay in frame: rotor envelope plus a stage margin.
+  const subjectRadius = (isVAWT ? Math.max(R, H / 2) : R) * (cinema?.stage && cinema.stage !== 'none' ? 1.45 : 1.15);
+
   const vortexColor =
     viewMode === 'pressure' ? '#ff6b6b' :
     viewMode === 'stall' ? '#ff7a00' :
@@ -377,7 +381,18 @@ export function BladeViewer3D({
       </Suspense>
        <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} enabled={!cinema?.cameraControlled && !cinematic} />
       <Cinematic enabled={cinematic && !cinema?.cameraControlled && !cinema?.stage} R={R} H={H} isVAWT={isVAWT} />
-      <CinemaCamera cue={cinema?.cameraCue ?? null} enabled={!!cinema?.cameraCue && !!cinema?.cameraControlled} sceneScale={Math.max(R, H)} rotorCenter={[0, 0, 0]} safeRadius={Math.max(R, H) * 1.15} floorY={groundY + Math.max(R, H) * 0.12} />
+      <CinemaCamera
+        cue={cinema?.cameraCue ?? null}
+        enabled={!!cinema?.cameraCue && !!cinema?.cameraControlled}
+        composition={cinema?.composition ?? DEFAULT_COMPOSITION}
+        hudInsets={hudInsets}
+        sceneScale={Math.max(R, H)}
+        rotorCenter={[0, 0, 0]}
+        subjectRadius={subjectRadius}
+        floorY={groundY}
+        onPark={cinema?.onPark}
+      />
+
       {postFX && !isMobile && (
         <EffectComposer multisampling={0}>
           <Bloom intensity={0.4} luminanceThreshold={0.6} luminanceSmoothing={0.3} mipmapBlur />
