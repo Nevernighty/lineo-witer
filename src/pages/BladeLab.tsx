@@ -714,9 +714,25 @@ function HUD({ geometry, windSpeed, tsr, failureLevel, t, mobile = false }: { ge
   const tip = tsr * windSpeed;
   const mach = tip / 343;
   const failPct = Math.round(Math.min(1, failureLevel) * 100);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  // Report the band this telemetry card occupies so the cinema camera can keep
+  // the rotor inside the free area (the card is corner-anchored, so only part
+  // of its height truly blocks the subject).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const id = mobile ? 'hud-telemetry-mobile' : 'hud-telemetry';
+    const push = () => reportHudBand(id, { top: Math.round(el.offsetHeight * (mobile ? 1 : 0.65)) + 12 });
+    const ro = new ResizeObserver(push);
+    ro.observe(el);
+    push();
+    return () => { ro.disconnect(); reportHudBand(id, null); };
+  }, [mobile]);
+
   return (
     <div className={`absolute ${mobile ? 'top-2 right-2 left-14' : 'top-2 right-2'} z-10 pointer-events-none`}>
-      <div className={`bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md shadow-lg font-mono tabular-nums ${mobile ? 'px-2 py-1 bl-meta flex items-center justify-end gap-3 overflow-hidden' : 'p-2 space-y-0.5 bl-meta min-w-[130px]'}`}>
+      <div ref={ref} className={`bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md shadow-lg font-mono tabular-nums ${mobile ? 'px-2 py-1 bl-meta flex items-center justify-end gap-3 overflow-hidden' : 'p-2 space-y-0.5 bl-meta min-w-[130px]'}`}>
         <Hud label="ω" value={`${omega.toFixed(2)} rad/s`} />
         <Hud label="RPM" value={rpm.toFixed(1)} />
         <Hud label="V tip" value={`${tip.toFixed(0)} m/s`} />
@@ -726,6 +742,7 @@ function HUD({ geometry, windSpeed, tsr, failureLevel, t, mobile = false }: { ge
     </div>
   );
 }
+
 
 function Hud({ label, value, accent, danger }: { label: string; value: string; accent?: boolean; danger?: boolean }) {
   return (
