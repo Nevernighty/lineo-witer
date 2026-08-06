@@ -182,14 +182,23 @@ export default function BladeLab() {
     setVfx(DEFAULT_VFX);
   };
 
-  const { user, savePreset, logHistory } = useCloudSync();
+  const { user, logHistory } = useCloudSync();
+
+  /** Human-friendly default name for a manual save. */
+  const suggestedName = useCallback(() => {
+    const p = PRESETS.find(x => x.id === presetId);
+    if (p) return lang === 'ua' ? p.nameUA : p.nameEN;
+    const fam = rotorType.toUpperCase();
+    return `${fam} · R${geometry.tipRadius.toFixed(1)}m · ${geometry.nBlades}${lang === 'ua' ? ' лопатей' : ' blades'}`;
+  }, [presetId, lang, rotorType, geometry.tipRadius, geometry.nBlades]);
+
   const applyToSimulation = useCallback((silent = false, originEl?: HTMLElement | null) => {
     const p = PRESETS.find(x => x.id === presetId);
-    const name = p?.[lang === 'ua' ? 'nameUA' : 'nameEN'] ?? (lang === 'ua' ? 'Користувацька' : 'Custom');
+    const name = p?.[lang === 'ua' ? 'nameUA' : 'nameEN'] ?? suggestedName();
     setActiveBladePreset({
       id: presetId || 'custom',
-      nameUA: p?.nameUA || 'Користувацька',
-      nameEN: p?.nameEN || 'Custom',
+      nameUA: p?.nameUA || name,
+      nameEN: p?.nameEN || name,
       geometry, materialId, rotorType,
       heightOverDiameter, helicalTwistDeg: helicalDeg,
       bendThresholdPct, fractureThresholdPct,
@@ -202,19 +211,51 @@ export default function BladeLab() {
       startTeleport({
         thumbnail: thumb,
         presetName: name,
+        nBlades: geometry.nBlades,
+        rotorType,
+        windSpeed,
+        tsr,
+        siteId,
         fromRect: rect ? { x: rect.left + rect.width/2, y: rect.top + rect.height/2, w: rect.width, h: rect.height } : undefined,
       });
-      if (user) {
-        savePreset({ name, rotor_type: rotorType, material_id: materialId, geometry: geometry as any, thumbnail_url: null });
-        logHistory('blade_apply', presetId || 'custom', name);
-      }
+      // No silent auto-save any more — saving is explicit through PresetManager.
+      if (user) logHistory('blade_apply', presetId || 'custom', name);
       toast({ title: t.appliedToast });
       setTimeout(() => navigate('/'), 1500);
     }
-  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate, lang, user, savePreset, logHistory]);
+  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate, lang, user, logHistory, suggestedName, windSpeed, tsr, siteId]);
 
 
   useEffect(() => { applyToSimulation(true); }, [applyToSimulation]);
+
+  /** Load a cloud preset row back into the lab. */
+  const loadCloudPreset = useCallback((row: any) => {
+    const g = row.geometry ?? {};
+    const airfoil = AIRFOILS.find(a => a.id === (g.airfoil?.id ?? g.airfoilId)) ?? AIRFOILS[0];
+    setGeometry({ ...DEFAULT_GEOMETRY, ...g, airfoil } as BladeGeometry);
+    if (row.material_id) setMaterialId(row.material_id);
+    if (row.rotor_type) setRotorType(row.rotor_type as RotorType);
+    setPresetId('');
+    const x = row.extra ?? {};
+    if (typeof x.heightOverDiameter === 'number') setHeightOverDiameter(x.heightOverDiameter);
+    if (typeof x.helicalTwistDeg === 'number') setHelicalDeg(x.helicalTwistDeg);
+    if (typeof x.windSpeed === 'number') setWindSpeed(x.windSpeed);
+    if (typeof x.tsr === 'number') setTsr(x.tsr);
+    if (typeof x.siteId === 'string') setSiteId(x.siteId);
+    toast({ title: row.name });
+  }, []);
+
+  const presetSnapshot = useCallback(() => {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+    let thumb: string | null = null;
+    try { thumb = canvas?.toDataURL('image/jpeg', 0.5) ?? null; } catch { thumb = null; }
+    return {
+      geometry, materialId, rotorType, heightOverDiameter,
+      helicalTwistDeg: helicalDeg, bendThresholdPct, fractureThresholdPct,
+      windSpeed, tsr, siteId, suggestedName: suggestedName(), thumbnail: thumb,
+    };
+  }, [geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, windSpeed, tsr, siteId, suggestedName]);
+
 
   const exportSTL = useCallback((mode: 'single' | 'rotor') => {
     const name = presetId ? `${presetId}_${mode}` : `blade_${mode}`;
