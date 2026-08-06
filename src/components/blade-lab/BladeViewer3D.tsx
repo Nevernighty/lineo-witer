@@ -12,6 +12,9 @@ import type { StageId, CameraCue } from '@/blade-lab/cinema/types';
 import { VfxLayer } from '@/blade-lab/cinema/VfxLayer';
 import { ScenarioStage } from '@/blade-lab/cinema/ScenarioStage';
 import { CinemaCamera } from '@/blade-lab/cinema/CinemaCamera';
+import { DEFAULT_COMPOSITION, type Composition } from '@/blade-lab/cinema/useComposition';
+import { useHudInsets } from '@/blade-lab/cinema/hudLayout';
+
 
 interface VfxConfig {
   vortexIntensity: number;  // 0..1.5
@@ -47,7 +50,16 @@ interface Props {
   reactionSpeed?: number;
   recoverySpeed?: number;
   vfx: VfxConfig;
-  cinema?: { stage?: StageId; vfxBus?: VfxBus; cameraCue?: CameraCue | null; cameraControlled?: boolean; target?: 'blade' | 'hub' | 'wake' | 'inflow' | null };
+  cinema?: {
+    stage?: StageId;
+    vfxBus?: VfxBus;
+    cameraCue?: CameraCue | null;
+    cameraControlled?: boolean;
+    target?: 'blade' | 'hub' | 'wake' | 'inflow' | null;
+    composition?: Composition;
+    onPark?: (pos: [number, number, number]) => void;
+  };
+
 }
 
 function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity, turns, radiusFactor, decay }:
