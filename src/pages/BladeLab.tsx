@@ -277,6 +277,10 @@ export default function BladeLab() {
     vfxBus,
   });
 
+  // Per-scenario camera composition (framing, fov, parked shot) — persisted.
+  const { composition, patch: patchComposition, reset: resetComposition, park } =
+    useComposition(director.scenario?.id ?? null, director.scenario?.composition);
+
   const viewerProps = {
     geometry, viewMode, windSpeed, tsr, cinematic, postFX,
     showTipVortex: showVortex, showStreamlines: showStream,
@@ -292,8 +296,11 @@ export default function BladeLab() {
       cameraCue: director.cameraCue,
       cameraControlled: director.cameraControlled,
       target: director.target,
+      composition,
+      onPark: park,
     },
   };
+
 
 
   const simCtl = {
