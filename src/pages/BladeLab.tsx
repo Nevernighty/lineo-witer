@@ -512,7 +512,13 @@ export default function BladeLab() {
               {!director.scenario && <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />}
               <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
               {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
-              <CinemaPanel lang={lang} director={director} />
+              <CinemaPanel
+                lang={lang} director={director}
+                composition={composition}
+                onComposition={patchComposition}
+                onResetComposition={resetComposition}
+              />
+
 
             </main>
           </ResizablePanel>
