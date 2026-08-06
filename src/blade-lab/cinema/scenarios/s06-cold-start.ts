@@ -13,6 +13,7 @@ export const scenarioColdStart: CinemaScenario = {
   duration: 30,
   site: 'lowland_open',
   stage: 'wake',
+  composition: { framing: 'detail', fov: 38, lookBias: [0, 0, 0], minDistanceR: 1.15, floorClearance: 0.12 },
   reference: 'Sheldahl & Klimas SAND80-2114; Menet Savonius (2004)',
   keyframes: [
     { t: 0, windSpeed: 3.5, tsr: 0.2, turbulence: 0.08, rotorType: 'vawt-savonius',

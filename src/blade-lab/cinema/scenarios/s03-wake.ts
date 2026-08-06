@@ -14,6 +14,7 @@ export const scenarioWake: CinemaScenario = {
   duration: 40,
   site: 'lowland_open',
   stage: 'wake',
+  composition: { framing: 'wide', fov: 40, lookBias: [0, 0, -0.35], minDistanceR: 1.4, floorClearance: 0.18 },
   reference: 'Jensen (1983); Katic, Højstrup & Jensen (1986)',
   keyframes: [
     { t: 0, windSpeed: 9, tsr: 7, turbulence: 0.10,

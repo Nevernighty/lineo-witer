@@ -12,6 +12,7 @@ export const scenarioUrbanCanyon: CinemaScenario = {
   duration: 32,
   site: 'lowland_open',
   stage: 'urban_canyon',
+  composition: { framing: 'wide', fov: 44, lookBias: [0, 0.08, 0], minDistanceR: 1.35, floorClearance: 0.22 },
   reference: 'Continuity: V_gap = V∞ · (A_open / A_gap)',
   keyframes: [
     { t: 0, windSpeed: 5, tsr: 5, turbulence: 0.10, target: 'inflow',
