@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind, AlertTriangle, Activity } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
@@ -35,6 +35,10 @@ import { CinemaPanel } from '@/blade-lab/cinema/CinemaPanel';
 import { createVfxBus } from '@/blade-lab/cinema/VfxBus';
 import { startTeleport } from '@/store/useTeleportStore';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useComposition } from '@/blade-lab/cinema/useComposition';
+import { reportHudBand } from '@/blade-lab/cinema/hudLayout';
+import { PresetManager } from '@/components/blade-lab/PresetManager';
+
 
 
 const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
@@ -182,14 +186,23 @@ export default function BladeLab() {
     setVfx(DEFAULT_VFX);
   };
 
-  const { user, savePreset, logHistory } = useCloudSync();
+  const { user, logHistory } = useCloudSync();
+
+  /** Human-friendly default name for a manual save. */
+  const suggestedName = useCallback(() => {
+    const p = PRESETS.find(x => x.id === presetId);
+    if (p) return lang === 'ua' ? p.nameUA : p.nameEN;
+    const fam = rotorType.toUpperCase();
+    return `${fam} · R${geometry.tipRadius.toFixed(1)}m · ${geometry.nBlades}${lang === 'ua' ? ' лопатей' : ' blades'}`;
+  }, [presetId, lang, rotorType, geometry.tipRadius, geometry.nBlades]);
+
   const applyToSimulation = useCallback((silent = false, originEl?: HTMLElement | null) => {
     const p = PRESETS.find(x => x.id === presetId);
-    const name = p?.[lang === 'ua' ? 'nameUA' : 'nameEN'] ?? (lang === 'ua' ? 'Користувацька' : 'Custom');
+    const name = p?.[lang === 'ua' ? 'nameUA' : 'nameEN'] ?? suggestedName();
     setActiveBladePreset({
       id: presetId || 'custom',
-      nameUA: p?.nameUA || 'Користувацька',
-      nameEN: p?.nameEN || 'Custom',
+      nameUA: p?.nameUA || name,
+      nameEN: p?.nameEN || name,
       geometry, materialId, rotorType,
       heightOverDiameter, helicalTwistDeg: helicalDeg,
       bendThresholdPct, fractureThresholdPct,
@@ -202,19 +215,51 @@ export default function BladeLab() {
       startTeleport({
         thumbnail: thumb,
         presetName: name,
+        nBlades: geometry.nBlades,
+        rotorType,
+        windSpeed,
+        tsr,
+        siteId,
         fromRect: rect ? { x: rect.left + rect.width/2, y: rect.top + rect.height/2, w: rect.width, h: rect.height } : undefined,
       });
-      if (user) {
-        savePreset({ name, rotor_type: rotorType, material_id: materialId, geometry: geometry as any, thumbnail_url: null });
-        logHistory('blade_apply', presetId || 'custom', name);
-      }
+      // No silent auto-save any more — saving is explicit through PresetManager.
+      if (user) logHistory('blade_apply', presetId || 'custom', name);
       toast({ title: t.appliedToast });
       setTimeout(() => navigate('/'), 1500);
     }
-  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate, lang, user, savePreset, logHistory]);
+  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate, lang, user, logHistory, suggestedName, windSpeed, tsr, siteId]);
 
 
   useEffect(() => { applyToSimulation(true); }, [applyToSimulation]);
+
+  /** Load a cloud preset row back into the lab. */
+  const loadCloudPreset = useCallback((row: any) => {
+    const g = row.geometry ?? {};
+    const airfoil = AIRFOILS.find(a => a.id === (g.airfoil?.id ?? g.airfoilId)) ?? AIRFOILS[0];
+    setGeometry({ ...DEFAULT_GEOMETRY, ...g, airfoil } as BladeGeometry);
+    if (row.material_id) setMaterialId(row.material_id);
+    if (row.rotor_type) setRotorType(row.rotor_type as RotorType);
+    setPresetId('');
+    const x = row.extra ?? {};
+    if (typeof x.heightOverDiameter === 'number') setHeightOverDiameter(x.heightOverDiameter);
+    if (typeof x.helicalTwistDeg === 'number') setHelicalDeg(x.helicalTwistDeg);
+    if (typeof x.windSpeed === 'number') setWindSpeed(x.windSpeed);
+    if (typeof x.tsr === 'number') setTsr(x.tsr);
+    if (typeof x.siteId === 'string') setSiteId(x.siteId);
+    toast({ title: row.name });
+  }, []);
+
+  const presetSnapshot = useCallback(() => {
+    const canvas = document.querySelector('canvas') as HTMLCanvasElement | null;
+    let thumb: string | null = null;
+    try { thumb = canvas?.toDataURL('image/jpeg', 0.5) ?? null; } catch { thumb = null; }
+    return {
+      geometry, materialId, rotorType, heightOverDiameter,
+      helicalTwistDeg: helicalDeg, bendThresholdPct, fractureThresholdPct,
+      windSpeed, tsr, siteId, suggestedName: suggestedName(), thumbnail: thumb,
+    };
+  }, [geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, windSpeed, tsr, siteId, suggestedName]);
+
 
   const exportSTL = useCallback((mode: 'single' | 'rotor') => {
     const name = presetId ? `${presetId}_${mode}` : `blade_${mode}`;
@@ -236,6 +281,10 @@ export default function BladeLab() {
     vfxBus,
   });
 
+  // Per-scenario camera composition (framing, fov, parked shot) — persisted.
+  const { composition, patch: patchComposition, reset: resetComposition, park } =
+    useComposition(director.scenario?.id ?? null, director.scenario?.composition);
+
   const viewerProps = {
     geometry, viewMode, windSpeed, tsr, cinematic, postFX,
     showTipVortex: showVortex, showStreamlines: showStream,
@@ -251,8 +300,11 @@ export default function BladeLab() {
       cameraCue: director.cameraCue,
       cameraControlled: director.cameraControlled,
       target: director.target,
+      composition,
+      onPark: park,
     },
   };
+
 
 
   const simCtl = {
@@ -388,6 +440,13 @@ export default function BladeLab() {
                 {failureLevel >= 1 ? t.failure : t.overload}
               </div>
             )}
+            <PresetManager
+              lang={lang}
+              snapshot={presetSnapshot}
+              onApply={loadCloudPreset}
+              onSend={(row) => { loadCloudPreset(row); setTimeout(() => applyToSimulation(false), 120); }}
+            />
+
             <button onClick={(e) => applyToSimulation(false, e.currentTarget)}
               className="h-7 px-2 bl-btn-text rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1">
               <Wind className="w-3 h-3" /> <span className="hidden sm:inline">{t.applySim}</span>
@@ -453,7 +512,13 @@ export default function BladeLab() {
               {!director.scenario && <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />}
               <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
               {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
-              <CinemaPanel lang={lang} director={director} />
+              <CinemaPanel
+                lang={lang} director={director}
+                composition={composition}
+                onComposition={patchComposition}
+                onResetComposition={resetComposition}
+              />
+
 
             </main>
           </ResizablePanel>
@@ -649,9 +714,25 @@ function HUD({ geometry, windSpeed, tsr, failureLevel, t, mobile = false }: { ge
   const tip = tsr * windSpeed;
   const mach = tip / 343;
   const failPct = Math.round(Math.min(1, failureLevel) * 100);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  // Report the band this telemetry card occupies so the cinema camera can keep
+  // the rotor inside the free area (the card is corner-anchored, so only part
+  // of its height truly blocks the subject).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const id = mobile ? 'hud-telemetry-mobile' : 'hud-telemetry';
+    const push = () => reportHudBand(id, { top: Math.round(el.offsetHeight * (mobile ? 1 : 0.65)) + 12 });
+    const ro = new ResizeObserver(push);
+    ro.observe(el);
+    push();
+    return () => { ro.disconnect(); reportHudBand(id, null); };
+  }, [mobile]);
+
   return (
     <div className={`absolute ${mobile ? 'top-2 right-2 left-14' : 'top-2 right-2'} z-10 pointer-events-none`}>
-      <div className={`bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md shadow-lg font-mono tabular-nums ${mobile ? 'px-2 py-1 bl-meta flex items-center justify-end gap-3 overflow-hidden' : 'p-2 space-y-0.5 bl-meta min-w-[130px]'}`}>
+      <div ref={ref} className={`bg-card/70 backdrop-blur-xl border border-primary/20 rounded-md shadow-lg font-mono tabular-nums ${mobile ? 'px-2 py-1 bl-meta flex items-center justify-end gap-3 overflow-hidden' : 'p-2 space-y-0.5 bl-meta min-w-[130px]'}`}>
         <Hud label="ω" value={`${omega.toFixed(2)} rad/s`} />
         <Hud label="RPM" value={rpm.toFixed(1)} />
         <Hud label="V tip" value={`${tip.toFixed(0)} m/s`} />
@@ -661,6 +742,7 @@ function HUD({ geometry, windSpeed, tsr, failureLevel, t, mobile = false }: { ge
     </div>
   );
 }
+
 
 function Hud({ label, value, accent, danger }: { label: string; value: string; accent?: boolean; danger?: boolean }) {
   return (

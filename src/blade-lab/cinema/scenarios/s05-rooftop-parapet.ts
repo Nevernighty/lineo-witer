@@ -12,6 +12,7 @@ export const scenarioRooftopParapet: CinemaScenario = {
   duration: 30,
   site: 'roof',
   stage: 'rooftop_5floor',
+  composition: { framing: 'medium', fov: 45, lookBias: [0, 0.05, 0], minDistanceR: 1.45, floorClearance: 0.25 },
   reference: 'Wieringa (1993); IEC 61400-2 rooftop mounting',
   keyframes: [
     { t: 0, windSpeed: 5, tsr: 4.5, turbulence: 0.15,

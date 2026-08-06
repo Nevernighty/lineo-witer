@@ -3,6 +3,7 @@
 
 import type { ViewMode, RotorType } from '@/aero/buildBladeGeometry';
 import type { VfxEventInput } from './VfxBus';
+import type { Composition } from './useComposition';
 
 export interface HudMetric {
   label: string;
@@ -57,6 +58,8 @@ export interface CinemaScenario {
   site?: string;
   preset?: string;
   stage?: StageId;
+  /** Authored camera composition defaults (user overrides are persisted on top). */
+  composition?: Partial<Composition>;
   keyframes: CinemaKeyframe[];
   reference?: string;
 }

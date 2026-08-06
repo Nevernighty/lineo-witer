@@ -12,6 +12,7 @@ export const scenarioRooftop: CinemaScenario = {
   duration: 30,
   site: 'roof',
   stage: 'rooftop',
+  composition: { framing: 'medium', fov: 46, lookBias: [0, 0.05, 0], minDistanceR: 1.2, floorClearance: 0.15 },
   reference: 'IEC 61400-2 §11.9 (small-wind rooftop turbulence)',
   keyframes: [
     { t: 0,  windSpeed: 4,  tsr: 4, turbulence: 0.05, target: 'inflow',
