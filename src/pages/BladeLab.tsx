@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind, AlertTriangle, Activity } from 'lucide-react';
 import { toast } from '@/components/ui/use-toast';
