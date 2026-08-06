@@ -35,6 +35,10 @@ import { CinemaPanel } from '@/blade-lab/cinema/CinemaPanel';
 import { createVfxBus } from '@/blade-lab/cinema/VfxBus';
 import { startTeleport } from '@/store/useTeleportStore';
 import { useCloudSync } from '@/hooks/useCloudSync';
+import { useComposition } from '@/blade-lab/cinema/useComposition';
+import { reportHudBand } from '@/blade-lab/cinema/hudLayout';
+import { PresetManager } from '@/components/blade-lab/PresetManager';
+
 
 
 const VIEW_MODES: Array<{ id: ViewMode; ua: string; en: string }> = [
