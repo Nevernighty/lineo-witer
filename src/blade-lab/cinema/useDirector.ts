@@ -4,7 +4,7 @@
 // - Exposes hud, chapter, camera cue for the panel & 3D layers
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { CinemaScenario, CinemaKeyframe, CameraCue, HudCard } from './types';
+import type { CinemaScenario, CinemaKeyframe, CameraCue, HudCard, CinemaStep } from './types';
 import type { ViewMode, RotorType } from '@/aero/buildBladeGeometry';
 import type { VfxBus } from './VfxBus';
 
@@ -33,6 +33,14 @@ export interface DirectorState {
   cameraCue: CameraCue | null;
   cameraControlled: boolean;
   keyframeTimes: number[];
+  /** Guided explanation steps of the loaded scenario. */
+  steps: CinemaStep[];
+  /** Index of the step currently on screen, or -1. */
+  stepIndex: number;
+  activeStep: CinemaStep | null;
+  goToStep: (index: number) => void;
+  nextStep: () => void;
+  prevStep: () => void;
   play: () => void;
   pause: () => void;
   toggle: () => void;
@@ -176,6 +184,10 @@ export function useDirector(adapters: DirectorAdapters): DirectorState {
     apply(scenario, clamped, false);
   }, [scenario, apply]);
 
+  const steps = scenario?.steps ?? [];
+  const stepIndex = steps.reduce((acc, st, i) => (st.at <= elapsed + 1e-3 ? i : acc), steps.length ? 0 : -1);
+  const activeStep = stepIndex >= 0 ? steps[stepIndex] ?? null : null;
+
   return {
     scenario,
     playing,
@@ -200,6 +212,25 @@ export function useDirector(adapters: DirectorAdapters): DirectorState {
       if (!scenario) return;
       const prior = [...scenario.keyframes].reverse().find(k => k.t < elapsed - 0.01);
       seek(prior ? prior.t : 0);
+    },
+    steps,
+    stepIndex,
+    activeStep,
+    goToStep: (index: number) => {
+      const st = steps[index];
+      if (!st) return;
+      setCameraControlled(true);
+      seek(st.at);
+    },
+    nextStep: () => {
+      const nx = steps.find(st => st.at > elapsed + 0.01);
+      if (nx) { setCameraControlled(true); seek(nx.at); }
+      else if (scenario) seek(scenario.duration);
+    },
+    prevStep: () => {
+      const pv = [...steps].reverse().find(st => st.at < elapsed - 0.01);
+      setCameraControlled(true);
+      seek(pv ? pv.at : 0);
     },
     load: (s) => { setPlaying(false); setCameraControlled(!!s); setScenario(s); },
     releaseCamera: () => setCameraControlled(false),

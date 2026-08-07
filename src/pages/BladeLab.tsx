@@ -301,6 +301,8 @@ export default function BladeLab() {
       cameraControlled: director.cameraControlled,
       target: director.target,
       composition,
+      step: director.activeStep,
+      lang,
       onPark: park,
     },
   };
