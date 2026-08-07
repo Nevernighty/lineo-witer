@@ -8,7 +8,8 @@ import type { BladeGeometry } from '@/aero/bem';
 import type { ViewMode, RotorType } from '@/aero/buildBladeGeometry';
 import { useIsMobile } from '@/hooks/use-mobile';
 import type { VfxBus } from '@/blade-lab/cinema/VfxBus';
-import type { StageId, CameraCue } from '@/blade-lab/cinema/types';
+import type { StageId, CameraCue, CinemaStep } from '@/blade-lab/cinema/types';
+import { HighlightLayer } from '@/blade-lab/cinema/HighlightLayer';
 import { VfxLayer } from '@/blade-lab/cinema/VfxLayer';
 import { ScenarioStage } from '@/blade-lab/cinema/ScenarioStage';
 import { CinemaCamera } from '@/blade-lab/cinema/CinemaCamera';
@@ -57,6 +58,9 @@ interface Props {
     cameraControlled?: boolean;
     target?: 'blade' | 'hub' | 'wake' | 'inflow' | null;
     composition?: Composition;
+    /** Guided step whose 3D highlights should be visible. */
+    step?: CinemaStep | null;
+    lang?: 'ua' | 'en';
     onPark?: (pos: [number, number, number]) => void;
   };
 
@@ -370,6 +374,14 @@ export function BladeViewer3D({
           <ScenarioStage stage={cinema.stage} R={R} H={H} isVAWT={isVAWT} V={windSpeed} />
         )}
         {cinema?.vfxBus && <VfxLayer bus={cinema.vfxBus} scale={Math.max(R, H) / 3} />}
+        {cinema?.step && (
+          <HighlightLayer
+            step={cinema.step}
+            scale={Math.max(0.15, Math.max(R, H) / 3)}
+            subjectRadius={subjectRadius}
+            lang={cinema.lang ?? 'ua'}
+          />
+        )}
         <GroundDisc R={Math.max(R, H * 0.5)} yPos={groundY} />
         <Grid
           args={[Math.max(R, H) * 8, Math.max(R, H) * 8]}

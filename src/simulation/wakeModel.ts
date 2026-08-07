@@ -107,3 +107,94 @@ export function isInTurbineWakeZone(
 
   return { inWake: crossDist < wakeRadius, distance: downstream };
 }
+
+// ---------------------------------------------------------------------------
+// Bluff-body (building / tree / wall) wake — near, transition and far regions
+// ---------------------------------------------------------------------------
+
+export interface BluffWakeSample {
+  inWake: boolean;
+  /** Local velocity multiplier (0..1). */
+  velocityFactor: number;
+  /** Added turbulence intensity in the wake (0..1+). */
+  tiBoost: number;
+  /** Streamwise distance behind the body (m). */
+  downstream: number;
+  /** 1 inside the recirculation bubble, fading to 0 at the reattachment point. */
+  recirculation: number;
+}
+
+const NO_WAKE: BluffWakeSample = {
+  inWake: false, velocityFactor: 1, tiBoost: 0, downstream: 0, recirculation: 0,
+};
+
+/**
+ * Expanding-cone wake behind a solid obstacle.
+ *
+ * Near wake (x < 1.5·H): recirculation, deficit close to its maximum.
+ * Transition (1.5·H .. 3·H): deficit holds, the cone widens fast.
+ * Far wake (x > 3·H): centreline deficit decays as (x/x0)^(-2/3), the classic
+ * two-dimensional bluff-body recovery law.
+ *
+ * Lateral and vertical shape are Gaussian across the expanded cone, so a point
+ * clipping the wake edge only feels a fraction of the deficit — this is what
+ * produces the readable "influence zone" instead of a hard on/off box.
+ */
+export function sampleBluffBodyWake(
+  px: number, py: number, pz: number,
+  cx: number, cy: number, cz: number,
+  width: number, height: number, depth: number,
+  windDirX: number, windDirZ: number,
+  dragCoefficient = 1.2,
+  porosity = 0,
+  wakeDecayK = 0.11
+): BluffWakeSample {
+  const toX = px - cx;
+  const toZ = pz - cz;
+  const downstream = toX * windDirX + toZ * windDirZ;
+  if (downstream <= 0) return NO_WAKE;
+
+  const H = Math.max(0.5, height);
+  const maxDist = Math.max(8 * H, 6 * Math.max(width, depth));
+  if (downstream > maxDist) return { ...NO_WAKE, downstream };
+
+  // Frontal footprint projected onto the cross-wind axis.
+  const frontalHalfW =
+    (Math.abs(width * windDirZ) + Math.abs(depth * windDirX)) / 2 || Math.max(width, depth) / 2;
+
+  const halfW = frontalHalfW + wakeDecayK * downstream;
+  const halfH = H / 2 + wakeDecayK * 0.7 * downstream;
+
+  const lateral = Math.abs(toX * windDirZ - toZ * windDirX);
+  const vertical = py - cy;
+
+  if (lateral > halfW * 1.8 || Math.abs(vertical) > halfH * 1.9) {
+    return { ...NO_WAKE, downstream };
+  }
+
+  // Centreline deficit strength.
+  const solidity = Math.max(0, 1 - porosity);
+  const peak = Math.min(0.92, 0.55 * dragCoefficient * solidity);
+  const nearLen = 1.5 * H;
+  const transitionEnd = 3 * H;
+  let centreDeficit: number;
+  if (downstream < nearLen) centreDeficit = peak;
+  else if (downstream < transitionEnd) centreDeficit = peak * (1 - 0.12 * ((downstream - nearLen) / (transitionEnd - nearLen)));
+  else centreDeficit = peak * 0.88 * Math.pow(transitionEnd / downstream, 2 / 3);
+
+  const shape =
+    Math.exp(-1.4 * (lateral / halfW) ** 2) *
+    Math.exp(-1.2 * (vertical / halfH) ** 2);
+
+  const deficit = centreDeficit * shape;
+  const reattach = nearLen;
+  const recirculation = downstream < reattach ? (1 - downstream / reattach) * shape : 0;
+
+  return {
+    inWake: deficit > 0.01,
+    velocityFactor: Math.max(0.05, 1 - deficit),
+    tiBoost: deficit * 1.15,
+    downstream,
+    recirculation,
+  };
+}

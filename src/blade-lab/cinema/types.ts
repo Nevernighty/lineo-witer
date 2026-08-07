@@ -27,6 +27,37 @@ export interface CameraCue {
   lerp?: number;
 }
 
+/**
+ * A guided highlight mark. Positions are authored in cue-space (units of ~1/3
+ * of the rotor envelope) so a mark keeps its meaning on any rotor size.
+ */
+export type HighlightMark =
+  /** Animated flow streak — shows where the air goes and how fast. */
+  | { kind: 'flow'; pos: [number, number, number]; dir: [number, number, number]; color?: string; speed?: number; label?: string }
+  /** Translucent influence zone (load, stall, wake, separation). Rim-lit, never opaque. */
+  | { kind: 'zone'; pos: [number, number, number]; radius: number; height?: number; color?: string; label?: string }
+  /** Control point with a leader line and a small billboarded caption. */
+  | { kind: 'point'; pos: [number, number, number]; color?: string; label: string; sub?: string }
+  /** Measurement span between two points with a numeric caption. */
+  | { kind: 'span'; from: [number, number, number]; to: [number, number, number]; color?: string; label?: string };
+
+/**
+ * A guided step: a titled explanation that stays on screen for a window of the
+ * timeline together with its 3D marks. Steps are what the user actually steps
+ * through; keyframes remain the low-level simulation track.
+ */
+export interface CinemaStep {
+  id: string;
+  /** Start time in seconds. */
+  at: number;
+  titleUA: string;
+  titleEN: string;
+  bodyUA: string;
+  bodyEN: string;
+  /** 3D marks shown while the step is active. */
+  marks?: HighlightMark[];
+}
+
 export interface CinemaKeyframe {
   /** Seconds from scenario start. Keyframes must be sorted. */
   t: number;
@@ -61,5 +92,13 @@ export interface CinemaScenario {
   /** Authored camera composition defaults (user overrides are persisted on top). */
   composition?: Partial<Composition>;
   keyframes: CinemaKeyframe[];
+  /** Guided explanation steps with their 3D highlights. */
+  steps?: CinemaStep[];
+  /**
+   * World-space mount point for the rotor on this stage. The camera, highlights
+   * and validation all resolve against it, so a rotor can never end up buried
+   * in stage geometry.
+   */
+  anchor?: [number, number, number];
   reference?: string;
 }

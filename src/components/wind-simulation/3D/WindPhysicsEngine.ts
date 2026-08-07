@@ -42,8 +42,13 @@ export const OBSTACLE_DRAG_COEFFICIENTS: Record<string, ObstaclePhysics> = {
 };
 
 // Delegate to simulation core
-import { computeWindShear } from '@/simulation/windField';
+import { computeWindShear, computeLogWindShearDisplaced, computeGustCellMultiplier } from '@/simulation/windField';
 import { computeGustMultiplier } from '@/simulation/windField';
+import { sampleBluffBodyWake } from '@/simulation/wakeModel';
+import { computeEdgeSpeedup, computeSeparationBubble } from '@/simulation/obstacleModel';
+
+export { computeGustCellMultiplier, sampleBluffBodyWake, computeEdgeSpeedup, computeSeparationBubble };
+export type { BluffWakeSample } from '@/simulation/wakeModel';
 import { turbulenceNoise as turbNoiseCore } from '@/simulation/turbulenceModel';
 import { computeTurbulenceIntensity } from '@/simulation/turbulenceModel';
 import { computeAirDensity } from '@/simulation/terrainModel';
@@ -54,7 +59,19 @@ export function calculateAirDensity(altitude: number, temperature: number): numb
   return computeAirDensity(altitude, temperature);
 }
 
+/**
+ * Vertical wind profile. The neutral log law with zero-plane displacement is
+ * the default — it is the physically correct boundary-layer profile and stops
+ * rooftop / canopy heights from being over-speeded. The legacy power law stays
+ * available via `calculateWindShearPower`.
+ */
 export function calculateWindShear(
+  baseSpeed: number, baseHeight: number, targetHeight: number, roughnessLength: number
+): number {
+  return computeLogWindShearDisplaced(baseSpeed, baseHeight, targetHeight, roughnessLength);
+}
+
+export function calculateWindShearPower(
   baseSpeed: number, baseHeight: number, targetHeight: number, roughnessLength: number
 ): number {
   return computeWindShear(baseSpeed, baseHeight, targetHeight, roughnessLength);
