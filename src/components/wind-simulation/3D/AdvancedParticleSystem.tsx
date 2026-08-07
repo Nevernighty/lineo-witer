@@ -264,28 +264,64 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
 
       for (const obstacle of obstacles) {
         if (obstacle.type === 'wind_generator') continue; // generators use Jensen wake below
-        const obstacleCenter = {
-          x: obstacle.x + obstacle.width / 2,
-          y: obstacle.y + obstacle.height / 2,
-          z: obstacle.z + obstacle.depth / 2
-        };
+        const scale = obstacle.scale || 1;
+        const ow = obstacle.width * scale;
+        const oh = obstacle.height * scale;
+        const od = obstacle.depth * scale;
+        const ocx = obstacle.x + obstacle.width / 2;
+        const ocy = obstacle.y + oh / 2;
+        const ocz = obstacle.z + obstacle.depth / 2;
         const physics = OBSTACLE_DRAG_COEFFICIENTS[obstacle.type] || OBSTACLE_DRAG_COEFFICIENTS.building;
-        
-        if (isInWakeZone(particle, obstacleCenter, obstacle, windDirection, physics.wakeLength)) {
-          const distance = Math.sqrt((particle.x - obstacleCenter.x) ** 2 + (particle.z - obstacleCenter.z) ** 2);
-          // Exponential obstacle shadow model
-          const obstacleSize = Math.max(obstacle.width, obstacle.depth) * (obstacle.scale || 1);
-          const shadowFactor = 1 - Math.exp(-distance / obstacleSize);
-          const wakeReduction = calculateWakeVelocity(distance, physics.wakeLength, effectiveSpeed) / effectiveSpeed;
-          const combinedReduction = Math.min(wakeReduction, shadowFactor);
-          targetSpeedX *= combinedReduction;
-          targetSpeedZ *= combinedReduction;
-          const wakeTurbulence = physics.turbulenceGeneration * 0.5;
+        const decayK = physics.porosityFactor > 0.3 ? 0.14 : 0.10;
+
+        // Expanding-cone wake with near / transition / far regions.
+        const wake = sampleBluffBodyWake(
+          particle.x, particle.y, particle.z,
+          ocx, ocy, ocz, ow, oh, od,
+          windDirection.x, windDirection.z,
+          physics.dragCoefficient, physics.porosityFactor, decayK,
+        );
+        if (wake.inWake) {
+          targetSpeedX *= wake.velocityFactor;
+          targetSpeedZ *= wake.velocityFactor;
+          const wakeTurbulence = physics.turbulenceGeneration * wake.tiBoost * effectiveSpeed * 0.28;
           targetSpeedX += (Math.random() - 0.5) * wakeTurbulence;
-          targetSpeedY += (Math.random() - 0.5) * wakeTurbulence;
+          targetSpeedY += (Math.random() - 0.5) * wakeTurbulence * 0.8;
           targetSpeedZ += (Math.random() - 0.5) * wakeTurbulence;
+          // Recirculation core: streamwise reversal plus upward entrainment.
+          if (wake.recirculation > 0.01) {
+            const rev = wake.recirculation * effectiveSpeed * 0.35;
+            targetSpeedX -= windDirection.x * rev;
+            targetSpeedZ -= windDirection.z * rev;
+            targetSpeedY += wake.recirculation * effectiveSpeed * 0.18;
+          }
+        }
+
+        // Streamline compression over the windward edge (rooftop speed-up).
+        const speedup = computeEdgeSpeedup(
+          particle.x, particle.y, particle.z,
+          ocx, ocy, ocz, ow, oh, od,
+          windDirection.x, windDirection.z,
+        );
+        if (speedup > 1.001) {
+          targetSpeedX *= speedup;
+          targetSpeedZ *= speedup;
+        }
+
+        // Roof separation bubble: flow detaches behind the leading edge.
+        const bubble = computeSeparationBubble(
+          particle.x, particle.y, particle.z,
+          ocx, ocy, ocz, ow, oh, od,
+          windDirection.x, windDirection.z,
+        );
+        if (bubble > 0.01) {
+          const damp = 1 - 0.7 * bubble;
+          targetSpeedX = targetSpeedX * damp - windDirection.x * bubble * effectiveSpeed * 0.3;
+          targetSpeedZ = targetSpeedZ * damp - windDirection.z * bubble * effectiveSpeed * 0.3;
+          targetSpeedY += bubble * effectiveSpeed * 0.22;
         }
       }
+
 
       for (const gen of generators) {
         const dx = gen.cx - particle.x;
