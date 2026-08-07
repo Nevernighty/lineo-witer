@@ -285,6 +285,20 @@ export default function BladeLab() {
   const { composition, patch: patchComposition, reset: resetComposition, park } =
     useComposition(director.scenario?.id ?? null, director.scenario?.composition);
 
+  // Live scene metrics mirrored from the viewer, used for scenario pre-flight.
+  const stageMetrics = useMemo(() => {
+    const R = geometry.tipRadius;
+    const isVAWT = rotorType !== 'hawt';
+    const H = isVAWT ? R * 2 * (heightOverDiameter ?? 1) : R;
+    const staged = !!director.scenario?.stage && director.scenario.stage !== 'none';
+    return {
+      subjectRadius: (isVAWT ? Math.max(R, H / 2) : R) * (staged ? 1.45 : 1.15),
+      sceneScale: Math.max(R, H),
+      floorY: isVAWT ? -H / 2 - R * 0.1 : -R * 1.1,
+      centerY: 0,
+    };
+  }, [geometry.tipRadius, rotorType, heightOverDiameter, director.scenario?.stage]);
+
   const viewerProps = {
     geometry, viewMode, windSpeed, tsr, cinematic, postFX,
     showTipVortex: showVortex, showStreamlines: showStream,
@@ -517,6 +531,7 @@ export default function BladeLab() {
               <CinemaPanel
                 lang={lang} director={director}
                 composition={composition}
+                stage={stageMetrics}
                 onComposition={patchComposition}
                 onResetComposition={resetComposition}
               />

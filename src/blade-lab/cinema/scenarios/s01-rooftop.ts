@@ -14,6 +14,58 @@ export const scenarioRooftop: CinemaScenario = {
   stage: 'rooftop',
   composition: { framing: 'medium', fov: 46, lookBias: [0, 0.05, 0], minDistanceR: 1.2, floorClearance: 0.15 },
   reference: 'IEC 61400-2 §11.9 (small-wind rooftop turbulence)',
+  anchor: [0, 0, 0],
+  steps: [
+    {
+      id: 'inflow', at: 0,
+      titleUA: 'Набігаючий потік', titleEN: 'Inflow',
+      bodyUA: 'Спокійні 4 м/с підходять до парапету. Профіль швидкості ще логарифмічний і рівний.',
+      bodyEN: 'A calm 4 m/s stream approaches the parapet. The profile is still a clean log law.',
+      marks: [
+        { kind: 'flow', pos: [-2.6, -0.2, 0], dir: [2.2, 0, 0], color: '#7be7ff', speed: 1, label: 'V = 4 m/s' },
+        { kind: 'point', pos: [-1.6, -0.9, 0], color: '#8ef7c4', label: 'Parapet', sub: 'separation edge' },
+      ],
+    },
+    {
+      id: 'separation', at: 4,
+      titleUA: 'Зона відриву', titleEN: 'Separation bubble',
+      bodyUA: 'За парапетом потік відривається: усередині бульбашки швидкість реверсує, а TI зростає втричі.',
+      bodyEN: 'Flow detaches behind the parapet: inside the bubble the streamwise speed reverses and TI triples.',
+      marks: [
+        { kind: 'zone', pos: [-0.6, -0.6, 0], radius: 1.1, height: 0.8, color: '#ffaa44', label: 'recirculation' },
+        { kind: 'flow', pos: [-0.2, -0.35, 0], dir: [-0.9, 0.5, 0], color: '#ffaa44', speed: 1.6 },
+      ],
+    },
+    {
+      id: 'stall', at: 9,
+      titleUA: 'Зрив на корені', titleEN: 'Root stall',
+      bodyUA: 'Порив піднімає кут атаки на корені понад критичний — там зʼявляється локальний зрив.',
+      bodyEN: 'The gust drives root angle of attack past critical — a local stall cell appears.',
+      marks: [
+        { kind: 'zone', pos: [0, 0, 0], radius: 0.55, height: 0.5, color: '#ff7a00', label: 'stall cell' },
+        { kind: 'point', pos: [0.35, 0.1, 0], color: '#ff7a00', label: 'α > α_stall', sub: 'blade root' },
+      ],
+    },
+    {
+      id: 'loads', at: 18,
+      titleUA: 'Навантаження 1P', titleEN: '1P loading',
+      bodyUA: 'Нерівномірний потік по диску дає циклічне навантаження раз на оберт — це і є 1P-вібрація.',
+      bodyEN: 'Uneven inflow across the disc loads each blade once per revolution — the classic 1P vibration.',
+      marks: [
+        { kind: 'zone', pos: [0, 0, 0], radius: 1.05, height: 0.12, color: '#a78bfa', label: 'rotor disc' },
+        { kind: 'span', from: [0, -1, 0], to: [0, 1, 0], color: '#c9b7ff', label: 'ΔV across disc' },
+      ],
+    },
+    {
+      id: 'takeaway', at: 28,
+      titleUA: 'Висновок', titleEN: 'Takeaway',
+      bodyUA: 'Підняти щоглу вище 1.5·H будівлі — і ротор виходить із зони відриву майже повністю.',
+      bodyEN: 'Raise the mast above 1.5·H of the building and the rotor clears the separation zone almost entirely.',
+      marks: [
+        { kind: 'span', from: [0, -1.2, 0], to: [0, 1.6, 0], color: '#8ef7c4', label: 'mast height 1.5·H' },
+      ],
+    },
+  ],
   keyframes: [
     { t: 0,  windSpeed: 4,  tsr: 4, turbulence: 0.05, target: 'inflow',
       chapter: { ua: 'Турбулентність над дахом', en: 'Rooftop turbulence' },
