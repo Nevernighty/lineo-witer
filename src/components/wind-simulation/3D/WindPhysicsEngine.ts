@@ -42,8 +42,13 @@ export const OBSTACLE_DRAG_COEFFICIENTS: Record<string, ObstaclePhysics> = {
 };
 
 // Delegate to simulation core
-import { computeWindShear } from '@/simulation/windField';
+import { computeWindShear, computeLogWindShearDisplaced, computeGustCellMultiplier } from '@/simulation/windField';
 import { computeGustMultiplier } from '@/simulation/windField';
+import { sampleBluffBodyWake } from '@/simulation/wakeModel';
+import { computeEdgeSpeedup, computeSeparationBubble } from '@/simulation/obstacleModel';
+
+export { computeGustCellMultiplier, sampleBluffBodyWake, computeEdgeSpeedup, computeSeparationBubble };
+export type { BluffWakeSample } from '@/simulation/wakeModel';
 import { turbulenceNoise as turbNoiseCore } from '@/simulation/turbulenceModel';
 import { computeTurbulenceIntensity } from '@/simulation/turbulenceModel';
 import { computeAirDensity } from '@/simulation/terrainModel';
