@@ -6,10 +6,11 @@ import {
   WindPhysicsConfig,
   OBSTACLE_DRAG_COEFFICIENTS,
   turbulenceNoise,
-  calculateGust,
   calculateWindShear,
-  isInWakeZone,
-  calculateWakeVelocity
+  computeGustCellMultiplier,
+  sampleBluffBodyWake,
+  computeEdgeSpeedup,
+  computeSeparationBubble,
 } from './WindPhysicsEngine';
 import { playAbsorbSound } from '@/utils/sounds';
 
