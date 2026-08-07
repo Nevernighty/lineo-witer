@@ -204,8 +204,8 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
     const time = state.clock.elapsedTime;
     const angleRad = (config.windAngle * Math.PI) / 180;
     const elevationRad = (config.windElevation * Math.PI) / 180;
-    const gustMultiplier = config.gustFrequency > 0 
-      ? calculateGust(time, config.gustFrequency, config.gustIntensity, 1) : 1;
+    // Gusts are coherent parcels advecting downstream, sampled per particle below.
+    const gustCellLength = Math.max(30, config.windSpeed * 8);
 
     obstacleEnergyRef.current.forEach((energy, id) => {
       obstacleEnergyRef.current.set(id, energy * 0.995);
