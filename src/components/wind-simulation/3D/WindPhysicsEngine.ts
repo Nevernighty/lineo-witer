@@ -59,7 +59,19 @@ export function calculateAirDensity(altitude: number, temperature: number): numb
   return computeAirDensity(altitude, temperature);
 }
 
+/**
+ * Vertical wind profile. The neutral log law with zero-plane displacement is
+ * the default — it is the physically correct boundary-layer profile and stops
+ * rooftop / canopy heights from being over-speeded. The legacy power law stays
+ * available via `calculateWindShearPower`.
+ */
 export function calculateWindShear(
+  baseSpeed: number, baseHeight: number, targetHeight: number, roughnessLength: number
+): number {
+  return computeLogWindShearDisplaced(baseSpeed, baseHeight, targetHeight, roughnessLength);
+}
+
+export function calculateWindShearPower(
   baseSpeed: number, baseHeight: number, targetHeight: number, roughnessLength: number
 ): number {
   return computeWindShear(baseSpeed, baseHeight, targetHeight, roughnessLength);
