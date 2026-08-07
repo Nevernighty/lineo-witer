@@ -246,6 +246,12 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       particle.age += delta;
 
       const heightAdjustedSpeed = calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, particle.y), config.surfaceRoughness);
+      const gustMultiplier = computeGustCellMultiplier(
+        particle.x, particle.z, time,
+        config.gustFrequency, config.gustIntensity,
+        windDirection.x, windDirection.z,
+        Math.max(1, heightAdjustedSpeed), gustCellLength,
+      );
       const effectiveSpeed = heightAdjustedSpeed * gustMultiplier;
 
       const turbX = turbulenceNoise(particle.x, particle.y, particle.z, time, config.turbulenceScale);
