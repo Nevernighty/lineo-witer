@@ -15,7 +15,7 @@ export const scenarioColdStart: CinemaScenario = {
   stage: 'none',
   anchor: [0, 0, 0],
   stageRadiusR: 1.2,
-  composition: { framing: 'detail', fov: 38, lookBias: [0, 0, 0], minDistanceR: 1.15, floorClearance: 0.12 },
+  composition: { framing: 'medium', fov: 42, lookBias: [0, 0, 0], minDistanceR: 1.25, floorClearance: 0.12 },
   reference: 'Sheldahl & Klimas SAND80-2114; Menet Savonius (2004)',
   steps: [
     { id: 'static', at: 0, titleUA: 'Статичний момент', titleEN: 'Static torque', bodyUA: 'У нерухомого Savonius опукла й увігнута сторони мають різний опір — виникає момент.', bodyEN: 'On a stationary Savonius the concave and convex sides have unequal drag, producing torque.', marks: [

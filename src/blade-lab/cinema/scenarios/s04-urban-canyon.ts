@@ -13,7 +13,7 @@ export const scenarioUrbanCanyon: CinemaScenario = {
   site: 'lowland_open',
   stage: 'urban_canyon',
   anchor: [0, 0, 0],
-  stageRadiusR: 4.8,
+  stageRadiusR: 3.8,
   composition: { framing: 'wide', fov: 44, lookBias: [0, 0.08, 0], minDistanceR: 1.35, floorClearance: 0.22 },
   reference: 'Continuity: V_gap = V∞ · (A_open / A_gap)',
   steps: [

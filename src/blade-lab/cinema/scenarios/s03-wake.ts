@@ -15,7 +15,7 @@ export const scenarioWake: CinemaScenario = {
   site: 'lowland_open',
   stage: 'wake',
   anchor: [0, 0, 0],
-  stageRadiusR: 3.9,
+  stageRadiusR: 3.2,
   composition: { framing: 'wide', fov: 42, lookBias: [0, 0, -1.55], minDistanceR: 1.4, floorClearance: 0.18 },
   reference: 'Jensen (1983); Katic, Højstrup & Jensen (1986)',
   steps: [
