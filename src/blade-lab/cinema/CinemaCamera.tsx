@@ -25,6 +25,7 @@ interface Props {
   floorY?: number;
   sceneScale: number;
   onPark?: (pos: [number, number, number]) => void;
+  resetKey?: string;
 }
 
 const _dir = new THREE.Vector3();
@@ -42,6 +43,7 @@ export function CinemaCamera({
   floorY = 0,
   sceneScale,
   onPark,
+  resetKey = 'free',
 }: Props) {
   const { camera, size } = useThree();
   const centre = useRef(new THREE.Vector3());
@@ -58,7 +60,10 @@ export function CinemaCamera({
     inited.current = true;
   }, [enabled, composition.parked, camera]);
 
-  useEffect(() => { if (!enabled) inited.current = false; }, [enabled]);
+  useEffect(() => {
+    inited.current = false;
+    smoothLook.current.set(0, 0, 0);
+  }, [enabled, resetKey]);
 
   useFrame(() => {
     if (!enabled || !cue) return;

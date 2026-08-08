@@ -12,8 +12,28 @@ export const scenarioRooftopParapet: CinemaScenario = {
   duration: 30,
   site: 'roof',
   stage: 'rooftop_5floor',
+  anchor: [0, 0.75, 2.4],
+  stageRadiusR: 3.2,
   composition: { framing: 'medium', fov: 45, lookBias: [0, 0.05, 0], minDistanceR: 1.45, floorClearance: 0.25 },
   reference: 'Wieringa (1993); IEC 61400-2 rooftop mounting',
+  steps: [
+    { id: 'roof', at: 0, titleUA: 'Площина даху', titleEN: 'Roof plane', bodyUA: 'Ротор закріплений над реальною площиною даху, а не всередині моделі будинку.', bodyEN: 'The rotor is mounted above the real roof plane, not buried in the building.', marks: [
+      { kind: 'point', pos: [0, -1.05, 0], color: '#8ef7c4', label: 'roof mount', sub: 'structural anchor' },
+    ] },
+    { id: 'bubble', at: 5, titleUA: 'Бульбашка рециркуляції', titleEN: 'Recirculation bubble', bodyUA: 'За парапетом потік реверсує й утворює низькошвидкісну зону.', bodyEN: 'Behind the parapet the flow reverses into a low-speed bubble.', marks: [
+      { kind: 'zone', pos: [0, -0.65, -0.6], radius: 1.15, height: 0.7, color: '#ff6644', label: 'reverse flow' },
+      { kind: 'flow', pos: [0.6, -0.5, -0.6], dir: [-1.2, 0.35, 0], color: '#ff8866', speed: 0.65 },
+    ] },
+    { id: 'buried', at: 10, titleUA: 'Втулка в бульбашці', titleEN: 'Hub inside the bubble', bodyUA: 'Низька швидкість і високий TI зривають роботу профілю.', bodyEN: 'Low speed and high TI collapse the aerofoil operating point.', marks: [
+      { kind: 'point', pos: [0, 0, 0], color: '#ff8844', label: 'V < cut-in', sub: 'Cp = 0.12' },
+    ] },
+    { id: 'clearance', at: 15, titleUA: 'Потрібний кліренс', titleEN: 'Required clearance', bodyUA: 'Втулку треба підняти щонайменше на 1.5 висоти парапета.', bodyEN: 'Raise the hub at least 1.5 parapet heights.', marks: [
+      { kind: 'span', from: [0, -1.05, 0], to: [0, 1.1, 0], color: '#33ff99', label: '≥1.5 h_p' },
+    ] },
+    { id: 'clean', at: 20, titleUA: 'Чистий потік', titleEN: 'Clean flow', bodyUA: 'Над бульбашкою швидкість і Cp відновлюються, а втомні навантаження падають.', bodyEN: 'Above the bubble speed and Cp recover while fatigue loading falls.', marks: [
+      { kind: 'flow', pos: [-1.8, 0.6, 0], dir: [3.2, 0, 0], color: '#33ff99', speed: 1.5, label: 'clean inflow' },
+    ] },
+  ],
   keyframes: [
     { t: 0, windSpeed: 5, tsr: 4.5, turbulence: 0.15,
       chapter: { ua: 'Дах 5-поверхівки', en: '5-storey rooftop' },

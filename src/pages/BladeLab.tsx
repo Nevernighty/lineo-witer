@@ -290,12 +290,13 @@ export default function BladeLab() {
     const R = geometry.tipRadius;
     const isVAWT = rotorType !== 'hawt';
     const H = isVAWT ? R * 2 * (heightOverDiameter ?? 1) : R;
-    const staged = !!director.scenario?.stage && director.scenario.stage !== 'none';
+    const stageRadiusR = director.scenario?.stageRadiusR ?? 0;
+    const anchor = director.scenario?.anchor ?? [0, 0, 0];
     return {
-      subjectRadius: (isVAWT ? Math.max(R, H / 2) : R) * (staged ? 1.45 : 1.15),
+      subjectRadius: Math.max((isVAWT ? Math.max(R, H / 2) : R) * 1.15, R * stageRadiusR),
       sceneScale: Math.max(R, H),
       floorY: isVAWT ? -H / 2 - R * 0.1 : -R * 1.1,
-      centerY: 0,
+      centerY: anchor[1] * R,
     };
   }, [geometry.tipRadius, rotorType, heightOverDiameter, director.scenario?.stage]);
 
@@ -318,6 +319,9 @@ export default function BladeLab() {
       step: director.activeStep,
       lang,
       onPark: park,
+      anchor: director.scenario?.anchor,
+      stageRadiusR: director.scenario?.stageRadiusR,
+      resetKey: director.scenario?.id ?? 'free',
     },
   };
 
@@ -526,7 +530,7 @@ export default function BladeLab() {
             <main className="relative h-full min-w-0">
               <BladeViewer3D {...viewerProps} />
               {!director.scenario && <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />}
-              <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />
+               {!director.scenario && <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />}
               {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
               <CinemaPanel
                 lang={lang} director={director}
@@ -580,8 +584,15 @@ export default function BladeLab() {
           <TabsContent value="viewer" className="flex-1 m-0 relative min-h-[55vh] pb-14">
             <BladeViewer3D {...viewerProps} />
             <MobileSimSheet simCtl={simCtl} t={t} vfx={vfx} setVfx={setVfx} />
-            <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} mobile />
+             {!director.scenario && <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} mobile />}
             {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
+             <CinemaPanel
+               lang={lang} director={director}
+               composition={composition}
+               stage={stageMetrics}
+               onComposition={patchComposition}
+               onResetComposition={resetComposition}
+             />
           </TabsContent>
           <TabsContent value="analysis" className="flex-1 overflow-y-auto scrollbar-thin m-0 pb-16 min-w-0 overflow-x-hidden">
             <AeroAnalysis geometry={geometry} lang={lang} windSpeed={windSpeed} tsr={tsr} rho={rho} materialId={materialId} rotorType={rotorType} heightOverDiameter={heightOverDiameter} />

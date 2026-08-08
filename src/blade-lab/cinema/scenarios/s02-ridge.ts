@@ -14,8 +14,31 @@ export const scenarioRidge: CinemaScenario = {
   duration: 34,
   site: 'highland_ridge',
   stage: 'ridge',
-  composition: { framing: 'wide', fov: 42, lookBias: [0, 0.02, 0], minDistanceR: 1.3, floorClearance: 0.2 },
+  anchor: [0, 0.1, 0],
+  stageRadiusR: 4.2,
+  composition: { framing: 'wide', fov: 42, lookBias: [0, 0.04, 0], minDistanceR: 1.3, floorClearance: 0.2 },
   reference: 'Jackson & Hunt (1975); IEC 61400-1 complex terrain',
+  steps: [
+    { id: 'approach', at: 0, titleUA: 'Підхід до схилу', titleEN: 'Slope approach', bodyUA: 'Потік слідує рельєфу й стискається перед гребенем.', bodyEN: 'The flow follows the terrain and compresses before the crest.', marks: [
+      { kind: 'flow', pos: [-2.8, -1.1, 0], dir: [2.3, 0.7, 0], color: '#7be7ff', speed: 1.1, label: 'V₀' },
+      { kind: 'point', pos: [0, -0.95, 0], color: '#8ef7c4', label: 'crest', sub: 'maximum speed-up' },
+    ] },
+    { id: 'speedup', at: 4, titleUA: 'Зона прискорення', titleEN: 'Speed-up zone', bodyUA: 'Над гребенем лінії потоку зближуються, а локальна швидкість зростає.', bodyEN: 'Streamlines converge over the crest and local velocity rises.', marks: [
+      { kind: 'zone', pos: [0, 0, 0], radius: 1.25, height: 0.35, color: '#33ff99', label: '+25% V' },
+      { kind: 'flow', pos: [-1.4, 0.2, 0], dir: [2.8, 0.15, 0], color: '#33ff99', speed: 1.7 },
+    ] },
+    { id: 'tilt', at: 8, titleUA: 'Нахил потоку', titleEN: 'Flow inclination', bodyUA: 'Вертикальна компонента змінює локальний кут атаки біля кореня.', bodyEN: 'The vertical component changes local root angle of attack.', marks: [
+      { kind: 'point', pos: [0.35, 0.1, 0], color: '#ffcc66', label: 'Δα ≈ +3°', sub: 'root section' },
+      { kind: 'flow', pos: [-1.1, -0.15, 0], dir: [1.3, 0.5, 0], color: '#ffcc66', speed: 1.2 },
+    ] },
+    { id: 'lee', at: 18, titleUA: 'Підвітряний відрив', titleEN: 'Lee separation', bodyUA: 'За гребенем формується повільна рециркуляційна зона — це погане місце монтажу.', bodyEN: 'A slow recirculation region forms behind the crest — a poor mounting location.', marks: [
+      { kind: 'zone', pos: [2.1, -0.65, 0], radius: 1.25, height: 0.7, color: '#ff6644', label: 'lee bubble' },
+      { kind: 'flow', pos: [2.4, -0.35, 0], dir: [-1, 0.2, 0], color: '#ff8866', speed: 0.7 },
+    ] },
+    { id: 'sit', at: 26, titleUA: 'Правильна точка', titleEN: 'Correct siting', bodyUA: 'Втулка над гребенем отримує приріст швидкості без підвітряної турбулентності.', bodyEN: 'A hub above the crest captures speed-up without lee turbulence.', marks: [
+      { kind: 'span', from: [0, -1.1, 0], to: [0, 0, 0], color: '#8ef7c4', label: 'clearance' },
+    ] },
+  ],
   keyframes: [
     { t: 0, windSpeed: 6, tsr: 6, turbulence: 0.10,
       chapter: { ua: 'Прискорення на хребті', en: 'Ridge speed-up' },

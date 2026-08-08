@@ -62,6 +62,9 @@ interface Props {
     step?: CinemaStep | null;
     lang?: 'ua' | 'en';
     onPark?: (pos: [number, number, number]) => void;
+    anchor?: [number, number, number];
+    stageRadiusR?: number;
+    resetKey?: string;
   };
 
 }
@@ -319,8 +322,16 @@ export function BladeViewer3D({
   const isMobile = useIsMobile();
   const mobileMul = isMobile ? 0.45 : 1;
   const hudInsets = useHudInsets();
+  const anchorR = cinema?.anchor ?? [0, 0, 0];
+  const rotorCenter = useMemo<[number, number, number]>(() => [
+    anchorR[0] * R,
+    anchorR[1] * R,
+    anchorR[2] * R,
+  ], [anchorR[0], anchorR[1], anchorR[2], R]);
   // Everything that must stay in frame: rotor envelope plus a stage margin.
-  const subjectRadius = (isVAWT ? Math.max(R, H / 2) : R) * (cinema?.stage && cinema.stage !== 'none' ? 1.45 : 1.15);
+  const rotorEnvelope = isVAWT ? Math.max(R, H / 2) : R;
+  const subjectRadius = Math.max(rotorEnvelope * 1.15, R * (cinema?.stageRadiusR ?? 0));
+  const staged = !!cinema?.stage && cinema.stage !== 'none';
 
   const vortexColor =
     viewMode === 'pressure' ? '#ff6b6b' :
@@ -347,49 +358,53 @@ export function BladeViewer3D({
       <directionalLight position={[-R * 0.8, -R * 0.3, -R * 0.6]} intensity={0.45} color="#ff8866" />
       <Suspense fallback={null}>
         <Environment preset="city" />
-        <BladeMesh
-          geometry={geometry} viewMode={viewMode} windSpeed={windSpeed} tsr={tsr}
-          helical={helical} rotorType={rotorType} heightOverDiameter={heightOverDiameter}
-          failureLevel={failureLevel}
-          flex={0.25 + Math.min(0.6, windSpeed / 30)}
-          turbulence={turbulence}
-          reactionSpeed={reactionSpeed}
-          recoverySpeed={recoverySpeed}
-          highlightTarget={cinema?.target ?? null}
-          vfxBus={cinema?.vfxBus}
-        />
+        <group position={rotorCenter}>
+          <BladeMesh
+            geometry={geometry} viewMode={viewMode} windSpeed={windSpeed} tsr={tsr}
+            helical={helical} rotorType={rotorType} heightOverDiameter={heightOverDiameter}
+            failureLevel={failureLevel}
+            flex={0.25 + Math.min(0.6, windSpeed / 30)}
+            turbulence={turbulence}
+            reactionSpeed={reactionSpeed}
+            recoverySpeed={recoverySpeed}
+            highlightTarget={cinema?.target ?? null}
+            vfxBus={cinema?.vfxBus}
+            resetKey={cinema?.resetKey}
+          />
+          {showTipVortex && !staged && (isVAWT
+            ? <TipVortexVAWT R={R} H={H} color={vortexColor} intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns} swirl={vfx.wakeSwirl} />
+            : <TipVortexHAWT R={R} nBlades={geometry.nBlades} V={windSpeed} tsr={tsr} color={vortexColor}
+                intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns}
+                radiusFactor={vfx.vortexRadiusFactor} decay={vfx.vortexDecay} />
+          )}
+          {showStreamlines && !staged && (isVAWT
+            ? <StreamlinesVAWT R={R} H={H} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
+            : <StreamlinesHAWT R={R} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
+          )}
+          {vfx.airAroundBlades && <AirAroundBlades R={R} isVAWT={isVAWT} V={windSpeed} />}
+        </group>
 
-        {showTipVortex && !cinema?.stage && (isVAWT
-          ? <TipVortexVAWT R={R} H={H} color={vortexColor} intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns} swirl={vfx.wakeSwirl} />
-          : <TipVortexHAWT R={R} nBlades={geometry.nBlades} V={windSpeed} tsr={tsr} color={vortexColor}
-              intensity={vfx.vortexIntensity * mobileMul} turns={vfx.vortexTurns}
-              radiusFactor={vfx.vortexRadiusFactor} decay={vfx.vortexDecay} />
-        )}
-        {showStreamlines && !cinema?.stage && (isVAWT
-          ? <StreamlinesVAWT R={R} H={H} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
-          : <StreamlinesHAWT R={R} V={windSpeed} vfx={{ ...vfx, wakeDensity: vfx.wakeDensity * mobileMul }} turbulence={turbulence} />
-        )}
-        {vfx.airAroundBlades && <AirAroundBlades R={R} isVAWT={isVAWT} V={windSpeed} />}
         {cinema?.stage && cinema.stage !== 'none' && (
           <ScenarioStage stage={cinema.stage} R={R} H={H} isVAWT={isVAWT} V={windSpeed} />
         )}
-        {cinema?.vfxBus && <VfxLayer bus={cinema.vfxBus} scale={Math.max(R, H) / 3} />}
+        {cinema?.vfxBus && <VfxLayer bus={cinema.vfxBus} scale={Math.max(R, H) / 3} center={rotorCenter} />}
         {cinema?.step && (
           <HighlightLayer
             step={cinema.step}
             scale={Math.max(0.15, Math.max(R, H) / 3)}
             subjectRadius={subjectRadius}
+            center={rotorCenter}
             lang={cinema.lang ?? 'ua'}
           />
         )}
-        <GroundDisc R={Math.max(R, H * 0.5)} yPos={groundY} />
-        <Grid
+        {!staged && <GroundDisc R={Math.max(R, H * 0.5)} yPos={groundY} />}
+        {!staged && <Grid
           args={[Math.max(R, H) * 8, Math.max(R, H) * 8]}
           cellColor="#1a3a4a" sectionColor="#2a5a6a"
           position={[0, groundY + 0.001, 0]}
           fadeDistance={Math.max(R, H) * 6} fadeStrength={1.5}
           cellSize={Math.max(R, H) * 0.2} sectionSize={Math.max(R, H)}
-        />
+        />}
       </Suspense>
        <OrbitControls enableDamping dampingFactor={0.08} makeDefault target={[0, 0, 0]} minDistance={Math.max(R, H) * 0.45} maxDistance={Math.max(R, H) * 9} enabled={!cinema?.cameraControlled && !cinematic} />
       <Cinematic enabled={cinematic && !cinema?.cameraControlled && !cinema?.stage} R={R} H={H} isVAWT={isVAWT} />
@@ -399,10 +414,11 @@ export function BladeViewer3D({
         composition={cinema?.composition ?? DEFAULT_COMPOSITION}
         hudInsets={hudInsets}
         sceneScale={Math.max(R, H)}
-        rotorCenter={[0, 0, 0]}
+        rotorCenter={rotorCenter}
         subjectRadius={subjectRadius}
         floorY={groundY}
         onPark={cinema?.onPark}
+        resetKey={cinema?.resetKey}
       />
 
       {postFX && !isMobile && (
