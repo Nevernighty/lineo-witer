@@ -14,8 +14,31 @@ export const scenarioWake: CinemaScenario = {
   duration: 40,
   site: 'lowland_open',
   stage: 'wake',
-  composition: { framing: 'wide', fov: 40, lookBias: [0, 0, -0.35], minDistanceR: 1.4, floorClearance: 0.18 },
+  anchor: [0, 0, 0],
+  stageRadiusR: 3.9,
+  composition: { framing: 'wide', fov: 42, lookBias: [0, 0, -1.55], minDistanceR: 1.4, floorClearance: 0.18 },
   reference: 'Jensen (1983); Katic, Højstrup & Jensen (1986)',
+  steps: [
+    { id: 'spacing', at: 0, titleUA: 'Відстань між роторами', titleEN: 'Rotor spacing', bodyUA: 'Другий ротор стоїть у пʼяти діаметрах за першим.', bodyEN: 'The downstream rotor sits five diameters behind the first.', marks: [
+      { kind: 'span', from: [0, 0, -3], to: [0, 0, 0], color: '#c9b7ff', label: 'x = 5D' },
+      { kind: 'point', pos: [0, 0, -3], color: '#7be7ff', label: 'upstream rotor' },
+    ] },
+    { id: 'cone', at: 5, titleUA: 'Розширення сліду', titleEN: 'Wake expansion', bodyUA: 'Слід розширюється, а його швидкісний дефіцит слабшає з відстанню.', bodyEN: 'The wake expands while its velocity deficit decays downstream.', marks: [
+      { kind: 'flow', pos: [0, 0, -2.8], dir: [0, 0, 2.6], color: '#4f8fe8', speed: 0.65, label: 'deficit core' },
+      { kind: 'zone', pos: [0, 0, -1.4], radius: 1.2, height: 2.6, color: '#4f8fe8', label: 'wake cone' },
+    ] },
+    { id: 'edge', at: 15, titleUA: 'Перетин межі', titleEN: 'Wake-edge crossing', bodyUA: 'Лопать по черзі входить у дефіцит і виходить у швидкий потік — виникає імпульс навантаження.', bodyEN: 'Each blade crosses between deficit and fast flow, creating a load transient.', marks: [
+      { kind: 'zone', pos: [0, 0, 0], radius: 1.05, height: 0.12, color: '#ff8844', label: 'load edge' },
+      { kind: 'point', pos: [0.9, 0.35, 0], color: '#ff8844', label: 'ΔF', sub: 'blade crossing' },
+    ] },
+    { id: 'meander', at: 28, titleUA: 'Блукання сліду', titleEN: 'Wake meander', bodyUA: 'Вісь сліду повільно гуляє вбік і модулює навантаження всього ротора.', bodyEN: 'The wake axis wanders laterally and modulates whole-rotor loading.', marks: [
+      { kind: 'flow', pos: [-0.8, 0, -1.8], dir: [1.5, 0.2, 1.1], color: '#ff6644', speed: 0.55 },
+      { kind: 'flow', pos: [0.8, 0.4, -1.3], dir: [-1.4, -0.1, 1], color: '#ff6644', speed: 0.55 },
+    ] },
+    { id: 'offset', at: 36, titleUA: 'Рознесення рядів', titleEN: 'Stagger the rows', bodyUA: 'Збільшення дистанції або боковий зсув виводить ротор із ядра дефіциту.', bodyEN: 'More spacing or lateral stagger moves the rotor out of the deficit core.', marks: [
+      { kind: 'span', from: [0, 0, -3], to: [1.5, 0, 0], color: '#33ff99', label: '>7D + 0.5D' },
+    ] },
+  ],
   keyframes: [
     { t: 0, windSpeed: 9, tsr: 7, turbulence: 0.10,
       chapter: { ua: 'Взаємодія зі слідом', en: 'Wake interference' },

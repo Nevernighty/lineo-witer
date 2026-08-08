@@ -12,9 +12,31 @@ export const scenarioColdStart: CinemaScenario = {
   synopsisEN: 'From zero to design point: how a rotor "catches" the wind, and why not all VAWTs self-start.',
   duration: 30,
   site: 'lowland_open',
-  stage: 'wake',
+  stage: 'none',
+  anchor: [0, 0, 0],
+  stageRadiusR: 1.2,
   composition: { framing: 'detail', fov: 38, lookBias: [0, 0, 0], minDistanceR: 1.15, floorClearance: 0.12 },
   reference: 'Sheldahl & Klimas SAND80-2114; Menet Savonius (2004)',
+  steps: [
+    { id: 'static', at: 0, titleUA: 'Статичний момент', titleEN: 'Static torque', bodyUA: 'У нерухомого Savonius опукла й увігнута сторони мають різний опір — виникає момент.', bodyEN: 'On a stationary Savonius the concave and convex sides have unequal drag, producing torque.', marks: [
+      { kind: 'flow', pos: [-2, 0.25, 0], dir: [2.2, 0, 0], color: '#7be7ff', speed: 0.75, label: 'V' },
+      { kind: 'point', pos: [-0.65, 0.2, 0], color: '#33ff99', label: 'F_drag', sub: 'advancing bucket' },
+    ] },
+    { id: 'catch', at: 4, titleUA: 'Захоплення потоку', titleEN: 'Catching the flow', bodyUA: 'Додатний Cτ(0) розкручує вал без зовнішнього приводу.', bodyEN: 'Positive Cτ(0) accelerates the shaft without an external starter.', marks: [
+      { kind: 'zone', pos: [0, 0, 0], radius: 1.05, height: 0.16, color: '#33ff99', label: 'τ > 0' },
+    ] },
+    { id: 'plateau', at: 9, titleUA: 'Робоча точка Savonius', titleEN: 'Savonius operating point', bodyUA: 'Зі зростанням TSR момент опору врівноважує прискорення.', bodyEN: 'As TSR rises, resisting aerodynamic torque balances acceleration.', marks: [
+      { kind: 'point', pos: [0.8, 0.4, 0], color: '#8ef7c4', label: 'TSR 1.6', sub: 'stable plateau' },
+    ] },
+    { id: 'deadband', at: 13, titleUA: 'Мертва зона Darrieus', titleEN: 'Darrieus dead band', bodyUA: 'Після чистого reset Darrieus стоїть на правильній вертикальній осі, але без стартового моменту.', bodyEN: 'After a clean reset the Darrieus remains on the correct vertical axis, but has near-zero starting torque.', marks: [
+      { kind: 'point', pos: [0.65, 0, 0], color: '#ff5566', label: 'Cτ(0) ≈ 0', sub: 'no self-start' },
+      { kind: 'zone', pos: [0, 0, 0], radius: 1.05, height: 0.12, color: '#ff5566', label: 'dead band' },
+    ] },
+    { id: 'kick', at: 22, titleUA: 'Розкрут і підхоплення', titleEN: 'Kick and capture', bodyUA: 'Після початкового імпульсу підйомна сила підхоплює ротор і виводить його на TSR 4.5.', bodyEN: 'After an initial kick, lift captures the rotor and carries it to TSR 4.5.', marks: [
+      { kind: 'flow', pos: [-2, 0, 0], dir: [3, 0, 0], color: '#33ff99', speed: 1.6 },
+      { kind: 'point', pos: [0.7, 0.5, 0], color: '#33ff99', label: 'Cp ≈ 0.42', sub: 'lift-driven' },
+    ] },
+  ],
   keyframes: [
     { t: 0, windSpeed: 3.5, tsr: 0.2, turbulence: 0.08, rotorType: 'vawt-savonius',
       chapter: { ua: 'Холодний старт', en: 'Cold start' },

@@ -88,7 +88,7 @@ function Rooftop5Stage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean
 function RidgeStage({ R, H, isVAWT }: { R: number; H: number; isVAWT: boolean }) {
   const gY = groundY(R, H, isVAWT);
   const geom = useMemo(() => {
-    const w = R * 12, d = R * 10, seg = 64;
+    const w = R * 8, d = R * 7, seg = 48;
     const g = new THREE.PlaneGeometry(w, d, seg, seg);
     const pos = g.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
