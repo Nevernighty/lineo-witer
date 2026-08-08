@@ -14,7 +14,7 @@ export const scenarioRidge: CinemaScenario = {
   duration: 34,
   site: 'highland_ridge',
   stage: 'ridge',
-  anchor: [0, 1.15, 0],
+  anchor: [0, 0.1, 0],
   stageRadiusR: 4.2,
   composition: { framing: 'wide', fov: 42, lookBias: [0, 0.04, 0], minDistanceR: 1.3, floorClearance: 0.2 },
   reference: 'Jackson & Hunt (1975); IEC 61400-1 complex terrain',

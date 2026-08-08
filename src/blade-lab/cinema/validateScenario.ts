@@ -129,7 +129,10 @@ export function validateScenario(scenario: CinemaScenario, ctx: ValidationContex
   }
 
   // --- 4. Rotor mount vs floor ---------------------------------------------
-  if (scenario.anchor && scenario.anchor[1] - subjectRadius < floorY - 1e-3) {
+  // The full shot radius may include distant buildings/wakes; use the rotor
+  // envelope proxy here rather than treating the whole stage as a blade.
+  const rotorClearance = Math.min(subjectRadius, sceneScale * 0.55);
+  if (scenario.anchor && centerY - rotorClearance < floorY - 1e-3) {
     issues.push({
       level: 'error',
       code: 'rotor-intersects-floor',
