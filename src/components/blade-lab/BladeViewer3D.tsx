@@ -418,6 +418,7 @@ export function BladeViewer3D({
         subjectRadius={subjectRadius}
         floorY={groundY}
         onPark={cinema?.onPark}
+        resetKey={cinema?.resetKey}
       />
 
       {postFX && !isMobile && (

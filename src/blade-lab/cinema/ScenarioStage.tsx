@@ -129,12 +129,14 @@ function UrbanCanyonStage({ R, H, isVAWT, V }: { R: number; H: number; isVAWT: b
   const left  = BUILDING_MODELS.panelKT;
   const right = BUILDING_MODELS.panel12160;
   const kiosk = BUILDING_MODELS.kiosk;
+  const blockSize = Math.min(R * 4, H * 3);
+  const blockOffset = blockSize * 0.72 + R * 1.35;
   return (
     <group>
-      <StageAssetBoundary fallback={<><BuildingFallback position={[-R * 4.1, gY, -R * 0.5]} size={R * 3} /><BuildingFallback position={[R * 4.1, gY, -R * 0.5]} size={R * 3} /></>}>
-        <Suspense fallback={<><BuildingFallback position={[-R * 4.1, gY, -R * 0.5]} size={R * 3} /><BuildingFallback position={[R * 4.1, gY, -R * 0.5]} size={R * 3} /></>}>
-          <GlbModel url={left.url} position={[-R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
-          <GlbModel url={right.url} position={[R * 4.1, gY, -R * 0.5]} fitSize={Math.min(R * 4, H * 3)} groundAlign spin={0} />
+      <StageAssetBoundary fallback={<><BuildingFallback position={[-blockOffset, gY, -R * 0.5]} size={blockSize} /><BuildingFallback position={[blockOffset, gY, -R * 0.5]} size={blockSize} /></>}>
+        <Suspense fallback={<><BuildingFallback position={[-blockOffset, gY, -R * 0.5]} size={blockSize} /><BuildingFallback position={[blockOffset, gY, -R * 0.5]} size={blockSize} /></>}>
+          <GlbModel url={left.url} position={[-blockOffset, gY, -R * 0.5]} fitSize={blockSize} groundAlign spin={0} />
+          <GlbModel url={right.url} position={[blockOffset, gY, -R * 0.5]} fitSize={blockSize} groundAlign spin={0} />
           <GlbModel url={kiosk.url} position={[0, gY, R * 3.8]} fitSize={R * 1.4} groundAlign spin={0} />
         </Suspense>
       </StageAssetBoundary>

@@ -175,7 +175,7 @@ export function BladeMesh({
         grp.scale.setScalar(1);
       }
     }
-  }, [rotorType, resetKey]);
+  }, [rotorType, resetKey, g.tipRadius]);
 
   const frameCounterRef = useRef(0);
 
