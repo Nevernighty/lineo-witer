@@ -2,21 +2,22 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { useFrame } from '@react-three/fiber';
-import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 import type { VfxBus, VfxEvent } from './VfxBus';
 
-interface Props { bus: VfxBus; scale?: number; }
+interface Props { bus: VfxBus; scale?: number; center?: [number, number, number]; }
 
-export function VfxLayer({ bus, scale = 1 }: Props) {
+export function VfxLayer({ bus, scale = 1, center = [0, 0, 0] }: Props) {
   const [, tick] = useState(0);
   useEffect(() => bus.subscribe(() => tick(n => n + 1)), [bus]);
   useFrame(() => {
     if (bus.prune(performance.now() / 1000)) tick(n => n + 1);
   });
   return (
-    <group scale={scale}>
-      {bus.active.map(ev => <VfxItem key={ev.id} ev={ev} />)}
+    <group position={center}>
+      <group scale={scale}>
+        {bus.active.map(ev => <VfxItem key={ev.id} ev={ev} />)}
+      </group>
     </group>
   );
 }
@@ -62,13 +63,6 @@ function ArrowFx({ ev }: { ev: Extract<VfxEvent, { kind: 'arrow' }> }) {
         <coneGeometry args={[len * 0.08, len * 0.2, 16]} />
         <meshBasicMaterial color={ev.color} transparent opacity={0.9} />
       </mesh>
-      {ev.label && (
-        <Html position={[0, len * 1.05, 0]} center distanceFactor={8} zIndexRange={[10, 0]}>
-          <div style={{ fontSize: 11, color: ev.color, background: 'rgba(0,0,0,0.55)', padding: '2px 6px', borderRadius: 4, whiteSpace: 'nowrap', border: `1px solid ${ev.color}` }}>
-            {ev.label}
-          </div>
-        </Html>
-      )}
     </group>
   );
 }
@@ -110,14 +104,10 @@ function ShockFx({ ev }: { ev: Extract<VfxEvent, { kind: 'shockwave' }> }) {
 function LabelFx({ ev }: { ev: Extract<VfxEvent, { kind: 'label3d' }> }) {
   const color = ev.color ?? '#7be7ff';
   return (
-    <Html position={ev.pos} center distanceFactor={10} zIndexRange={[10, 0]}>
-      <div style={{
-        fontSize: 12, color, background: 'rgba(3,10,18,0.75)',
-        padding: '4px 8px', borderRadius: 6, whiteSpace: 'nowrap',
-        border: `1px solid ${color}`, backdropFilter: 'blur(4px)',
-        opacity: 1 - ageOf(ev),
-      }}>{ev.text}</div>
-    </Html>
+    <mesh position={ev.pos}>
+      <ringGeometry args={[0.08, 0.11, 24]} />
+      <meshBasicMaterial color={color} transparent opacity={1 - ageOf(ev)} depthWrite={false} toneMapped={false} />
+    </mesh>
   );
 }
 
@@ -132,13 +122,8 @@ function WindPatchFx({ ev }: { ev: Extract<VfxEvent, { kind: 'windPatch' }> }) {
     <group position={ev.pos}>
       <mesh ref={ref} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[ev.size, 32]} />
-        <meshBasicMaterial color={ev.color} transparent opacity={0.55} side={THREE.DoubleSide} />
+        <meshBasicMaterial color={ev.color} transparent opacity={0.08} side={THREE.DoubleSide} depthWrite={false} wireframe />
       </mesh>
-      {ev.label && (
-        <Html position={[0, 0.1, 0]} center distanceFactor={12}>
-          <div style={{ fontSize: 11, color: ev.color, background: 'rgba(0,0,0,0.5)', padding: '2px 6px', borderRadius: 3, whiteSpace: 'nowrap' }}>{ev.label}</div>
-        </Html>
-      )}
     </group>
   );
 }

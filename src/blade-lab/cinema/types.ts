@@ -94,11 +94,9 @@ export interface CinemaScenario {
   keyframes: CinemaKeyframe[];
   /** Guided explanation steps with their 3D highlights. */
   steps?: CinemaStep[];
-  /**
-   * World-space mount point for the rotor on this stage. The camera, highlights
-   * and validation all resolve against it, so a rotor can never end up buried
-   * in stage geometry.
-   */
+  /** Rotor mount in rotor-radius units. Camera, highlights and VFX share it. */
   anchor?: [number, number, number];
+  /** Radius, in rotor radii, of stage geometry that must remain in the shot. */
+  stageRadiusR?: number;
   reference?: string;
 }

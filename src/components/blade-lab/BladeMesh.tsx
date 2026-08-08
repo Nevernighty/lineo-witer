@@ -33,6 +33,8 @@ interface Props {
   reactionSpeed?: number;
   highlightTarget?: 'blade' | 'hub' | 'wake' | 'inflow' | null;
   vfxBus?: VfxBus;
+  /** Changes whenever a scenario/preset needs a clean scene-graph reset. */
+  resetKey?: string;
 }
 
 /**
@@ -59,7 +61,7 @@ export function BladeMesh({
   geometry: g, viewMode, windSpeed, tsr, helical = 0, rotorType = 'hawt', heightOverDiameter,
   flex = 0.25, failureLevel = 0, spin = true,
   turbulence = 0, recoverySpeed = 1, reactionSpeed = 1,
-  highlightTarget = null, vfxBus,
+  highlightTarget = null, vfxBus, resetKey = 'free',
 }: Props) {
   const [, setVfxRevision] = useState(0);
   useEffect(() => vfxBus?.subscribe(() => setVfxRevision(v => v + 1)), [vfxBus]);
@@ -173,7 +175,7 @@ export function BladeMesh({
         grp.scale.setScalar(1);
       }
     }
-  }, [rotorType]);
+  }, [rotorType, resetKey]);
 
   const frameCounterRef = useRef(0);
 
