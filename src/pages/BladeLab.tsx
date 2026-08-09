@@ -493,6 +493,10 @@ export default function BladeLab() {
               className="h-7 px-2 bl-btn-text rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1">
               <Wind className="w-3 h-3" /> <span className="hidden sm:inline">{t.applySim}</span>
             </button>
+            <div className="flex bg-card/60 rounded border border-border/30 p-0.5 mr-1">
+              <button onClick={() => setMode('aero')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${mode === 'aero' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>{lang === 'ua' ? 'Аеро' : 'Aero'}</button>
+              <button onClick={() => setMode('real')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${mode === 'real' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>{lang === 'ua' ? 'Реальні' : 'Real'}</button>
+            </div>
             <div className="flex bg-card/60 rounded border border-border/30 p-0.5">
               <button onClick={() => setLang('ua')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>UA</button>
               <button onClick={() => setLang('en')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>EN</button>
