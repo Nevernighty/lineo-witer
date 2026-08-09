@@ -38,6 +38,8 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 import { useComposition } from '@/blade-lab/cinema/useComposition';
 import { reportHudBand } from '@/blade-lab/cinema/hudLayout';
 import { PresetManager } from '@/components/blade-lab/PresetManager';
+import { RealTurbineExplorer } from '@/components/turbine-explorer/RealTurbineExplorer';
+import { getRealTurbine } from '@/data/realTurbines';
 
 
 
@@ -129,7 +131,27 @@ export default function BladeLab() {
   const [showDiag, setShowDiag] = useState(false);
   const [turbulenceBoost, setTurbulenceBoost] = useState(0);
   const [failureBoost, setFailureBoost] = useState(0);
+  const [mode, setMode] = useState<'aero' | 'real'>('aero');
   const navigate = useNavigate();
+
+  // Load a real 3D-printed turbine's rotor family + size into the aero lab.
+  const applyRealTurbine = useCallback((id: string) => {
+    const rt = getRealTurbine(id);
+    setRotorType(rt.family as RotorType);
+    setTsr(rt.spec.designTsr);
+    setGeometry(g => clampGeometry({
+      ...g,
+      nBlades: rt.spec.blades,
+      rootRadius: Math.max(0.02, rt.spec.rotorD * 0.06),
+      tipRadius: rt.spec.rotorD / 2,
+      chordRoot: Math.max(0.02, rt.spec.rotorD * 0.14),
+      chordTip: Math.max(0.01, rt.spec.rotorD * 0.07),
+    }));
+    if (rt.axis === 'vertical') setHeightOverDiameter(rt.spec.rotorH / Math.max(0.01, rt.spec.rotorD));
+    setMode('aero');
+    toast({ title: lang === 'ua' ? rt.nameUA : rt.nameEN });
+  }, [lang]);
+
 
 
   const rho = 1.225;
@@ -471,6 +493,10 @@ export default function BladeLab() {
               className="h-7 px-2 bl-btn-text rounded bg-primary/20 hover:bg-primary/30 text-primary border border-primary/40 flex items-center gap-1">
               <Wind className="w-3 h-3" /> <span className="hidden sm:inline">{t.applySim}</span>
             </button>
+            <div className="flex bg-card/60 rounded border border-border/30 p-0.5 mr-1">
+              <button onClick={() => setMode('aero')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${mode === 'aero' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>{lang === 'ua' ? 'Аеро' : 'Aero'}</button>
+              <button onClick={() => setMode('real')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${mode === 'real' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>{lang === 'ua' ? 'Реальні' : 'Real'}</button>
+            </div>
             <div className="flex bg-card/60 rounded border border-border/30 p-0.5">
               <button onClick={() => setLang('ua')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${lang === 'ua' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>UA</button>
               <button onClick={() => setLang('en')} className={`px-1.5 py-0.5 rounded bl-meta font-semibold ${lang === 'en' ? 'bg-primary/20 text-primary' : 'text-muted-foreground'}`}>EN</button>
@@ -511,8 +537,14 @@ export default function BladeLab() {
         </div>
       </header>
 
+      {mode === 'real' && (
+        <div className="flex-1 min-h-0">
+          <RealTurbineExplorer lang={lang} onSendToLab={applyRealTurbine} />
+        </div>
+      )}
+
       {/* Desktop */}
-      <div className="hidden md:block flex-1 min-h-0">
+      <div className={`${mode === 'real' ? 'hidden' : 'hidden md:block'} flex-1 min-h-0`}>
         <ResizablePanelGroup direction="horizontal" autoSaveId="blade-lab-layout" className="h-full w-full">
           <ResizablePanel defaultSize={22} minSize={14} maxSize={40} className="min-w-0">
             <aside className="h-full overflow-y-auto scrollbar-thin">
@@ -564,7 +596,7 @@ export default function BladeLab() {
       </div>
 
       {/* Mobile */}
-      <div className="md:hidden flex-1 min-h-0 flex flex-col">
+      <div className={`${mode === 'real' ? 'hidden' : 'md:hidden'} flex-1 min-h-0 flex flex-col`}>
         <Tabs defaultValue="viewer" className="flex-1 flex flex-col min-h-0">
           <TabsList className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-4 h-10 bg-card/90 backdrop-blur-xl border border-primary/20 shadow-lg pb-[env(safe-area-inset-bottom)]">
             <TabsTrigger value="geo" className="bl-meta">{t.geometry}</TabsTrigger>
