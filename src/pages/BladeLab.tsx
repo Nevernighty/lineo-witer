@@ -511,8 +511,14 @@ export default function BladeLab() {
         </div>
       </header>
 
+      {mode === 'real' && (
+        <div className="flex-1 min-h-0">
+          <RealTurbineExplorer lang={lang} onSendToLab={applyRealTurbine} />
+        </div>
+      )}
+
       {/* Desktop */}
-      <div className="hidden md:block flex-1 min-h-0">
+      <div className={`${mode === 'real' ? 'hidden' : 'hidden md:block'} flex-1 min-h-0`}>
         <ResizablePanelGroup direction="horizontal" autoSaveId="blade-lab-layout" className="h-full w-full">
           <ResizablePanel defaultSize={22} minSize={14} maxSize={40} className="min-w-0">
             <aside className="h-full overflow-y-auto scrollbar-thin">
