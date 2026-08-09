@@ -570,7 +570,7 @@ export default function BladeLab() {
       </div>
 
       {/* Mobile */}
-      <div className="md:hidden flex-1 min-h-0 flex flex-col">
+      <div className={`${mode === 'real' ? 'hidden' : 'md:hidden'} flex-1 min-h-0 flex flex-col`}>
         <Tabs defaultValue="viewer" className="flex-1 flex flex-col min-h-0">
           <TabsList className="fixed bottom-2 left-2 right-2 z-40 grid grid-cols-4 h-10 bg-card/90 backdrop-blur-xl border border-primary/20 shadow-lg pb-[env(safe-area-inset-bottom)]">
             <TabsTrigger value="geo" className="bl-meta">{t.geometry}</TabsTrigger>
