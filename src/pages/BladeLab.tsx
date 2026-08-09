@@ -38,6 +38,8 @@ import { useCloudSync } from '@/hooks/useCloudSync';
 import { useComposition } from '@/blade-lab/cinema/useComposition';
 import { reportHudBand } from '@/blade-lab/cinema/hudLayout';
 import { PresetManager } from '@/components/blade-lab/PresetManager';
+import { RealTurbineExplorer } from '@/components/turbine-explorer/RealTurbineExplorer';
+import { getRealTurbine } from '@/data/realTurbines';
 
 
 
