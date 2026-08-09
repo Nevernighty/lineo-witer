@@ -129,7 +129,27 @@ export default function BladeLab() {
   const [showDiag, setShowDiag] = useState(false);
   const [turbulenceBoost, setTurbulenceBoost] = useState(0);
   const [failureBoost, setFailureBoost] = useState(0);
+  const [mode, setMode] = useState<'aero' | 'real'>('aero');
   const navigate = useNavigate();
+
+  // Load a real 3D-printed turbine's rotor family + size into the aero lab.
+  const applyRealTurbine = useCallback((id: string) => {
+    const rt = getRealTurbine(id);
+    setRotorType(rt.family as RotorType);
+    setTsr(rt.spec.designTsr);
+    setGeometry(g => clampGeometry({
+      ...g,
+      nBlades: rt.spec.blades,
+      rootRadius: Math.max(0.02, rt.spec.rotorD * 0.06),
+      tipRadius: rt.spec.rotorD / 2,
+      chordRoot: Math.max(0.02, rt.spec.rotorD * 0.14),
+      chordTip: Math.max(0.01, rt.spec.rotorD * 0.07),
+    }));
+    if (rt.axis === 'vertical') setHeightOverDiameter(rt.spec.rotorH / Math.max(0.01, rt.spec.rotorD));
+    setMode('aero');
+    toast({ title: lang === 'ua' ? rt.nameUA : rt.nameEN });
+  }, [lang]);
+
 
 
   const rho = 1.225;
