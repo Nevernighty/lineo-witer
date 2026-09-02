@@ -1,7 +1,7 @@
 // Canvas stage for the real-turbine part explorer.
 import React, { Suspense, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Html, useProgress } from '@react-three/drei';
+import { OrbitControls, Environment, Lightformer, ContactShadows, Html, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import { PartMesh } from './PartMesh';
 import { buildTurbineLayout, SPINNING_ROLES, type PlacedPart } from '@/data/turbineParts/layout';
@@ -121,6 +121,8 @@ export function TurbineExplorer3D({
     <PartBoundary key={p.part.id}>
       <PartMesh
         placed={p}
+        axis={layout.axis}
+
         explode={explode}
         place={placement ? placement.get(p.part.id) ?? 0 : undefined}
         active={activeIds?.includes(p.part.id) || matchIds?.includes(p.part.id)}
@@ -144,10 +146,12 @@ export function TurbineExplorer3D({
       onPointerMissed={() => onHover(null)}
     >
       <color attach="background" args={['#0b0f14']} />
-      <hemisphereLight intensity={0.55} groundColor="#0b0f14" />
-      <directionalLight position={[5, 8, 4]} intensity={1.5} castShadow
+      <ambientLight intensity={0.45} />
+      <hemisphereLight intensity={0.7} groundColor="#131a21" />
+      <directionalLight position={[5, 8, 4]} intensity={1.7} castShadow
         shadow-mapSize={[1024, 1024]} />
-      <directionalLight position={[-6, 3, -5]} intensity={0.5} color="#7fd1b9" />
+      <directionalLight position={[-6, 3, -5]} intensity={0.7} color="#7fd1b9" />
+      <directionalLight position={[0, -4, 6]} intensity={0.35} color="#8fb6ff" />
 
       <Suspense fallback={<Loader />}>
         <group scale={scale} position={[0, yOffset, 0]}>
@@ -156,8 +160,13 @@ export function TurbineExplorer3D({
             {rot.map(render)}
           </Rotor>
         </group>
-        <Environment preset="city" />
+        <Environment resolution={64}>
+          <Lightformer intensity={2.2} position={[0, 5, 0]} scale={[10, 10, 1]} rotation-x={Math.PI / 2} />
+          <Lightformer intensity={1.1} color="#8bb6c9" position={[-5, 1, -1]} rotation-y={Math.PI / 2} scale={[20, 1.5, 1]} />
+          <Lightformer intensity={0.9} color="#cfe9d8" position={[5, 1, 1]} rotation-y={-Math.PI / 2} scale={[20, 1.5, 1]} />
+        </Environment>
       </Suspense>
+
 
       <ContactShadows position={[0, -1.9, 0]} opacity={0.45} scale={12} blur={2.6} far={5} />
       <OrbitControls

@@ -270,11 +270,11 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
               infoText={t('infoPulsation', lang)} />
           )}
           
-          {/* Particle appearance presets */}
+          {/* Particle appearance presets — icons only, name in tooltip */}
           {onParticlePresetChange && (
             <div className="pt-2 border-t border-primary/15">
               <Label className="text-[9px] text-primary/80 uppercase tracking-wide mb-1.5 block">{t('particlePreset', lang)}</Label>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-0.5">
+              <div className="flex gap-1">
                 {[
                   { id: 'standard', label: t('presetStandard', lang), emoji: '💨' },
                   { id: 'smoke', label: t('presetSmoke', lang), emoji: '🌫️' },
@@ -282,21 +282,31 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
                   { id: 'sparks', label: t('presetSparks', lang), emoji: '✨' },
                   { id: 'flows', label: t('presetFlows', lang), emoji: '🌊' },
                 ].map(p => (
-                  <button key={p.id}
-                    onClick={() => onParticlePresetChange(p.id)}
-                    className={`flex flex-col items-center px-1 py-1.5 rounded text-[7px] font-mono border transition-all ${
-                      particlePreset === p.id
-                        ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_6px_hsl(var(--primary)/0.3)]'
-                        : 'bg-background/30 border-primary/15 text-muted-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    <span className="text-[10px]">{p.emoji}</span>
-                    <span className="mt-0.5 leading-none">{p.label}</span>
-                  </button>
+                  <TooltipProvider key={p.id} delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          aria-label={p.label}
+                          onClick={() => onParticlePresetChange(p.id)}
+                          className={`flex-1 h-7 grid place-items-center rounded border transition-all ${
+                            particlePreset === p.id
+                              ? 'bg-primary/25 border-primary/60 shadow-[0_0_6px_hsl(var(--primary)/0.3)] scale-[1.04]'
+                              : 'bg-background/30 border-primary/15 hover:border-primary/40 hover:scale-[1.04]'
+                          }`}
+                        >
+                          <span className="text-[12px] leading-none">{p.emoji}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-[#0d1117] border-primary/40 text-[10px] z-50">
+                        {p.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 ))}
               </div>
             </div>
           )}
+
         </TabsContent>
 
         <TabsContent value="atmo" className="p-2 space-y-2.5 mt-0">
@@ -416,27 +426,26 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
         </TabsContent>
       </Tabs>
 
-      {/* Analysis Layers */}
-      <div className="px-3 py-2 border-t border-primary/20 bg-background/20">
-        <div className="flex items-center gap-1.5 mb-2">
+      {/* Analysis Layers — compact rows */}
+      <div className="px-2.5 py-1.5 border-t border-primary/20 bg-background/20">
+        <div className="flex items-center gap-1.5 mb-1">
           <Target className="w-3 h-3 text-orange-400" />
-          <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-wide">{t('analysisLayers', lang)}</span>
+          <span className="text-[9px] font-semibold text-orange-400 uppercase tracking-wide">{t('analysisLayers', lang)}</span>
         </div>
-        <div className="grid grid-cols-1 gap-1.5">
+        <div className="grid grid-cols-1 gap-px">
           {[
             { checked: showHotspots, toggle: onToggleHotspots, label: t('collisionHotspots', lang), borderColor: 'border-orange-500/50', checkedBg: 'data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500' },
             { checked: showWakeZones, toggle: onToggleWakeZones, label: t('wakeZones', lang), borderColor: 'border-cyan-500/50', checkedBg: 'data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500' },
             { checked: showLocalHits, toggle: onToggleLocalHits, label: t('localHits', lang), borderColor: 'border-yellow-500/50', checkedBg: 'data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500' },
           ].map((item, i) => (
-            <label key={i} className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
-              <div className="flex items-center gap-2">
-                <Checkbox checked={item.checked} onCheckedChange={item.toggle}
-                  className={`h-3.5 w-3.5 ${item.borderColor} ${item.checkedBg}`} />
-                <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">{item.label}</span>
-              </div>
+            <label key={i} className="flex items-center gap-1.5 h-6 px-1 cursor-pointer group rounded hover:bg-background/50 transition-colors">
+              <Checkbox checked={item.checked} onCheckedChange={item.toggle}
+                className={`h-3 w-3 ${item.borderColor} ${item.checkedBg}`} />
+              <span className="text-[10px] leading-none truncate text-muted-foreground group-hover:text-foreground transition-colors">{item.label}</span>
             </label>
           ))}
         </div>
+
       </div>
 
       {/* Actions */}
