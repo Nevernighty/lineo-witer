@@ -1,7 +1,7 @@
 // Canvas stage for the real-turbine part explorer.
 import React, { Suspense, useMemo, useRef } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { OrbitControls, Environment, ContactShadows, Html, useProgress } from '@react-three/drei';
+import { OrbitControls, Environment, Lightformer, ContactShadows, Html, useProgress } from '@react-three/drei';
 import * as THREE from 'three';
 import { PartMesh } from './PartMesh';
 import { buildTurbineLayout, SPINNING_ROLES, type PlacedPart } from '@/data/turbineParts/layout';
