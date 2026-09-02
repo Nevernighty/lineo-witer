@@ -26,7 +26,7 @@ interface Props {
 }
 
 export function PartMesh({
-  placed, explode, dim, hidden, selected, hovered, xray, place, active, onHover, onSelect,
+  placed, axis, explode, dim, hidden, selected, hovered, xray, place, active, onHover, onSelect,
 }: Props) {
   const { scene } = useGLTF(placed.part.url);
   const group = useRef<THREE.Group>(null);
