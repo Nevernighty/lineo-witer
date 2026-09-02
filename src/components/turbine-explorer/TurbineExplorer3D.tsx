@@ -121,6 +121,8 @@ export function TurbineExplorer3D({
     <PartBoundary key={p.part.id}>
       <PartMesh
         placed={p}
+        axis={layout.axis}
+
         explode={explode}
         place={placement ? placement.get(p.part.id) ?? 0 : undefined}
         active={activeIds?.includes(p.part.id) || matchIds?.includes(p.part.id)}
