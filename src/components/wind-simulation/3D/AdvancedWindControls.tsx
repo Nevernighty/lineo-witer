@@ -426,27 +426,26 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
         </TabsContent>
       </Tabs>
 
-      {/* Analysis Layers */}
-      <div className="px-3 py-2 border-t border-primary/20 bg-background/20">
-        <div className="flex items-center gap-1.5 mb-2">
+      {/* Analysis Layers — compact rows */}
+      <div className="px-2.5 py-1.5 border-t border-primary/20 bg-background/20">
+        <div className="flex items-center gap-1.5 mb-1">
           <Target className="w-3 h-3 text-orange-400" />
-          <span className="text-[10px] font-semibold text-orange-400 uppercase tracking-wide">{t('analysisLayers', lang)}</span>
+          <span className="text-[9px] font-semibold text-orange-400 uppercase tracking-wide">{t('analysisLayers', lang)}</span>
         </div>
-        <div className="grid grid-cols-1 gap-1.5">
+        <div className="grid grid-cols-1 gap-px">
           {[
             { checked: showHotspots, toggle: onToggleHotspots, label: t('collisionHotspots', lang), borderColor: 'border-orange-500/50', checkedBg: 'data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500' },
             { checked: showWakeZones, toggle: onToggleWakeZones, label: t('wakeZones', lang), borderColor: 'border-cyan-500/50', checkedBg: 'data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500' },
             { checked: showLocalHits, toggle: onToggleLocalHits, label: t('localHits', lang), borderColor: 'border-yellow-500/50', checkedBg: 'data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500' },
           ].map((item, i) => (
-            <label key={i} className="flex items-center justify-between cursor-pointer group p-1.5 rounded bg-background/30 hover:bg-background/50 transition-colors">
-              <div className="flex items-center gap-2">
-                <Checkbox checked={item.checked} onCheckedChange={item.toggle}
-                  className={`h-3.5 w-3.5 ${item.borderColor} ${item.checkedBg}`} />
-                <span className="text-[10px] text-muted-foreground group-hover:text-foreground transition-colors">{item.label}</span>
-              </div>
+            <label key={i} className="flex items-center gap-1.5 h-6 px-1 cursor-pointer group rounded hover:bg-background/50 transition-colors">
+              <Checkbox checked={item.checked} onCheckedChange={item.toggle}
+                className={`h-3 w-3 ${item.borderColor} ${item.checkedBg}`} />
+              <span className="text-[10px] leading-none truncate text-muted-foreground group-hover:text-foreground transition-colors">{item.label}</span>
             </label>
           ))}
         </div>
+
       </div>
 
       {/* Actions */}
