@@ -92,12 +92,17 @@ export function PartMesh({
     material.depthWrite = material.opacity > 0.9;
     g.visible = material.opacity > 0.02;
 
-    const s = selected ? 1.04 : hovered ? 1.02 : 1;
+    const s = (selected ? 1.05 : hovered ? 1.03 : 1) * fit;
     if (inner.current) {
       scaleTarget.current.set(s, s, s);
       inner.current.scale.lerp(scaleTarget.current, k);
     }
   });
+
+  // Ring members must face outward around the real rotor axis.
+  const rot: [number, number, number] = placed.ring
+    ? (axis === 'y' ? [0, -placed.spin, 0] : [0, 0, placed.spin])
+    : [0, 0, 0];
 
   return (
     <group
@@ -107,9 +112,10 @@ export function PartMesh({
       onPointerOut={(e) => { e.stopPropagation(); onHover(null); }}
       onClick={(e) => { e.stopPropagation(); onSelect(placed.part.id); }}
     >
-      <group ref={inner} rotation={[0, placed.spin, 0]}>
+      <group ref={inner} rotation={rot} scale={fit}>
         <primitive object={model} />
       </group>
     </group>
   );
+
 }
