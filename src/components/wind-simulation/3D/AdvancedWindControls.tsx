@@ -270,11 +270,11 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
               infoText={t('infoPulsation', lang)} />
           )}
           
-          {/* Particle appearance presets */}
+          {/* Particle appearance presets — icons only, name in tooltip */}
           {onParticlePresetChange && (
             <div className="pt-2 border-t border-primary/15">
               <Label className="text-[9px] text-primary/80 uppercase tracking-wide mb-1.5 block">{t('particlePreset', lang)}</Label>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-0.5">
+              <div className="flex gap-1">
                 {[
                   { id: 'standard', label: t('presetStandard', lang), emoji: '💨' },
                   { id: 'smoke', label: t('presetSmoke', lang), emoji: '🌫️' },
@@ -282,21 +282,31 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
                   { id: 'sparks', label: t('presetSparks', lang), emoji: '✨' },
                   { id: 'flows', label: t('presetFlows', lang), emoji: '🌊' },
                 ].map(p => (
-                  <button key={p.id}
-                    onClick={() => onParticlePresetChange(p.id)}
-                    className={`flex flex-col items-center px-1 py-1.5 rounded text-[7px] font-mono border transition-all ${
-                      particlePreset === p.id
-                        ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_6px_hsl(var(--primary)/0.3)]'
-                        : 'bg-background/30 border-primary/15 text-muted-foreground hover:border-primary/40'
-                    }`}
-                  >
-                    <span className="text-[10px]">{p.emoji}</span>
-                    <span className="mt-0.5 leading-none">{p.label}</span>
-                  </button>
+                  <TooltipProvider key={p.id} delayDuration={150}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          aria-label={p.label}
+                          onClick={() => onParticlePresetChange(p.id)}
+                          className={`flex-1 h-7 grid place-items-center rounded border transition-all ${
+                            particlePreset === p.id
+                              ? 'bg-primary/25 border-primary/60 shadow-[0_0_6px_hsl(var(--primary)/0.3)] scale-[1.04]'
+                              : 'bg-background/30 border-primary/15 hover:border-primary/40 hover:scale-[1.04]'
+                          }`}
+                        >
+                          <span className="text-[12px] leading-none">{p.emoji}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="bg-[#0d1117] border-primary/40 text-[10px] z-50">
+                        {p.label}
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 ))}
               </div>
             </div>
           )}
+
         </TabsContent>
 
         <TabsContent value="atmo" className="p-2 space-y-2.5 mt-0">
