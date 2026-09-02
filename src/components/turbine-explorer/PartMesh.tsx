@@ -8,6 +8,8 @@ import { ROLE_COLOR } from '@/data/turbineParts/types';
 
 interface Props {
   placed: PlacedPart;
+  /** Rotor axis of the parent assembly. */
+  axis: 'y' | 'z';
   explode: number;
   /** 'assembled' | 'ghosted' | 'hidden' visual state driven by the UI. */
   dim: boolean;
