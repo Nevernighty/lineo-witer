@@ -31,23 +31,29 @@ export function PartMesh({
   const inner = useRef<THREE.Group>(null);
   const color = ROLE_COLOR[placed.part.role];
 
-  // Clone + centre the geometry so layout maths is exact.
-  const model = useMemo(() => {
+  // Clone, centre AND re-scale each GLB to its catalogued extent, so parts
+  // exported in different units (mm vs m) all share one layout space.
+  const { model, fit } = useMemo(() => {
     const c = scene.clone(true);
     const box = new THREE.Box3().setFromObject(c);
     const centre = new THREE.Vector3();
+    const size = new THREE.Vector3();
     box.getCenter(centre);
+    box.getSize(size);
     c.position.sub(centre);
-    return c;
-  }, [scene]);
+    const measured = Math.max(size.x, size.y, size.z) || 1;
+    const wanted = Math.max(...placed.part.ext) || measured;
+    return { model: c, fit: wanted / measured };
+  }, [scene, placed.part.ext]);
 
   const material = useMemo(() => new THREE.MeshStandardMaterial({
     color: new THREE.Color(color),
-    metalness: 0.25,
-    roughness: 0.55,
+    metalness: 0.15,
+    roughness: 0.6,
     transparent: true,
     side: THREE.DoubleSide,
   }), [color]);
+
 
   useEffect(() => {
     model.traverse((o) => {
