@@ -10,7 +10,23 @@ import { SimulationLoader } from "@/components/SimulationLoader";
 import { AnimatePresence } from "framer-motion";
 import { type Lang } from "@/utils/i18n";
 
-const WindAnimation = lazy(() => import("@/components/WindAnimation"));
+// Retry the dynamic import once (transient network / stale chunk after a redeploy),
+// then hard-reload once so the browser picks up the fresh asset manifest.
+const RELOAD_KEY = "chunk-reload:WindAnimation";
+const WindAnimation = lazy(() =>
+  import("@/components/WindAnimation").catch(async () => {
+    await new Promise((r) => setTimeout(r, 600));
+    try {
+      return await import("@/components/WindAnimation");
+    } catch (err) {
+      if (!sessionStorage.getItem(RELOAD_KEY)) {
+        sessionStorage.setItem(RELOAD_KEY, "1");
+        window.location.reload();
+      }
+      throw err;
+    }
+  })
+);
 
 type AppState = 'loading' | 'menu' | 'simulation' | 'weather';
 
