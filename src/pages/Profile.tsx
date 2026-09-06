@@ -1,7 +1,7 @@
 // Google-linked profile: presets, recent activity, settings sync.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut, User as UserIcon, Trash2, Send, Download, Sparkles, Clock, Wind, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, LogOut, User as UserIcon, Trash2, Send, Copy, Download, Sparkles, Clock, Wind, Settings as SettingsIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { useCloudSync } from "@/hooks/useCloudSync";
@@ -76,6 +76,67 @@ export default function Profile() {
     setPresets((p) => p.filter((x) => x.id !== id));
     toast.success(t.del);
   };
+
+  // ── Library controls: search, sort, family filter, inline rename ──
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"date" | "name" | "family">("date");
+  const [family, setFamily] = useState("all");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const isLegacyName = (n?: string) => !n || /^(користувацька|custom)$/i.test(String(n).trim());
+
+  const suggestName = (p: any) =>
+    `${String(p.rotor_type ?? "hawt").toUpperCase()} · R${Number(p.geometry?.tipRadius ?? 0).toFixed(1)} м · ${p.geometry?.nBlades ?? "—"}`;
+
+  const startRename = (p: any) => { setEditId(p.id); setEditName(isLegacyName(p.name) ? suggestName(p) : p.name); };
+
+  const commitRename = async (p: any) => {
+    const next = editName.trim() || suggestName(p);
+    setEditId(null);
+    if (next === p.name) return;
+    const { error } = await supabase.from("user_presets").update({ name: next }).eq("id", p.id);
+    if (error) { toast.error(error.message); return; }
+    setPresets((rows) => rows.map((x) => (x.id === p.id ? { ...x, name: next } : x)));
+    toast.success(next);
+  };
+
+  const handleDuplicate = async (p: any) => {
+    const { data, error } = await supabase.from("user_presets")
+      .insert({
+        user_id: p.user_id, name: `${isLegacyName(p.name) ? suggestName(p) : p.name} ×2`,
+        rotor_type: p.rotor_type, material_id: p.material_id, geometry: p.geometry,
+        thumbnail_url: p.thumbnail_url, extra: p.extra,
+      })
+      .select().single();
+    if (error) { toast.error(error.message); return; }
+    setPresets((rows) => [data, ...rows]);
+  };
+
+  const handleOpenInLab = (p: any) => {
+    (window as any).__pendingBladePreset = {
+      id: p.id, nameUA: p.name, nameEN: p.name, geometry: p.geometry,
+      materialId: p.material_id ?? "gfrp", rotorType: p.rotor_type ?? "hawt",
+    };
+    navigate("/blade-lab");
+  };
+
+  const families = useMemo(
+    () => Array.from(new Set(presets.map((p) => String(p.rotor_type ?? "hawt")))),
+    [presets],
+  );
+
+  const visiblePresets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = presets.filter((p) => family === "all" || String(p.rotor_type ?? "hawt") === family);
+    if (q) list = list.filter((p) => `${p.name} ${p.rotor_type} ${p.material_id} ${p.extra?.note ?? ""}`.toLowerCase().includes(q));
+    return [...list].sort((a, b) => {
+      if (sort === "name") return String(a.name).localeCompare(String(b.name));
+      if (sort === "family") return String(a.rotor_type).localeCompare(String(b.rotor_type));
+      return new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime();
+    });
+  }, [presets, query, sort, family]);
+
 
   const handleSendToSim = (p: any) => {
     // Persist as active preset and route to /
