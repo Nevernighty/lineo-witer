@@ -50,19 +50,34 @@ export function PartMesh({
 
   const material = useMemo(() => new THREE.MeshStandardMaterial({
     color: new THREE.Color(color),
-    metalness: 0.15,
-    roughness: 0.6,
+    metalness: 0.05,
+    roughness: 0.55,
     transparent: true,
-    side: THREE.DoubleSide,
+    vertexColors: false,
+    envMapIntensity: 1.1,
+    side: THREE.FrontSide,
   }), [color]);
 
 
   useEffect(() => {
     model.traverse((o) => {
       const m = o as THREE.Mesh;
-      if (m.isMesh) { m.material = material; m.castShadow = true; m.receiveShadow = true; }
+      if (!m.isMesh) return;
+      const geo = m.geometry as THREE.BufferGeometry;
+      // STL-derived GLBs frequently ship without normals (or with degenerate
+      // ones) — without them every surface shades pure black.
+      if (geo) {
+        if (!geo.attributes.normal) geo.computeVertexNormals();
+        if (geo.attributes.color) geo.deleteAttribute('color');
+        geo.computeBoundingSphere();
+      }
+      m.material = material;
+      m.castShadow = true;
+      m.receiveShadow = true;
+      m.frustumCulled = false;
     });
   }, [model, material]);
+
 
   useEffect(() => () => material.dispose(), [material]);
 

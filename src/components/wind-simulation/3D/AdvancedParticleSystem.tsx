@@ -359,8 +359,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             if (horizDist < gen.rotorRadius * 1.5) {
               targetSpeedX *= (1 - gen.speedReduction);
               targetSpeedZ *= (1 - gen.speedReduction);
-              targetSpeedX += (Math.random() - 0.5) * gen.wakeTurbulence;
-              targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence;
+              // Coherent (non-random) wake meander — smooth streamlines, no jitter.
+              const ph = i * 0.37 + time * 1.1;
+              targetSpeedX += Math.sin(ph) * gen.wakeTurbulence * 0.45;
+              targetSpeedZ += Math.cos(ph * 0.8) * gen.wakeTurbulence * 0.45;
+
             }
             // Anti-jamming: force-eject particles stuck deep inside rotor
             if (horizDist < gen.rotorRadius * 0.3 && !particle.absorbed) {
@@ -389,8 +392,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             // Wake effect behind rotor
             const dotWind = dx * windDirection.x + dz * windDirection.z;
             if (dotWind < 0 && dist < gen.rotorRadius * 3) {
-              targetSpeedX += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
-              targetSpeedZ += (Math.random() - 0.5) * gen.wakeTurbulence * 0.5;
+              const phw = i * 0.29 + time * 0.9;
+              targetSpeedX += Math.sin(phw) * gen.wakeTurbulence * 0.3;
+              targetSpeedZ += Math.cos(phw * 0.7) * gen.wakeTurbulence * 0.3;
+
             }
           }
 
@@ -408,27 +413,28 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
           
           if (shouldAbsorb && !particle.absorbed) {
             particle.absorbed = true;
-            particle.absorptionTimer = 28; // Slower dissolve for visibility
-            // Flash: initial size boost 2.5×
-            particle.size = particle.size * 2.5;
-            // Brief outward velocity burst (impact splash before suction)
-            const ejNorm = Math.sqrt((particle.x - gen.cx) ** 2 + (particle.z - gen.cz) ** 2) || 1;
-            particle.speedX += ((particle.x - gen.cx) / ejNorm) * 6;
-            particle.speedZ += ((particle.z - gen.cz) / ejNorm) * 6;
-            particle.speedY += 3;
-            
+            particle.absorptionTimer = 22;
+            // Gentle brightening instead of a splash: the particle keeps its
+            // streamline and is drawn smoothly into the rotor disc.
+            particle.size = particle.size * 1.4;
+            const pullNorm = Math.sqrt((gen.cx - particle.x) ** 2 + (gen.cy - particle.y) ** 2 + (gen.cz - particle.z) ** 2) || 1;
+            particle.speedX += ((gen.cx - particle.x) / pullNorm) * 1.5;
+            particle.speedY += ((gen.cy - particle.y) / pullNorm) * 1.0;
+            particle.speedZ += ((gen.cz - particle.z) / pullNorm) * 1.5;
+
             if (absorbSoundCooldown.current <= 0) {
               playAbsorbSound();
-              absorbSoundCooldown.current = 0.3;
+              absorbSoundCooldown.current = 0.9;
             }
 
-            // GREEN absorption popup
+            // Aggregated generation accounting (no per-hit popups).
             const absorbEnergy = 0.5 * particle.mass * (particle.speedX ** 2 + particle.speedZ ** 2) * gen.rotorEfficiency;
-            if ((window as any).__localAbsorptionAdd && Math.random() < 0.5) {
+            if ((window as any).__localAbsorptionAdd) {
               (window as any).__localAbsorptionAdd(
                 [particle.x, particle.y, particle.z] as [number, number, number],
                 absorbEnergy
               );
+
             }
             
             // No red collision effect for generators — only green absorption popups

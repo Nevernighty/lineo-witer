@@ -16,7 +16,9 @@ import { Obstacle, OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype } from '.
 import { t, type Lang } from '@/utils/i18n';
 import { getTerrainYOffset } from '@/simulation/terrainModel';
 import { SCENARIO_PRESETS, type ScenarioPreset } from '@/data/scenarios';
-import { playPlaceSound, playRotateSound, playClearSound, playScaleSound } from '@/utils/sounds';
+import { playPlaceSound, playRotateSound, playClearSound, playScaleSound, setWindAmbience, stopWindAmbience, ambienceForSpeed } from '@/utils/sounds';
+import { EnergyHud } from './EnergyHud';
+
 import { Crosshair, MousePointer, Map as MapIcon, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useActiveBladePreset } from '@/store/useBladePresetStore';
@@ -170,6 +172,18 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   useEffect(() => {
     setPhysicsConfig(prev => ({ ...prev, windSpeed: initialWindSpeed }));
   }, [initialWindSpeed]);
+
+  // Continuous wind bed, character follows the current wind strength/type.
+  useEffect(() => {
+    const kind = windType === 'mistral' || windType === 'foehn' ? 'storm'
+      : windType === 'katabatic' || windType === 'mountainWave' ? 'gusty'
+      : ambienceForSpeed(physicsConfig.windSpeed);
+
+    setWindAmbience(kind);
+    return () => stopWindAmbience();
+  }, [physicsConfig.windSpeed, windType]);
+
+
 
   const handleConfigChange = (newConfig: WindPhysicsConfig) => {
     setPhysicsConfig(newConfig);
@@ -651,6 +665,10 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           obstacles={obstacles} collisionEnergy={collisionEnergy}
           activeCollisions={obstacles.length} generatorPower={generatorPower} lang={lang} />
       </div>
+
+      <EnergyHud lang={lang} />
+
+
 
       {activeAnalysisCount > 0 && (
         <div className="absolute bottom-10 left-1/2 -translate-x-1/2 z-40" style={{ pointerEvents: 'none' }}>

@@ -1,7 +1,7 @@
 // Google-linked profile: presets, recent activity, settings sync.
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut, User as UserIcon, Trash2, Send, Download, Sparkles, Clock, Wind, Settings as SettingsIcon } from "lucide-react";
+import { ArrowLeft, LogOut, User as UserIcon, Trash2, Send, Copy, Download, Sparkles, Clock, Wind, Settings as SettingsIcon } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuthUser } from "@/hooks/useAuthUser";
 import { useCloudSync } from "@/hooks/useCloudSync";
@@ -76,6 +76,67 @@ export default function Profile() {
     setPresets((p) => p.filter((x) => x.id !== id));
     toast.success(t.del);
   };
+
+  // ── Library controls: search, sort, family filter, inline rename ──
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"date" | "name" | "family">("date");
+  const [family, setFamily] = useState("all");
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+
+  const isLegacyName = (n?: string) => !n || /^(користувацька|custom)$/i.test(String(n).trim());
+
+  const suggestName = (p: any) =>
+    `${String(p.rotor_type ?? "hawt").toUpperCase()} · R${Number(p.geometry?.tipRadius ?? 0).toFixed(1)} м · ${p.geometry?.nBlades ?? "—"}`;
+
+  const startRename = (p: any) => { setEditId(p.id); setEditName(isLegacyName(p.name) ? suggestName(p) : p.name); };
+
+  const commitRename = async (p: any) => {
+    const next = editName.trim() || suggestName(p);
+    setEditId(null);
+    if (next === p.name) return;
+    const { error } = await supabase.from("user_presets").update({ name: next }).eq("id", p.id);
+    if (error) { toast.error(error.message); return; }
+    setPresets((rows) => rows.map((x) => (x.id === p.id ? { ...x, name: next } : x)));
+    toast.success(next);
+  };
+
+  const handleDuplicate = async (p: any) => {
+    const { data, error } = await supabase.from("user_presets")
+      .insert({
+        user_id: p.user_id, name: `${isLegacyName(p.name) ? suggestName(p) : p.name} ×2`,
+        rotor_type: p.rotor_type, material_id: p.material_id, geometry: p.geometry,
+        thumbnail_url: p.thumbnail_url, extra: p.extra,
+      })
+      .select().single();
+    if (error) { toast.error(error.message); return; }
+    setPresets((rows) => [data, ...rows]);
+  };
+
+  const handleOpenInLab = (p: any) => {
+    (window as any).__pendingBladePreset = {
+      id: p.id, nameUA: p.name, nameEN: p.name, geometry: p.geometry,
+      materialId: p.material_id ?? "gfrp", rotorType: p.rotor_type ?? "hawt",
+    };
+    navigate("/blade-lab");
+  };
+
+  const families = useMemo(
+    () => Array.from(new Set(presets.map((p) => String(p.rotor_type ?? "hawt")))),
+    [presets],
+  );
+
+  const visiblePresets = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    let list = presets.filter((p) => family === "all" || String(p.rotor_type ?? "hawt") === family);
+    if (q) list = list.filter((p) => `${p.name} ${p.rotor_type} ${p.material_id} ${p.extra?.note ?? ""}`.toLowerCase().includes(q));
+    return [...list].sort((a, b) => {
+      if (sort === "name") return String(a.name).localeCompare(String(b.name));
+      if (sort === "family") return String(a.rotor_type).localeCompare(String(b.rotor_type));
+      return new Date(b.updated_at ?? b.created_at).getTime() - new Date(a.updated_at ?? a.created_at).getTime();
+    });
+  }, [presets, query, sort, family]);
+
 
   const handleSendToSim = (p: any) => {
     // Persist as active preset and route to /
@@ -160,27 +221,68 @@ export default function Profile() {
 
         {/* Presets */}
         <section>
-          <div className="flex items-center gap-2 mb-3">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
             <Sparkles className="w-4 h-4 text-primary" />
             <div className="text-sm font-semibold">{t.presets}</div>
-            <div className="ml-auto text-[11px] text-muted-foreground">{presets.length}</div>
+            <div className="text-[11px] text-muted-foreground">{visiblePresets.length}/{presets.length}</div>
+            <div className="ml-auto flex items-center gap-2">
+              <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={lang === "ua" ? "Пошук…" : "Search…"}
+                className="h-7 w-36 rounded border border-border/40 bg-background px-2 text-[12px]" />
+              <select value={sort} onChange={(e) => setSort(e.target.value as any)}
+                className="h-7 rounded border border-border/40 bg-background px-1 text-[11px]">
+                <option value="date">{lang === "ua" ? "За датою" : "By date"}</option>
+                <option value="name">{lang === "ua" ? "За назвою" : "By name"}</option>
+                <option value="family">{lang === "ua" ? "За типом" : "By family"}</option>
+              </select>
+            </div>
           </div>
-          {presets.length === 0 ? (
+
+          {families.length > 1 && (
+            <div className="mb-3 flex flex-wrap gap-1">
+              {["all", ...families].map((f) => (
+                <button key={f} onClick={() => setFamily(f)}
+                  className={`rounded-full border px-2 py-0.5 text-[10px] uppercase transition-colors ${family === f ? "border-primary bg-primary/15 text-primary" : "border-border/40 text-muted-foreground hover:text-primary"}`}>
+                  {f}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {visiblePresets.length === 0 ? (
             <div className="rounded-lg border border-dashed border-border/40 p-6 text-center text-sm text-muted-foreground">{t.noPresets}</div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {presets.map((p) => (
+              {visiblePresets.map((p) => (
                 <div key={p.id} className="rounded-lg border border-border/40 bg-card/40 backdrop-blur p-3 hover:border-primary/40 transition-colors">
                   <div className="flex items-start gap-2">
                     <div className="w-10 h-10 rounded bg-primary/10 flex items-center justify-center text-primary text-xs uppercase">{(p.rotor_type ?? "??").slice(0, 3)}</div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{p.name}</div>
-                      <div className="text-[10px] text-muted-foreground truncate">{p.material_id ?? "—"} · {new Date(p.updated_at ?? p.created_at).toLocaleDateString()}</div>
+                      {editId === p.id ? (
+                        <input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") commitRename(p); if (e.key === "Escape") setEditId(null); }}
+                          onBlur={() => commitRename(p)}
+                          className="w-full rounded border border-primary/40 bg-background px-1.5 py-0.5 text-sm" />
+                      ) : (
+                        <button onClick={() => startRename(p)} className="block w-full truncate text-left text-sm font-medium hover:text-primary" title={lang === "ua" ? "Перейменувати" : "Rename"}>
+                          {isLegacyName(p.name) ? (lang === "ua" ? "Без назви — натисніть, щоб назвати" : "Unnamed — click to name") : p.name}
+                        </button>
+                      )}
+                      <div className="text-[10px] text-muted-foreground truncate">
+                        {p.material_id ?? "—"} · R{Number(p.geometry?.tipRadius ?? 0).toFixed(1)} м · {p.geometry?.nBlades ?? "—"} · {new Date(p.updated_at ?? p.created_at).toLocaleDateString()}
+                      </div>
+                      {p.extra?.note && <div className="mt-0.5 line-clamp-2 text-[10px] text-muted-foreground/80">{p.extra.note}</div>}
                     </div>
                   </div>
                   <div className="mt-2 flex items-center gap-1">
                     <button onClick={() => handleSendToSim(p)} className="flex items-center gap-1 px-2 py-1 rounded bg-primary/10 text-primary text-[11px] hover:bg-primary/20">
                       <Send className="w-3 h-3" /> {t.send}
+                    </button>
+                    <button onClick={() => handleOpenInLab(p)} className="px-2 py-1 rounded bg-card text-[11px] text-muted-foreground hover:text-primary border border-border/40">
+                      Blade Lab
+                    </button>
+                    <button onClick={() => handleDuplicate(p)} title={lang === "ua" ? "Дублювати" : "Duplicate"}
+                      className="p-1 rounded text-muted-foreground hover:text-primary">
+                      <Copy className="w-3.5 h-3.5" />
                     </button>
                     <button onClick={() => handleDelete(p.id)} className="ml-auto p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10">
                       <Trash2 className="w-3.5 h-3.5" />
@@ -191,6 +293,7 @@ export default function Profile() {
             </div>
           )}
         </section>
+
 
         {/* History */}
         <section>
