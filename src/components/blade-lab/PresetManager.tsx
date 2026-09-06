@@ -100,13 +100,35 @@ export function PresetManager({ lang, snapshot, onApply, onSend }: Props) {
     refresh();
   };
 
-  const doRename = async (row: any) => {
-    const next = window.prompt(t.rename, row.name);
-    if (!next || next === row.name) return;
-    await updatePreset(row.id, { name: next });
-    setRows((r) => r.map((x) => (x.id === row.id ? { ...x, name: next } : x)));
+  // Inline editing (no window.prompt): name + note are edited in place.
+  const [editId, setEditId] = useState<string | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editNote, setEditNote] = useState('');
+
+  const startEdit = (row: any) => {
+    setEditId(row.id);
+    // Legacy auto-saved rows called "Користувацька"/"Custom" start empty with a
+    // smart suggestion so the user actually names them.
+    const legacy = !row.name || /^(користувацька|custom)$/i.test(String(row.name).trim());
+    setEditName(legacy ? suggestFor(row) : row.name);
+    setEditNote(row.extra?.note ?? '');
+  };
+
+  const suggestFor = (row: any) => {
+    const fam = String(row.rotor_type ?? 'hawt').toUpperCase();
+    const r = Number(row.geometry?.tipRadius ?? 0).toFixed(1);
+    const n = row.geometry?.nBlades ?? '—';
+    return `${fam} · R${r} м · ${n} ${t.blades}`;
+  };
+
+  const commitEdit = async (row: any) => {
+    const next = editName.trim() || suggestFor(row);
+    await updatePreset(row.id, { name: next, extra: { ...(row.extra ?? {}), note: editNote.trim() || null } } as any);
+    setRows((r) => r.map((x) => (x.id === row.id ? { ...x, name: next, extra: { ...(x.extra ?? {}), note: editNote.trim() || null } } : x)));
+    setEditId(null);
     toast({ title: t.renamed });
   };
+
 
   const doDuplicate = async (row: any) => {
     const created = await duplicatePreset(row, `${row.name} ×2`);
