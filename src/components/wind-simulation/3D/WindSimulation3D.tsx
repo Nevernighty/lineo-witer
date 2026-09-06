@@ -173,6 +173,17 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
     setPhysicsConfig(prev => ({ ...prev, windSpeed: initialWindSpeed }));
   }, [initialWindSpeed]);
 
+  // Continuous wind bed, character follows the current wind strength/type.
+  useEffect(() => {
+    const kind = windType === 'storm' ? 'storm'
+      : windType === 'gusty' ? 'gusty'
+      : ambienceForSpeed(physicsConfig.windSpeed);
+    setWindAmbience(kind);
+    return () => stopWindAmbience();
+  }, [physicsConfig.windSpeed, windType]);
+
+
+
   const handleConfigChange = (newConfig: WindPhysicsConfig) => {
     setPhysicsConfig(newConfig);
     onWindSpeedChange?.(newConfig.windSpeed);
