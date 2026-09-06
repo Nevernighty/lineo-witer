@@ -187,19 +187,35 @@ export function PresetManager({ lang, snapshot, onApply, onSend }: Props) {
                     : <div className="flex h-full w-full items-center justify-center text-[10px] uppercase text-primary">{(row.rotor_type ?? '??').slice(0, 4)}</div>}
                 </div>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm font-medium">{row.name}</div>
-                  <div className="truncate text-[11px] text-muted-foreground">
-                    {row.rotor_type} · {row.material_id ?? '—'} · {t.radius} {Number(row.geometry?.tipRadius ?? 0).toFixed(1)} m · {row.geometry?.nBlades ?? '—'} {t.blades}
-                  </div>
-                  {row.extra?.note && <div className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground/80">{row.extra.note}</div>}
-                  <div className="mt-0.5 text-[10px] text-muted-foreground/70">{new Date(row.updated_at ?? row.created_at).toLocaleString()}</div>
+                  {editId === row.id ? (
+                    <div className="space-y-1.5">
+                      <Input autoFocus value={editName} onChange={(e) => setEditName(e.target.value)} placeholder={t.namePh}
+                        onKeyDown={(e) => { if (e.key === 'Enter') commitEdit(row); if (e.key === 'Escape') setEditId(null); }}
+                        className="h-7 text-sm" />
+                      <Textarea value={editNote} onChange={(e) => setEditNote(e.target.value)} placeholder={t.notePh} rows={2} className="text-[11px]" />
+                      <div className="flex gap-1">
+                        <Button size="sm" className="h-6 px-2 text-[11px]" onClick={() => commitEdit(row)}>{t.confirm}</Button>
+                        <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => setEditId(null)}>{t.cancel}</Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="truncate text-sm font-medium">{row.name}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">
+                        {row.rotor_type} · {row.material_id ?? '—'} · {t.radius} {Number(row.geometry?.tipRadius ?? 0).toFixed(1)} m · {row.geometry?.nBlades ?? '—'} {t.blades}
+                      </div>
+                      {row.extra?.note && <div className="mt-0.5 line-clamp-2 text-[11px] text-muted-foreground/80">{row.extra.note}</div>}
+                      <div className="mt-0.5 text-[10px] text-muted-foreground/70">{new Date(row.updated_at ?? row.created_at).toLocaleString()}</div>
+                    </>
+                  )}
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center justify-end gap-1">
                   <Button size="sm" variant="secondary" className="h-7 px-2 text-[11px]" onClick={() => { onApply(row); setLibOpen(false); }}>{t.apply}</Button>
                   <Button size="sm" variant="secondary" className="h-7 px-2 text-[11px]" onClick={() => { onSend(row); setLibOpen(false); }}>
                     <Send className="mr-1 h-3 w-3" />{t.send}
                   </Button>
-                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => doRename(row)} title={t.rename}><Pencil /></Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEdit(row)} title={t.rename}><Pencil /></Button>
+
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => doDuplicate(row)} title={t.dup}><Copy /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => doDelete(row)} title={t.del}><Trash2 /></Button>
                 </div>
