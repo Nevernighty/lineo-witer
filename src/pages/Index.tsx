@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { ArrowLeft, Wind, Zap, Recycle, Settings, Cloud, MapPin, Eye, EyeOff } from "lucide-react";
 import { GeneratorSettings } from "@/components/GeneratorSettings";
 import { GENERATOR_PRESETS, type WindGeneratorSpecs } from "@/utils/windCalculations";
@@ -10,23 +10,9 @@ import { SimulationLoader } from "@/components/SimulationLoader";
 import { AnimatePresence } from "framer-motion";
 import { type Lang } from "@/utils/i18n";
 
-// Retry the dynamic import once (transient network / stale chunk after a redeploy),
-// then hard-reload once so the browser picks up the fresh asset manifest.
-const RELOAD_KEY = "chunk-reload:WindAnimation";
-const WindAnimation = lazy(() =>
-  import("@/components/WindAnimation").catch(async () => {
-    await new Promise((r) => setTimeout(r, 600));
-    try {
-      return await import("@/components/WindAnimation");
-    } catch (err) {
-      if (!sessionStorage.getItem(RELOAD_KEY)) {
-        sessionStorage.setItem(RELOAD_KEY, "1");
-        window.location.reload();
-      }
-      throw err;
-    }
-  })
-);
+// Statically imported: the lazy chunk could fail to fetch after a redeploy
+// (stale asset manifest), which blanked the whole screen.
+import WindAnimation from "@/components/WindAnimation";
 
 type AppState = 'loading' | 'menu' | 'simulation' | 'weather';
 
