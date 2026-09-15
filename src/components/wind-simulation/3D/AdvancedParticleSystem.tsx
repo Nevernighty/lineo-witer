@@ -181,9 +181,16 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
     const cx = obstacle.x + obstacle.width / 2;
     const cy = obstacle.y + obstacle.height / 2;
     const cz = obstacle.z + obstacle.depth / 2;
-    const dx = (particle.x - cx) / (obstacle.width * scale);
+    let dx = particle.x - cx;
     const dy = (particle.y - cy) / (obstacle.height * scale);
-    const dz = (particle.z - cz) / (obstacle.depth * scale);
+    let dz = particle.z - cz;
+    const localAngle = -((obstacle.rotation || 0) * Math.PI) / 180;
+    const cosLocal = Math.cos(localAngle);
+    const sinLocal = Math.sin(localAngle);
+    const localX = dx * cosLocal - dz * sinLocal;
+    const localZ = dx * sinLocal + dz * cosLocal;
+    dx = localX / (obstacle.width * scale);
+    dz = localZ / (obstacle.depth * scale);
     const adx = Math.abs(dx), ady = Math.abs(dy), adz = Math.abs(dz);
     let nx = 0, ny = 0, nz = 0;
     if (adx > ady && adx > adz) nx = Math.sign(dx);
@@ -200,7 +207,8 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
     return [nx, ny, nz];
   }, []);
 
-  useFrame((state, delta) => {
+  useFrame((state, rawDelta) => {
+    const delta = Math.min(rawDelta, 0.05);
     const time = state.clock.elapsedTime;
     const angleRad = (config.windAngle * Math.PI) / 180;
     const elevationRad = (config.windElevation * Math.PI) / 180;
@@ -225,12 +233,21 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       const suctionPhysics = GENERATOR_SUCTION_PHYSICS[subtype] || GENERATOR_SUCTION_PHYSICS.hawt3;
       const rotorDiameter = o.width * 1.8 * (o.scale || 1);
       const isVAWT = specs.axis === 'vertical';
+      const scale = o.scale || 1;
+      const rotationY = ((o.rotation || 0) * Math.PI) / 180;
+      const baseX = o.x + o.width / 2;
+      const baseZ = o.z + o.depth / 2;
+      const nacelleOffset = isVAWT ? 0 : o.width * 0.35 * 0.52 * scale;
       return {
-        cx: o.x + o.width / 2,
+        id: o.id || `${subtype}-${o.x}-${o.z}`,
+        cx: baseX + Math.sin(rotationY) * nacelleOffset,
         cy: isVAWT ? o.y + o.height * (o.scale || 1) * 0.75 : o.y + o.height * (o.scale || 1),
-        cz: o.z + o.depth / 2,
+        cz: baseZ + Math.cos(rotationY) * nacelleOffset,
         rotorRadius: rotorDiameter / 2,
-        attractRadius: Math.min(rotorDiameter * suctionPhysics.suctionRadius, rotorDiameter * 4),
+        rotorHalfHeight: isVAWT ? o.height * scale * (subtype === 'savonius' ? 0.25 : 0.3) : rotorDiameter / 2,
+        attractRadius: rotorDiameter * 2.5,
+        normalX: Math.sin(rotationY),
+        normalZ: Math.cos(rotationY),
         cp: specs.cp,
         subtype,
         isVAWT,
@@ -336,67 +353,36 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         const dz = gen.cz - particle.z;
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
         
-        if (dist < gen.attractRadius && dist > 0.5) {
+        if (dist < gen.attractRadius && dist > 0.05) {
           if (gen.isVAWT) {
             const horizDist = Math.sqrt(dx * dx + dz * dz);
-            if (horizDist > 0.5) {
-              // Stronger radial pull + pronounced tangential swirl for VAWT
-              const closeBoost = horizDist < gen.rotorRadius * 2
-                ? Math.exp((gen.rotorRadius * 2 - horizDist) / gen.rotorRadius) * 1.2
-                : 0;
-              const force = gen.attractK / (horizDist * horizDist + 1.0) + closeBoost;
-              // Radial inward (reduced to make swirl more visible)
-              targetSpeedX += (dx / horizDist) * force * 0.6;
-              targetSpeedZ += (dz / horizDist) * force * 0.6;
-              // Tangential swirl (strong — particles orbit around vertical axis)
-              const tangentX = -dz / horizDist;
-              const tangentZ = dx / horizDist;
-              targetSpeedX += tangentX * force * 0.9;
-              targetSpeedZ += tangentZ * force * 0.9;
-              // Vertical pull toward rotor center
-              targetSpeedY += (gen.cy - particle.y) * force * 0.02;
-            }
-            if (horizDist < gen.rotorRadius * 1.5) {
-              targetSpeedX *= (1 - gen.speedReduction);
-              targetSpeedZ *= (1 - gen.speedReduction);
-              // Coherent (non-random) wake meander — smooth streamlines, no jitter.
-              const ph = i * 0.37 + time * 1.1;
-              targetSpeedX += Math.sin(ph) * gen.wakeTurbulence * 0.45;
-              targetSpeedZ += Math.cos(ph * 0.8) * gen.wakeTurbulence * 0.45;
-
-            }
-            // Anti-jamming: force-eject particles stuck deep inside rotor
-            if (horizDist < gen.rotorRadius * 0.3 && !particle.absorbed) {
-              const ejX = particle.x - gen.cx;
-              const ejZ = particle.z - gen.cz;
-              const ejDist = Math.sqrt(ejX * ejX + ejZ * ejZ) || 1;
-              particle.speedX += (ejX / ejDist) * 8 + windDirection.x * 4;
-              particle.speedZ += (ejZ / ejDist) * 8 + windDirection.z * 4;
-              particle.speedY += 2;
+            const vertical = Math.abs(dy);
+            const radialBand = Math.abs(horizDist - gen.rotorRadius * 0.72);
+            const influence = Math.max(0, 1 - radialBand / Math.max(1, gen.rotorRadius)) * Math.max(0, 1 - vertical / Math.max(1, gen.rotorHalfHeight * 1.6));
+            if (influence > 0 && horizDist > 0.05) {
+              const tangentSign = gen.subtype === 'savonius' ? 1 : -1;
+              const tangentX = (-dz / horizDist) * tangentSign;
+              const tangentZ = (dx / horizDist) * tangentSign;
+              const swirl = effectiveSpeed * influence * (gen.subtype === 'savonius' ? 0.12 : 0.2);
+              targetSpeedX += tangentX * swirl;
+              targetSpeedZ += tangentZ * swirl;
+              targetSpeedX *= 1 - gen.speedReduction * influence * 0.32;
+              targetSpeedZ *= 1 - gen.speedReduction * influence * 0.32;
             }
           } else {
-            // Attract from ALL directions (low pressure zone effect)
-            const closeRange = dist < gen.rotorRadius * 2;
-            const exponentialBoost = closeRange
-              ? Math.exp((gen.rotorRadius * 2 - dist) / gen.rotorRadius) * 0.8
-              : 0;
-            const force = closeRange 
-              ? gen.attractK / (dist + 0.5) * 2.0 + exponentialBoost
-              : gen.attractK / (dist * dist + 1);
-            const convergeFactor = Math.max(0.5, 1 - dist / gen.attractRadius);
-            const velocityBoost = closeRange ? 2.0 : 1.0;
-            targetSpeedX += (dx / dist) * force * convergeFactor * velocityBoost;
-            targetSpeedY += (dy / dist) * force * 0.4 * convergeFactor * velocityBoost;
-            targetSpeedZ += (dz / dist) * force * convergeFactor * velocityBoost;
-
-            // Wake effect behind rotor
-            const dotWind = dx * windDirection.x + dz * windDirection.z;
-            if (dotWind < 0 && dist < gen.rotorRadius * 3) {
-              const phw = i * 0.29 + time * 0.9;
-              targetSpeedX += Math.sin(phw) * gen.wakeTurbulence * 0.3;
-              targetSpeedZ += Math.cos(phw * 0.7) * gen.wakeTurbulence * 0.3;
-
-            }
+            // Rotor-local coordinates: axial distance to disc and radial
+            // distance inside it. This preserves stream tubes instead of
+            // collapsing every particle into one tower-centre point.
+            const axial = (particle.x - gen.cx) * gen.normalX + (particle.z - gen.cz) * gen.normalZ;
+            const lateralX = (particle.x - gen.cx) - axial * gen.normalX;
+            const lateralZ = (particle.z - gen.cz) - axial * gen.normalZ;
+            const radial = Math.sqrt(lateralX * lateralX + lateralZ * lateralZ + dy * dy);
+            const discWeight = Math.max(0, 1 - radial / Math.max(1, gen.rotorRadius * 1.25));
+            const axialWeight = Math.max(0, 1 - Math.abs(axial) / Math.max(1, gen.rotorRadius * 2.2));
+            const induction = discWeight * axialWeight;
+            targetSpeedX *= 1 - gen.speedReduction * induction * 0.38;
+            targetSpeedZ *= 1 - gen.speedReduction * induction * 0.38;
+            targetSpeedY += (-dy / Math.max(1, gen.rotorRadius)) * effectiveSpeed * induction * 0.045;
           }
 
           // VAWT: cylindrical absorption zone (horizontal distance + height check)
@@ -407,13 +393,18 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
                 const towerHeight = gen.cy; // center height
                 const rotorHalfH = gen.rotorRadius * 1.2; // vertical extent
                 const inHeight = particle.y > (towerHeight - rotorHalfH) && particle.y < (towerHeight + rotorHalfH);
-                return horizDist < gen.rotorRadius * 0.6 && inHeight;
+                 return horizDist > gen.rotorRadius * 0.3 && horizDist < gen.rotorRadius * 1.05 && inHeight;
               })()
-            : dist < gen.rotorRadius * 0.8;
+            : (() => {
+                const axial = Math.abs((particle.x - gen.cx) * gen.normalX + (particle.z - gen.cz) * gen.normalZ);
+                const lateralX = (particle.x - gen.cx) - ((particle.x - gen.cx) * gen.normalX + (particle.z - gen.cz) * gen.normalZ) * gen.normalX;
+                const lateralZ = (particle.z - gen.cz) - ((particle.x - gen.cx) * gen.normalX + (particle.z - gen.cz) * gen.normalZ) * gen.normalZ;
+                return axial < Math.max(0.8, gen.rotorRadius * 0.12) && Math.sqrt(lateralX * lateralX + lateralZ * lateralZ + dy * dy) < gen.rotorRadius;
+              })();
           
           if (shouldAbsorb && !particle.absorbed) {
             particle.absorbed = true;
-            particle.absorptionTimer = 22;
+            particle.absorptionTimer = 16;
             // Gentle brightening instead of a splash: the particle keeps its
             // streamline and is drawn smoothly into the rotor disc.
             particle.size = particle.size * 1.4;
@@ -432,7 +423,9 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             if ((window as any).__localAbsorptionAdd) {
               (window as any).__localAbsorptionAdd(
                 [particle.x, particle.y, particle.z] as [number, number, number],
-                absorbEnergy
+                absorbEnergy,
+                gen.id,
+                Math.sqrt(particle.speedX ** 2 + particle.speedY ** 2 + particle.speedZ ** 2)
               );
 
             }
@@ -448,18 +441,20 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         const dz = g.cz - particle.z;
         return Math.sqrt(dx*dx + dz*dz) < g.attractRadius;
       });
-      const lerpFactor = nearGenerator ? 0.3 : 0.18;
+      const response = nearGenerator ? 5.5 : 3.2;
+      const lerpFactor = 1 - Math.exp(-response * delta);
       particle.speedX += (targetSpeedX - particle.speedX) * lerpFactor;
       particle.speedY += (targetSpeedY - particle.speedY) * lerpFactor;
       particle.speedZ += (targetSpeedZ - particle.speedZ) * lerpFactor;
-      particle.speedX *= 0.999;
-      particle.speedY *= 0.999;
-      particle.speedZ *= 0.999;
+      const damping = Math.exp(-0.06 * delta);
+      particle.speedX *= damping;
+      particle.speedY *= damping;
+      particle.speedZ *= damping;
       particle.speedY -= 0.01 * delta;
 
-      particle.x += particle.speedX * delta * 3.5;
-      particle.y += particle.speedY * delta * 3.5;
-      particle.z += particle.speedZ * delta * 3.5;
+      particle.x += particle.speedX * delta;
+      particle.y += particle.speedY * delta;
+      particle.z += particle.speedZ * delta;
 
       // Age-based respawn for fresh flow
       particle.age = (particle.age || 0) + delta;
@@ -488,39 +483,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         particle.absorptionTimer--;
         const progress = 1 - particle.absorptionTimer / 28; // 0→1
         
-        // Phase 1 (0-20%): big spike
-        // Phase 2 (20-60%): oscillating shrink with stretch
-        // Phase 3 (60-100%): dissolve with jitter
-        if (progress < 0.2) {
-          particle.size = Math.max(0.1, 2.5 * (1 - progress * 2));
-        } else if (progress < 0.6) {
-          const p2 = (progress - 0.2) / 0.4;
-          particle.size = Math.max(0.08, (1.2 - p2 * 0.7) + Math.sin(p2 * Math.PI * 6) * 0.3);
-        } else {
-          // Final dissolve with size jitter — "splitting into sparks"
-          const p3 = (progress - 0.6) / 0.4;
-          particle.size = Math.max(0.03, (0.5 - p3 * 0.45) * (0.85 + Math.random() * 0.3));
-        }
-        
-        // Spiral inward with aggressive end-fling
-        const nearGen = generators.find(g => {
-          const ddx = g.cx - particle.x;
-          const ddz = g.cz - particle.z;
-          return Math.sqrt(ddx*ddx + ddz*ddz) < g.attractRadius;
-        });
-        if (nearGen) {
-          const ddx = nearGen.cx - particle.x;
-          const ddy = nearGen.cy - particle.y;
-          const ddz = nearGen.cz - particle.z;
-          const dd = Math.sqrt(ddx*ddx + ddy*ddy + ddz*ddz) || 1;
-          // Stronger tangential fling in final frames
-          const flingBoost = progress > 0.7 ? 1 + (progress - 0.7) * 8 : 1;
-          const swirlStrength = (nearGen.isVAWT ? progress * 5 : progress * 3) * flingBoost;
-          const inwardPull = nearGen.isVAWT ? 1.5 : 2.5;
-          particle.speedX += (ddx / dd * inwardPull + (-ddz / dd) * swirlStrength) * delta * 8;
-          particle.speedY += (ddy / dd * 1.5) * delta * 8;
-          particle.speedZ += (ddz / dd * inwardPull + (ddx / dd) * swirlStrength) * delta * 8;
-        }
+        particle.size = Math.max(0.04, 0.8 * (1 - progress));
         if (particle.absorptionTimer === 0) {
           particle.absorbed = false;
           particle.size = 0.8;
