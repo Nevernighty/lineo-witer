@@ -15,8 +15,8 @@ interface LocalHitManagerProps {
 export const LocalHitManager: React.FC<LocalHitManagerProps> = ({ enabled }) => {
   React.useEffect(() => {
     if (!enabled) return;
-    (window as any).__localAbsorptionAdd = (_pos: [number, number, number], energy: number) => {
-      reportAbsorbedEnergy(energy, 'all');
+    (window as any).__localAbsorptionAdd = (_pos: [number, number, number], energy: number, generatorId?: string, flowSpeed?: number) => {
+      reportAbsorbedEnergy(energy, generatorId ?? 'all', flowSpeed ?? 0);
     };
     // Collisions with buildings do not generate power — they are recorded as
     // losses only, so they must never inflate the generation readout.

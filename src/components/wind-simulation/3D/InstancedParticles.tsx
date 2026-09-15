@@ -204,7 +204,7 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     side: THREE.DoubleSide,
   }), [presetCfg.opacity, glowIntensity]);
 
-  const maxCount = useRef(2000);
+  const capacity = 2000;
   const arrowAngleRad = (windAngle * Math.PI) / 180;
 
   useFrame((state) => {
@@ -212,8 +212,6 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
     const buf = bufferRef.current;
     const count = buf.count;
     const time = state.clock.elapsedTime;
-
-    if (count > maxCount.current) maxCount.current = count;
 
     const pulseMul = pulsation > 0 ? 1 + Math.sin(time * (2 + pulsation * 3)) * pulsation * 0.15 : 1;
     const tailMul = trailLengthMultiplier * presetCfg.tailScale;
@@ -276,19 +274,25 @@ export const InstancedParticles: React.FC<InstancedParticlesProps> = ({
       );
 
       dummy.updateMatrix();
-      meshRef.current!.setMatrixAt(i, dummy.matrix);
+       meshRef.current.setMatrixAt(i, dummy.matrix);
 
-      if (meshRef.current!.instanceColor) {
+       if (meshRef.current.instanceColor) {
         getSpeedColor(tempColor, speed, hasCollided, isAbsorbed, impactMultiplier, glowIntensity, ap);
-        meshRef.current!.instanceColor.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
+         meshRef.current.instanceColor.setXYZ(i, tempColor.r, tempColor.g, tempColor.b);
       }
     }
+
+    // Hide unused instances after lowering particle count; otherwise their last
+    // matrices remain visible as frozen lines or clumps in the scene.
+    dummy.scale.set(0, 0, 0);
+    dummy.updateMatrix();
+    for (let i = count; i < capacity; i++) meshRef.current.setMatrixAt(i, dummy.matrix);
 
     meshRef.current.instanceMatrix.needsUpdate = true;
     if (meshRef.current.instanceColor) meshRef.current.instanceColor.needsUpdate = true;
   });
 
-  const count = Math.max(maxCount.current, 1);
+  const count = capacity;
   const instanceColors = useMemo(() => {
     const colors = new Float32Array(count * 3);
     for (let i = 0; i < count; i++) {
