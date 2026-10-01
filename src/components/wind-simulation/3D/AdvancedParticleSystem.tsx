@@ -412,16 +412,13 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
                 return axial < Math.max(0.8, gen.rotorRadius * 0.12) && Math.sqrt(lateralX * lateralX + lateralZ * lateralZ + dy * dy) < gen.rotorRadius;
               })();
           
-          if (shouldAbsorb && !particle.absorbed) {
+          if (shouldAbsorb && !particle.absorbed && particle.lastObstacleId !== gen.id) {
             particle.absorbed = true;
-            particle.absorptionTimer = 16;
-            // Gentle brightening instead of a splash: the particle keeps its
-            // streamline and is drawn smoothly into the rotor disc.
-            particle.size = particle.size * 1.4;
-            const pullNorm = Math.sqrt((gen.cx - particle.x) ** 2 + (gen.cy - particle.y) ** 2 + (gen.cz - particle.z) ** 2) || 1;
-            particle.speedX += ((gen.cx - particle.x) / pullNorm) * 1.5;
-            particle.speedY += ((gen.cy - particle.y) / pullNorm) * 1.0;
-            particle.speedZ += ((gen.cz - particle.z) / pullNorm) * 1.5;
+            particle.absorptionTimer = 24;
+            particle.lastObstacleId = gen.id;
+            // Energy extraction: the parcel keeps its streamline but leaves the
+            // rotor slower (actuator-disc momentum loss). No pull to a centre
+            // point — that was what collapsed particles into a single line.
 
             if (absorbSoundCooldown.current <= 0) {
               playAbsorbSound();
@@ -493,14 +490,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         particle.absorptionTimer--;
         const progress = 1 - particle.absorptionTimer / 28; // 0→1
         
-        particle.size = Math.max(0.04, 0.8 * (1 - progress));
         if (particle.absorptionTimer === 0) {
+          // Back to a normal (slower, wake) parcel; cannot be re-captured by
+          // the same rotor until it respawns.
           particle.absorbed = false;
-          particle.size = 0.8;
-          particle.x = (Math.random() - 0.5) * width;
-          particle.y = height * (0.15 + Math.random() * 0.65);
-          particle.z = (Math.random() - 0.5) * depth;
-          particle.age = 0;
         }
       }
 
