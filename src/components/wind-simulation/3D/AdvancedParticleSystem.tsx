@@ -426,7 +426,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             }
 
             // Aggregated generation accounting (no per-hit popups).
-            const absorbEnergy = 0.5 * particle.mass * (particle.speedX ** 2 + particle.speedZ ** 2) * gen.rotorEfficiency;
+            // Each tracer represents a ~1 m³ air parcel scaled by its size:
+            // E = ½·ρ·V·v²·Cp (kinetic energy actually extracted by the rotor).
+            const parcelSpeed2 = particle.speedX ** 2 + particle.speedY ** 2 + particle.speedZ ** 2;
+            const absorbEnergy = 0.5 * config.airDensity * particle.size * parcelSpeed2 * gen.cp;
             if ((window as any).__localAbsorptionAdd) {
               (window as any).__localAbsorptionAdd(
                 [particle.x, particle.y, particle.z] as [number, number, number],
@@ -467,10 +470,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       particle.age = (particle.age || 0) + delta;
       const maxAge = 15 + (Math.sin(i * 7.13) * 0.5 + 0.5) * 10;
 
-      if (particle.x < -width / 2) particle.x = width / 2;
-      if (particle.x > width / 2) particle.x = -width / 2;
-      if (particle.z < -depth / 2) particle.z = depth / 2;
-      if (particle.z > depth / 2) particle.z = -depth / 2;
+      if (particle.x < -width / 2) { particle.x = width / 2; particle.lastObstacleId = undefined; }
+      if (particle.x > width / 2) { particle.x = -width / 2; particle.lastObstacleId = undefined; }
+      if (particle.z < -depth / 2) { particle.z = depth / 2; particle.lastObstacleId = undefined; }
+      if (particle.z > depth / 2) { particle.z = -depth / 2; particle.lastObstacleId = undefined; }
 
       // Respawn instead of bounce — prevents ground accumulation
       if (particle.y < 0.5 || particle.y > height || particle.age > maxAge) {
@@ -483,13 +486,12 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         particle.age = 0;
         particle.hasCollided = false;
         particle.absorbed = false;
+        particle.lastObstacleId = undefined;
       }
 
       // Absorbed particles shrink + spiral inward before respawn
       if (particle.absorptionTimer > 0) {
         particle.absorptionTimer--;
-        const progress = 1 - particle.absorptionTimer / 28; // 0→1
-        
         if (particle.absorptionTimer === 0) {
           // Back to a normal (slower, wake) parcel; cannot be re-captured by
           // the same rotor until it respawns.
@@ -590,7 +592,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       buf.velocities[i3 + 2] = particle.speedZ;
       buf.sizes[i] = particle.size;
       buf.flags[i] = (particle.hasCollided ? 1 : 0) | (particle.absorbed ? 2 : 0);
-      buf.absorbProgress[i] = particle.absorbed ? 1 - (particle.absorptionTimer / 28) : 0;
+      buf.absorbProgress[i] = particle.absorbed ? 1 - (particle.absorptionTimer / 24) : 0;
     }
 
     collisionEnergyRef.current *= 0.995;
