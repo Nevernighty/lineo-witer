@@ -8,6 +8,23 @@ import { useActiveBladePreset } from '@/store/useBladePresetStore';
 import { computePowerFromBladeGeometry } from '@/components/wind-simulation/EnergyCalculator';
 import { BladePresetTurbine3D } from './BladePresetTurbine3D';
 import { TurbineHudCard } from './TurbineHudCard';
+import { useEnergyState } from '@/store/useEnergyStore';
+import { useGeneratorFocus, setHoveredGenerator, togglePinnedGenerator, clearPinnedGenerator } from '@/store/useGeneratorFocus';
+
+/** A Blade Lab preset only replaces generators of the same rotor family. */
+function presetFitsSubtype(preset: ReturnType<typeof useActiveBladePreset>, subtype: GeneratorSubtype) {
+  if (!preset || !preset.geometry || !(preset.geometry.tipRadius > 0) || !(preset.geometry.nBlades > 0)) return false;
+  const presetVertical = preset.rotorType !== 'hawt';
+  return presetVertical === (GENERATOR_SUBTYPES[subtype].axis === 'vertical');
+}
+
+/** Falls back to the stock model if a preset rotor throws during build. */
+class RotorBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err: unknown) { console.warn('[WindGenerator3D] preset rotor failed, using stock model', err); }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
 
 interface WindGenerator3DProps {
   obstacle: Obstacle;
@@ -195,8 +212,8 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
 
 // Energy absorption glow effect — for HAWT only (disc at rotor plane)
 const MAX_RINGS = 3;
-const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; power: number; adjustedSpeed: number }> = 
-  ({ towerHeight, rotorDiameter, windAngleRad, power, adjustedSpeed }) => {
+const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: number; rotorOffset: number; rotorRadius: number; power: number; adjustedSpeed: number }> = 
+  ({ towerHeight, rotorDiameter, rotorOffset, rotorRadius, power, adjustedSpeed }) => {
   const discRef = useRef<THREE.Mesh>(null);
   const ringsRef = useRef<THREE.Group>(null);
   const ringTimers = useRef<number[]>(Array(MAX_RINGS).fill(-1));
@@ -210,7 +227,7 @@ const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: num
     if (discRef.current) {
       const mat = discRef.current.material as THREE.MeshBasicMaterial;
       const pulse = Math.sin(time * 6) * 0.3 + 0.7;
-      mat.opacity = isActive ? (0.05 + powerFactor * 0.25) * pulse : 0.02;
+      mat.opacity = isActive ? (0.02 + powerFactor * 0.08) * pulse : 0.01;
       const hue = 0.5 - powerFactor * 0.35;
       mat.color.setHSL(hue, 0.9, 0.6);
       const s = 1 + Math.sin(time * 4) * 0.08 * powerFactor;
@@ -237,25 +254,26 @@ const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: num
         const scale = 0.3 + progress * 1.2;
         ring.scale.set(scale, scale, scale);
         const mat = (ring as THREE.Mesh).material as THREE.MeshBasicMaterial;
-        mat.opacity = (1 - progress) * 0.4 * powerFactor;
+        mat.opacity = (1 - progress) * 0.18 * powerFactor;
         const hue = 0.5 - powerFactor * 0.35;
         mat.color.setHSL(hue, 0.8, 0.65);
       });
     }
   });
 
-  const ringRadius = rotorDiameter * 0.45;
+  const ringRadius = rotorRadius;
+  void rotorDiameter;
 
   return (
-    <group position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
+    <group position={[0, towerHeight, rotorOffset]}>
       <mesh ref={discRef} rotation={[0, 0, 0]}>
-        <circleGeometry args={[rotorDiameter * 0.35, 16]} />
+        <circleGeometry args={[rotorRadius, 32]} />
         <meshBasicMaterial color="#00ffcc" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <group ref={ringsRef}>
         {Array.from({ length: MAX_RINGS }).map((_, i) => (
           <mesh key={i} rotation={[0, 0, 0]}>
-            <ringGeometry args={[ringRadius * 0.85, ringRadius, 24]} />
+            <ringGeometry args={[ringRadius * 0.92, ringRadius, 48]} />
             <meshBasicMaterial color="#00ffaa" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
           </mesh>
         ))}
@@ -278,7 +296,7 @@ const VAWTRotorGlow: React.FC<{ towerHeight: number; rotorDiameter: number; powe
     if (glowRef.current) {
       const mat = glowRef.current.material as THREE.MeshBasicMaterial;
       const pulse = Math.sin(time * 5 + adjustedSpeed) * 0.3 + 0.7;
-      mat.opacity = isActive ? (0.03 + powerFactor * 0.15) * pulse : 0.01;
+      mat.opacity = isActive ? (0.015 + powerFactor * 0.06) * pulse : 0.005;
       const hue = 0.35 - powerFactor * 0.2; // green → yellow-green
       mat.color.setHSL(hue, 0.9, 0.6);
     }
@@ -294,13 +312,13 @@ const VAWTRotorGlow: React.FC<{ towerHeight: number; rotorDiameter: number; powe
 
   const rotorH = isVAWT_savonius ? towerHeight * 0.5 : towerHeight * 0.6;
   const centerY = isVAWT_savonius ? towerHeight * 0.75 : towerHeight * 0.5;
-  const r = rotorDiameter * 0.45;
+  const r = rotorDiameter * (isVAWT_savonius ? 0.27 : 0.22);
 
   return (
     <group position={[0, centerY, 0]}>
       {/* Cylindrical glow around rotor body */}
       <mesh ref={glowRef}>
-        <cylinderGeometry args={[r * 1.3, r * 1.3, rotorH * 1.1, 16, 1, true]} />
+        <cylinderGeometry args={[r * 1.08, r * 1.08, rotorH, 24, 1, true]} />
         <meshBasicMaterial color="#00ff88" transparent opacity={0.03} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       {/* Subtle ring at mid-height */}
