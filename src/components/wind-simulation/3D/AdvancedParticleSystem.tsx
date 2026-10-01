@@ -359,7 +359,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         const dz = gen.cz - particle.z;
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
         
-        if (dist < gen.attractRadius && dist > 0.05) {
+        const horizontalGap = Math.sqrt(dx * dx + dz * dz);
+        const insideInfluence = gen.isVAWT
+          ? horizontalGap < gen.attractRadius && Math.abs(dy) < gen.rotorHalfHeight * 1.8
+          : dist < gen.attractRadius;
+        if (insideInfluence && dist > 0.05) {
           if (gen.isVAWT) {
             const horizDist = Math.sqrt(dx * dx + dz * dz);
             const vertical = Math.abs(dy);
@@ -397,7 +401,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             ? (() => {
                 const horizDist = Math.sqrt(dx * dx + dz * dz);
                 const towerHeight = gen.cy; // center height
-                const rotorHalfH = gen.rotorRadius * 1.2; // vertical extent
+                const rotorHalfH = gen.rotorHalfHeight; // swept blade height
                 const inHeight = particle.y > (towerHeight - rotorHalfH) && particle.y < (towerHeight + rotorHalfH);
                  return horizDist > gen.rotorRadius * 0.3 && horizDist < gen.rotorRadius * 1.05 && inHeight;
               })()
