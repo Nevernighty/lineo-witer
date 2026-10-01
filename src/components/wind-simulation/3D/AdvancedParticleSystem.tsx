@@ -237,15 +237,21 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       const rotationY = ((o.rotation || 0) * Math.PI) / 180;
       const baseX = o.x + o.width / 2;
       const baseZ = o.z + o.depth / 2;
-      const nacelleOffset = isVAWT ? 0 : o.width * 0.35 * 0.52 * scale;
+      // Must mirror WindGenerator3D model dimensions exactly.
+      const nacelleOffset = isVAWT ? 0 : subtype === 'micro' ? 0.8 * scale : o.width * 0.35 * (subtype === 'hawt2' ? 0.4 : 0.5) * scale;
+      const rotorRadius = subtype === 'darrieus' ? rotorDiameter * 0.22
+        : subtype === 'savonius' ? rotorDiameter * 0.27
+        : subtype === 'micro' ? rotorDiameter * 0.39
+        : rotorDiameter * 0.49;
+      const rotorCenterY = subtype === 'darrieus' ? 0.5 : subtype === 'savonius' ? 0.75 : 1;
       return {
         id: o.id || `${subtype}-${o.x}-${o.z}`,
         cx: baseX + Math.sin(rotationY) * nacelleOffset,
-        cy: isVAWT ? o.y + o.height * (o.scale || 1) * 0.75 : o.y + o.height * (o.scale || 1),
+        cy: o.y + o.height * scale * rotorCenterY,
         cz: baseZ + Math.cos(rotationY) * nacelleOffset,
-        rotorRadius: rotorDiameter / 2,
-        rotorHalfHeight: isVAWT ? o.height * scale * (subtype === 'savonius' ? 0.25 : 0.3) : rotorDiameter / 2,
-        attractRadius: rotorDiameter * 2.5,
+        rotorRadius,
+        rotorHalfHeight: isVAWT ? o.height * scale * (subtype === 'savonius' ? 0.225 : 0.3) : rotorRadius,
+        attractRadius: Math.max(rotorRadius * 3, isVAWT ? o.height * scale * 0.5 : 0),
         normalX: Math.sin(rotationY),
         normalZ: Math.cos(rotationY),
         cp: specs.cp,
