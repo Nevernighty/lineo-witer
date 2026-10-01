@@ -8,6 +8,23 @@ import { useActiveBladePreset } from '@/store/useBladePresetStore';
 import { computePowerFromBladeGeometry } from '@/components/wind-simulation/EnergyCalculator';
 import { BladePresetTurbine3D } from './BladePresetTurbine3D';
 import { TurbineHudCard } from './TurbineHudCard';
+import { useEnergyState } from '@/store/useEnergyStore';
+import { useGeneratorFocus, setHoveredGenerator, togglePinnedGenerator, clearPinnedGenerator } from '@/store/useGeneratorFocus';
+
+/** A Blade Lab preset only replaces generators of the same rotor family. */
+function presetFitsSubtype(preset: ReturnType<typeof useActiveBladePreset>, subtype: GeneratorSubtype) {
+  if (!preset || !preset.geometry || !(preset.geometry.tipRadius > 0) || !(preset.geometry.nBlades > 0)) return false;
+  const presetVertical = preset.rotorType !== 'hawt';
+  return presetVertical === (GENERATOR_SUBTYPES[subtype].axis === 'vertical');
+}
+
+/** Falls back to the stock model if a preset rotor throws during build. */
+class RotorBoundary extends React.Component<{ fallback: React.ReactNode; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err: unknown) { console.warn('[WindGenerator3D] preset rotor failed, using stock model', err); }
+  render() { return this.state.failed ? this.props.fallback : this.props.children; }
+}
 
 interface WindGenerator3DProps {
   obstacle: Obstacle;
@@ -195,8 +212,8 @@ const MicroModel: React.FC<{ towerHeight: number; rotorDiameter: number; adjuste
 
 // Energy absorption glow effect — for HAWT only (disc at rotor plane)
 const MAX_RINGS = 3;
-const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: number; windAngleRad: number; power: number; adjustedSpeed: number }> = 
-  ({ towerHeight, rotorDiameter, windAngleRad, power, adjustedSpeed }) => {
+const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: number; rotorOffset: number; rotorRadius: number; power: number; adjustedSpeed: number }> = 
+  ({ towerHeight, rotorDiameter, rotorOffset, rotorRadius, power, adjustedSpeed }) => {
   const discRef = useRef<THREE.Mesh>(null);
   const ringsRef = useRef<THREE.Group>(null);
   const ringTimers = useRef<number[]>(Array(MAX_RINGS).fill(-1));
@@ -210,7 +227,7 @@ const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: num
     if (discRef.current) {
       const mat = discRef.current.material as THREE.MeshBasicMaterial;
       const pulse = Math.sin(time * 6) * 0.3 + 0.7;
-      mat.opacity = isActive ? (0.05 + powerFactor * 0.25) * pulse : 0.02;
+      mat.opacity = isActive ? (0.02 + powerFactor * 0.08) * pulse : 0.01;
       const hue = 0.5 - powerFactor * 0.35;
       mat.color.setHSL(hue, 0.9, 0.6);
       const s = 1 + Math.sin(time * 4) * 0.08 * powerFactor;
@@ -234,28 +251,29 @@ const EnergyAbsorptionEffect: React.FC<{ towerHeight: number; rotorDiameter: num
         ringTimers.current[i] += delta * 2.5;
         const progress = ringTimers.current[i];
         if (progress > 1) { ringTimers.current[i] = -1; ring.visible = false; return; }
-        const scale = 0.3 + progress * 1.2;
+        const scale = 0.6 + progress * 0.45;
         ring.scale.set(scale, scale, scale);
         const mat = (ring as THREE.Mesh).material as THREE.MeshBasicMaterial;
-        mat.opacity = (1 - progress) * 0.4 * powerFactor;
+        mat.opacity = (1 - progress) * 0.18 * powerFactor;
         const hue = 0.5 - powerFactor * 0.35;
         mat.color.setHSL(hue, 0.8, 0.65);
       });
     }
   });
 
-  const ringRadius = rotorDiameter * 0.45;
+  const ringRadius = rotorRadius;
+  void rotorDiameter;
 
   return (
-    <group position={[0, towerHeight, 0]} rotation={[0, -windAngleRad, 0]}>
+    <group position={[0, towerHeight, rotorOffset]}>
       <mesh ref={discRef} rotation={[0, 0, 0]}>
-        <circleGeometry args={[rotorDiameter * 0.35, 16]} />
+        <circleGeometry args={[rotorRadius, 32]} />
         <meshBasicMaterial color="#00ffcc" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       <group ref={ringsRef}>
         {Array.from({ length: MAX_RINGS }).map((_, i) => (
           <mesh key={i} rotation={[0, 0, 0]}>
-            <ringGeometry args={[ringRadius * 0.85, ringRadius, 24]} />
+            <ringGeometry args={[ringRadius * 0.92, ringRadius, 48]} />
             <meshBasicMaterial color="#00ffaa" transparent opacity={0} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
           </mesh>
         ))}
@@ -278,7 +296,7 @@ const VAWTRotorGlow: React.FC<{ towerHeight: number; rotorDiameter: number; powe
     if (glowRef.current) {
       const mat = glowRef.current.material as THREE.MeshBasicMaterial;
       const pulse = Math.sin(time * 5 + adjustedSpeed) * 0.3 + 0.7;
-      mat.opacity = isActive ? (0.03 + powerFactor * 0.15) * pulse : 0.01;
+      mat.opacity = isActive ? (0.015 + powerFactor * 0.06) * pulse : 0.005;
       const hue = 0.35 - powerFactor * 0.2; // green → yellow-green
       mat.color.setHSL(hue, 0.9, 0.6);
     }
@@ -294,13 +312,13 @@ const VAWTRotorGlow: React.FC<{ towerHeight: number; rotorDiameter: number; powe
 
   const rotorH = isVAWT_savonius ? towerHeight * 0.5 : towerHeight * 0.6;
   const centerY = isVAWT_savonius ? towerHeight * 0.75 : towerHeight * 0.5;
-  const r = rotorDiameter * 0.45;
+  const r = rotorDiameter * (isVAWT_savonius ? 0.27 : 0.22);
 
   return (
     <group position={[0, centerY, 0]}>
       {/* Cylindrical glow around rotor body */}
       <mesh ref={glowRef}>
-        <cylinderGeometry args={[r * 1.3, r * 1.3, rotorH * 1.1, 16, 1, true]} />
+        <cylinderGeometry args={[r * 1.08, r * 1.08, rotorH, 24, 1, true]} />
         <meshBasicMaterial color="#00ff88" transparent opacity={0.03} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
       </mesh>
       {/* Subtle ring at mid-height */}
@@ -312,17 +330,22 @@ const VAWTRotorGlow: React.FC<{ towerHeight: number; rotorDiameter: number; powe
   );
 };
 
-export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, config, isSelected = false, isHovered = false }) => {
-  const activePreset = useActiveBladePreset();
+export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, config, isSelected = false }) => {
+  const globalPreset = useActiveBladePreset();
   const subtype = obstacle.generatorSubtype || 'hawt3';
+  const activePreset = presetFitsSubtype(globalPreset, subtype) ? globalPreset : null;
   const specs = GENERATOR_SUBTYPES[subtype];
   const towerHeight = obstacle.height;
   const rotorDiameter = obstacle.width * 1.8;
   const nacelleSize = obstacle.width * 0.35;
+  const generatorId = obstacle.id || `${subtype}-${obstacle.x}-${obstacle.z}`;
   const wobbleRef = useRef<THREE.Group>(null);
   const wobblePhase = useRef(Math.random() * Math.PI * 2);
-  const energyRef = useRef({ kj: 0, avg: 0 });
-  const [telemetry, setTelemetry] = useState({ kj: 0, avg: 0 });
+  const energy = useEnergyState();
+  const focus = useGeneratorFocus();
+  const telemetry = energy.generators[generatorId];
+  const isHovered = focus.hoveredId === generatorId;
+  const isPinned = focus.pinnedId === generatorId;
 
   const power = useMemo(() => {
     const presetPower = calculateBladePresetPower(activePreset, config.airDensity, config.windSpeed, towerHeight + obstacle.y, config.referenceHeight, config.surfaceRoughness);
@@ -337,35 +360,22 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
     return calculateWindShear(config.windSpeed, config.referenceHeight, Math.max(1, towerHeight + obstacle.y), config.surfaceRoughness);
   }, [config.windSpeed, config.referenceHeight, config.surfaceRoughness, towerHeight, obstacle.y]);
 
-  const detailData = useMemo(() => {
-    const sweptArea = Math.PI * Math.pow(rotorDiameter / 2, 2);
-    const betzPower = 0.5 * config.airDensity * sweptArea * Math.pow(adjustedSpeed, 3) * 0.593;
-    const efficiency = betzPower > 0 ? (power / betzPower * 100) : 0;
-    const capacityFactor = power > 0 ? Math.min(power / (betzPower * 1.2), 1) : 0;
-    const aep = power * capacityFactor * 8760 / 1000;
-    return {
-      sweptArea: sweptArea.toFixed(1),
-      hubHeight: (towerHeight + obstacle.y).toFixed(0),
-      efficiency: efficiency.toFixed(1),
-      capacityFactor: (capacityFactor * 100).toFixed(1),
-      aep: aep > 1000 ? `${(aep / 1000).toFixed(1)} MWh` : `${aep.toFixed(0)} kWh`,
-      betzPower: betzPower >= 1000 ? `${(betzPower / 1000).toFixed(1)} kW` : `${betzPower.toFixed(0)} W`,
-    };
-  }, [power, adjustedSpeed, rotorDiameter, config.airDensity, towerHeight, obstacle.y]);
+  // Physical rotor dimensions — kept identical to the particle solver.
+  const isVertical = specs.axis === 'vertical';
+  const rotorRadius = subtype === 'darrieus' ? rotorDiameter * 0.22
+    : subtype === 'savonius' ? rotorDiameter * 0.27
+    : subtype === 'micro' ? rotorDiameter * 0.39
+    : rotorDiameter * 0.49;
+  const rotorOffset = isVertical ? 0 : subtype === 'micro' ? 0.8 : nacelleSize * (subtype === 'hawt2' ? 0.4 : 0.5);
+  const rotorCenterY = towerHeight * (subtype === 'darrieus' ? 0.5 : subtype === 'savonius' ? 0.75 : 1);
 
-  useFrame((state, dt) => {
+  useFrame((state) => {
     if (!wobbleRef.current) return;
     const time = state.clock.elapsedTime;
     const windStrength = Math.min(config.windSpeed / 20, 1);
-    const wobbleIntensity = windStrength * 0.025;
-    const angleRad = (config.windAngle * Math.PI) / 180;
-    wobbleRef.current.rotation.x = Math.sin(time * 1.2 + wobblePhase.current) * wobbleIntensity
-      + Math.cos(angleRad) * wobbleIntensity * 0.5;
-    wobbleRef.current.rotation.z = Math.cos(time * 0.8 + wobblePhase.current) * wobbleIntensity * 0.6
-      + Math.sin(angleRad) * wobbleIntensity * 0.5;
-    energyRef.current.kj += power * Math.min(dt, 0.05) / 1000;
-    energyRef.current.avg += (power - energyRef.current.avg) * Math.min(1, dt / 3);
-    if (Math.floor(time * 4) !== Math.floor((time - dt) * 4)) setTelemetry({ ...energyRef.current });
+    const wobbleIntensity = windStrength * 0.02;
+    wobbleRef.current.rotation.x = Math.sin(time * 1.2 + wobblePhase.current) * wobbleIntensity * 0.4;
+    wobbleRef.current.rotation.z = Math.cos(time * 0.8 + wobblePhase.current) * wobbleIntensity * 0.3;
   });
 
   const position: [number, number, number] = [
@@ -374,47 +384,77 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
 
   const towerColor = isSelected ? '#00ff00' : '#8899aa';
   const nacelleColor = isSelected ? '#00ff00' : '#ccddee';
-  const powerStr = power >= 1000000 ? `${(power / 1000000).toFixed(2)} MW` : power >= 1000 ? `${(power / 1000).toFixed(1)} kW` : `${power.toFixed(0)} W`;
   const isCutOut = adjustedSpeed > specs.cutOut;
   const isCutIn = adjustedSpeed < specs.cutIn;
-  const statusLabel = isCutOut ? '⛔ CUTOUT' : isCutIn ? '⏸ LOW WIND' : null;
-  const statusColor = isCutOut ? '#ff4444' : isCutIn ? '#ffaa00' : '#39ff14';
-  const subtypeName = specs.nameUa;
-
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
   const scaleVal = obstacle.scale || 1;
-  const windAngleRad = (config.windAngle * Math.PI) / 180;
+  const tsr = isCutIn || isCutOut ? 0 : specs.optimalTSR;
+  const rpm = tsr * adjustedSpeed / Math.max(0.1, rotorRadius * scaleVal) * 60 / (2 * Math.PI);
+
+  const stock = (
+    <>
+      {subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
+      {subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
+      {subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+      {subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+      {subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+    </>
+  );
 
   return (
     <group position={position} rotation={[0, rotationY, 0]} scale={scaleVal}>
-      <group ref={wobbleRef}>
-        {activePreset ? <BladePresetTurbine3D preset={activePreset} towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} /> : subtype === 'hawt3' && <HAWT3Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
-        {!activePreset && subtype === 'hawt2' && <HAWT2Model towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />}
-        {!activePreset && subtype === 'darrieus' && <DarrieusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
-        {!activePreset && subtype === 'savonius' && <SavoniusModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
-        {!activePreset && subtype === 'micro' && <MicroModel towerHeight={towerHeight} rotorDiameter={rotorDiameter} adjustedSpeed={adjustedSpeed} towerColor={towerColor} />}
+      <group
+        ref={wobbleRef}
+        onPointerOver={(e) => { e.stopPropagation(); setHoveredGenerator(generatorId); document.body.style.cursor = 'pointer'; }}
+        onPointerOut={() => { setHoveredGenerator(null); document.body.style.cursor = ''; }}
+        onClick={(e) => { e.stopPropagation(); togglePinnedGenerator(generatorId); }}
+      >
+        {activePreset ? (
+          <RotorBoundary fallback={stock}>
+            <BladePresetTurbine3D preset={activePreset} towerHeight={towerHeight} rotorDiameter={rotorDiameter} nacelleSize={nacelleSize} adjustedSpeed={adjustedSpeed} towerColor={towerColor} nacelleColor={nacelleColor} />
+          </RotorBoundary>
+        ) : stock}
+        {/* Invisible, generous hit volume so hover works on thin blades too. */}
+        <mesh position={[0, rotorCenterY, rotorOffset]} visible={false}>
+          <sphereGeometry args={[Math.max(rotorRadius, 2) * 1.1, 12, 8]} />
+          <meshBasicMaterial />
+        </mesh>
       </group>
 
-      {/* HAWT: disc effect, VAWT: cylindrical glow */}
-      {(subtype === 'darrieus' || subtype === 'savonius') ? (
+      {isVertical ? (
         <VAWTRotorGlow towerHeight={towerHeight} rotorDiameter={rotorDiameter} power={power} adjustedSpeed={adjustedSpeed} isVAWT_savonius={subtype === 'savonius'} />
       ) : (
-        <EnergyAbsorptionEffect towerHeight={towerHeight} rotorDiameter={rotorDiameter} windAngleRad={windAngleRad} power={power} adjustedSpeed={adjustedSpeed} />
+        <EnergyAbsorptionEffect towerHeight={towerHeight} rotorDiameter={rotorDiameter} rotorOffset={rotorOffset} rotorRadius={rotorRadius} power={power} adjustedSpeed={adjustedSpeed} />
       )}
 
-      <TurbineHudCard position={[0, towerHeight * 0.72, 0]} radius={rotorDiameter / 2} height={towerHeight} density={isSelected || isHovered ? 'full' : 'compact'} label={activePreset ? `Blade Lab · ${activePreset.nameUA}` : subtypeName} data={{ power, avgPower: telemetry.avg, cumulativeKJ: telemetry.kj, rpm: adjustedSpeed * 60 / Math.max(1, rotorDiameter * Math.PI), tsr: adjustedSpeed > 0 ? 4.5 : 0, cp: Number(detailData.efficiency) * 0.00593, ti: config.turbulenceIntensity }} />
+      <TurbineHudCard
+        position={[0, rotorCenterY, 0]}
+        radius={rotorRadius}
+        height={towerHeight * 0.2}
+        density={isSelected || isHovered ? 'full' : 'compact'}
+        pinned={isPinned}
+        onClose={clearPinnedGenerator}
+        label={activePreset ? `Blade Lab · ${activePreset.nameUA}` : specs.nameUa}
+        data={{
+          power,
+          measuredPower: telemetry?.power ?? 0,
+          measuredEnergy: telemetry?.energy ?? 0,
+          hitsPerSec: telemetry?.hitsPerSecond ?? 0,
+          flowSpeed: telemetry?.flowSpeed,
+          hubSpeed: adjustedSpeed,
+          rpm,
+          tsr,
+          cp: activePreset ? undefined : specs.cp,
+          ti: config.turbulenceIntensity,
+          status: isCutOut ? 'cutout' : isCutIn ? 'low' : 'ok',
+          history: telemetry?.history,
+        }}
+      />
 
-      {/* Neomorphic glow selection */}
-      {isSelected && (
-        <mesh position={[0, towerHeight / 2, 0]}>
-          <sphereGeometry args={[rotorDiameter * 0.7, 16, 16]} />
-          <meshBasicMaterial color="#00ffff" transparent opacity={0.08} blending={THREE.AdditiveBlending} depthWrite={false} />
-        </mesh>
-      )}
-      {isHovered && !isSelected && (
-        <mesh position={[0, towerHeight / 2, 0]}>
-          <sphereGeometry args={[rotorDiameter * 0.65, 16, 16]} />
-          <meshBasicMaterial color="#ffff00" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} />
+      {(isSelected || isHovered || isPinned) && (
+        <mesh position={[0, rotorCenterY, rotorOffset]} rotation={isVertical ? [Math.PI / 2, 0, 0] : [0, 0, 0]}>
+          <ringGeometry args={[rotorRadius * 1.04, rotorRadius * 1.1, 48]} />
+          <meshBasicMaterial color={isSelected ? '#00ffff' : '#39ff14'} transparent opacity={0.55} depthWrite={false} side={THREE.DoubleSide} />
         </mesh>
       )}
     </group>

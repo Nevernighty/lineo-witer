@@ -237,15 +237,21 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       const rotationY = ((o.rotation || 0) * Math.PI) / 180;
       const baseX = o.x + o.width / 2;
       const baseZ = o.z + o.depth / 2;
-      const nacelleOffset = isVAWT ? 0 : o.width * 0.35 * 0.52 * scale;
+      // Must mirror WindGenerator3D model dimensions exactly.
+      const nacelleOffset = isVAWT ? 0 : subtype === 'micro' ? 0.8 * scale : o.width * 0.35 * (subtype === 'hawt2' ? 0.4 : 0.5) * scale;
+      const rotorRadius = subtype === 'darrieus' ? rotorDiameter * 0.22
+        : subtype === 'savonius' ? rotorDiameter * 0.27
+        : subtype === 'micro' ? rotorDiameter * 0.39
+        : rotorDiameter * 0.49;
+      const rotorCenterY = subtype === 'darrieus' ? 0.5 : subtype === 'savonius' ? 0.75 : 1;
       return {
         id: o.id || `${subtype}-${o.x}-${o.z}`,
         cx: baseX + Math.sin(rotationY) * nacelleOffset,
-        cy: isVAWT ? o.y + o.height * (o.scale || 1) * 0.75 : o.y + o.height * (o.scale || 1),
+        cy: o.y + o.height * scale * rotorCenterY,
         cz: baseZ + Math.cos(rotationY) * nacelleOffset,
-        rotorRadius: rotorDiameter / 2,
-        rotorHalfHeight: isVAWT ? o.height * scale * (subtype === 'savonius' ? 0.25 : 0.3) : rotorDiameter / 2,
-        attractRadius: rotorDiameter * 2.5,
+        rotorRadius,
+        rotorHalfHeight: isVAWT ? o.height * scale * (subtype === 'savonius' ? 0.225 : 0.3) : rotorRadius,
+        attractRadius: Math.max(rotorRadius * 3, isVAWT ? o.height * scale * 0.5 : 0),
         normalX: Math.sin(rotationY),
         normalZ: Math.cos(rotationY),
         cp: specs.cp,
@@ -353,7 +359,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         const dz = gen.cz - particle.z;
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
         
-        if (dist < gen.attractRadius && dist > 0.05) {
+        const horizontalGap = Math.sqrt(dx * dx + dz * dz);
+        const insideInfluence = gen.isVAWT
+          ? horizontalGap < gen.attractRadius && Math.abs(dy) < gen.rotorHalfHeight * 1.8
+          : dist < gen.attractRadius;
+        if (insideInfluence && dist > 0.05) {
           if (gen.isVAWT) {
             const horizDist = Math.sqrt(dx * dx + dz * dz);
             const vertical = Math.abs(dy);
@@ -391,7 +401,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             ? (() => {
                 const horizDist = Math.sqrt(dx * dx + dz * dz);
                 const towerHeight = gen.cy; // center height
-                const rotorHalfH = gen.rotorRadius * 1.2; // vertical extent
+                const rotorHalfH = gen.rotorHalfHeight; // swept blade height
                 const inHeight = particle.y > (towerHeight - rotorHalfH) && particle.y < (towerHeight + rotorHalfH);
                  return horizDist > gen.rotorRadius * 0.3 && horizDist < gen.rotorRadius * 1.05 && inHeight;
               })()
@@ -402,16 +412,13 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
                 return axial < Math.max(0.8, gen.rotorRadius * 0.12) && Math.sqrt(lateralX * lateralX + lateralZ * lateralZ + dy * dy) < gen.rotorRadius;
               })();
           
-          if (shouldAbsorb && !particle.absorbed) {
+          if (shouldAbsorb && !particle.absorbed && particle.lastObstacleId !== gen.id) {
             particle.absorbed = true;
-            particle.absorptionTimer = 16;
-            // Gentle brightening instead of a splash: the particle keeps its
-            // streamline and is drawn smoothly into the rotor disc.
-            particle.size = particle.size * 1.4;
-            const pullNorm = Math.sqrt((gen.cx - particle.x) ** 2 + (gen.cy - particle.y) ** 2 + (gen.cz - particle.z) ** 2) || 1;
-            particle.speedX += ((gen.cx - particle.x) / pullNorm) * 1.5;
-            particle.speedY += ((gen.cy - particle.y) / pullNorm) * 1.0;
-            particle.speedZ += ((gen.cz - particle.z) / pullNorm) * 1.5;
+            particle.absorptionTimer = 24;
+            particle.lastObstacleId = gen.id;
+            // Energy extraction: the parcel keeps its streamline but leaves the
+            // rotor slower (actuator-disc momentum loss). No pull to a centre
+            // point — that was what collapsed particles into a single line.
 
             if (absorbSoundCooldown.current <= 0) {
               playAbsorbSound();
@@ -419,7 +426,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             }
 
             // Aggregated generation accounting (no per-hit popups).
-            const absorbEnergy = 0.5 * particle.mass * (particle.speedX ** 2 + particle.speedZ ** 2) * gen.rotorEfficiency;
+            // Each tracer represents a ~1 m³ air parcel scaled by its size:
+            // E = ½·ρ·V·v²·Cp (kinetic energy actually extracted by the rotor).
+            const parcelSpeed2 = particle.speedX ** 2 + particle.speedY ** 2 + particle.speedZ ** 2;
+            const absorbEnergy = 0.5 * config.airDensity * particle.size * parcelSpeed2 * gen.cp;
             if ((window as any).__localAbsorptionAdd) {
               (window as any).__localAbsorptionAdd(
                 [particle.x, particle.y, particle.z] as [number, number, number],
@@ -460,10 +470,10 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       particle.age = (particle.age || 0) + delta;
       const maxAge = 15 + (Math.sin(i * 7.13) * 0.5 + 0.5) * 10;
 
-      if (particle.x < -width / 2) particle.x = width / 2;
-      if (particle.x > width / 2) particle.x = -width / 2;
-      if (particle.z < -depth / 2) particle.z = depth / 2;
-      if (particle.z > depth / 2) particle.z = -depth / 2;
+      if (particle.x < -width / 2) { particle.x = width / 2; particle.lastObstacleId = undefined; }
+      if (particle.x > width / 2) { particle.x = -width / 2; particle.lastObstacleId = undefined; }
+      if (particle.z < -depth / 2) { particle.z = depth / 2; particle.lastObstacleId = undefined; }
+      if (particle.z > depth / 2) { particle.z = -depth / 2; particle.lastObstacleId = undefined; }
 
       // Respawn instead of bounce — prevents ground accumulation
       if (particle.y < 0.5 || particle.y > height || particle.age > maxAge) {
@@ -476,21 +486,16 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         particle.age = 0;
         particle.hasCollided = false;
         particle.absorbed = false;
+        particle.lastObstacleId = undefined;
       }
 
       // Absorbed particles shrink + spiral inward before respawn
       if (particle.absorptionTimer > 0) {
         particle.absorptionTimer--;
-        const progress = 1 - particle.absorptionTimer / 28; // 0→1
-        
-        particle.size = Math.max(0.04, 0.8 * (1 - progress));
         if (particle.absorptionTimer === 0) {
+          // Back to a normal (slower, wake) parcel; cannot be re-captured by
+          // the same rotor until it respawns.
           particle.absorbed = false;
-          particle.size = 0.8;
-          particle.x = (Math.random() - 0.5) * width;
-          particle.y = height * (0.15 + Math.random() * 0.65);
-          particle.z = (Math.random() - 0.5) * depth;
-          particle.age = 0;
         }
       }
 
@@ -587,7 +592,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       buf.velocities[i3 + 2] = particle.speedZ;
       buf.sizes[i] = particle.size;
       buf.flags[i] = (particle.hasCollided ? 1 : 0) | (particle.absorbed ? 2 : 0);
-      buf.absorbProgress[i] = particle.absorbed ? 1 - (particle.absorptionTimer / 28) : 0;
+      buf.absorbProgress[i] = particle.absorbed ? 1 - (particle.absorptionTimer / 24) : 0;
     }
 
     collisionEnergyRef.current *= 0.995;
