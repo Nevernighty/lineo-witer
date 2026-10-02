@@ -6,7 +6,6 @@ import {
   buildBladeGeometry,
   buildSavoniusBucketGeometry,
   buildVAWTBladeGeometry,
-  buildArchimedesBladeGeometry,
 } from '@/aero/buildBladeGeometry';
 import { getMaterial } from '@/aero/materials';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -33,9 +32,10 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
   const bladeRefs = useRef<Array<THREE.Group | null>>([]);
   const detachT = useRef<number[]>([]);
 
-  const isVAWT = preset.rotorType !== 'hawt';
-  const isSavonius = preset.rotorType === 'vawt-savonius';
+  // Archimedes (Liam F1) is a horizontal-axis conical screw rotor facing the wind.
   const isArchimedes = preset.rotorType === 'vawt-archimedes';
+  const isVAWT = preset.rotorType !== 'hawt' && !isArchimedes;
+  const isSavonius = preset.rotorType === 'vawt-savonius';
   const scale = useMemo(
     () => rotorDiameter / Math.max(0.1, preset.geometry.tipRadius * 2),
     [rotorDiameter, preset.geometry.tipRadius],
@@ -46,8 +46,8 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
 
   const mesh = useMemo(() => {
     if (isSavonius) return buildSavoniusBucketGeometry(preset.geometry, 'solid', { height }).geometry;
-    if (isArchimedes) return buildArchimedesBladeGeometry(preset.geometry, 'solid',
-      { height, turns: 1 + (preset.helicalTwistDeg ?? 360) / 360 }).geometry;
+    if (isArchimedes) return buildArchimedesConeGeometry(preset.geometry.tipRadius,
+      preset.geometry.tipRadius * 1.25, (preset.helicalTwistDeg ?? 360) / 360 * 0.75);
     if (isVAWT) return buildVAWTBladeGeometry(preset.geometry, 'solid',
       preset.rotorType as 'vawt-h' | 'vawt-helical' | 'vawt-tropo',
       { height, helicalTwist: preset.helicalTwistDeg }).geometry;
@@ -68,7 +68,7 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
 
   const isMobile = useIsMobile();
   const mobileScale = isMobile ? 0.5 : 1;
-  const n = isSavonius ? 2 : preset.geometry.nBlades;
+  const n = isSavonius ? 2 : isArchimedes ? 3 : preset.geometry.nBlades;
 
   useFrame((_, dt) => {
     const t = performance.now() * 0.001;
@@ -78,7 +78,7 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
 
     if (spinRef.current) {
       if (isVAWT) spinRef.current.rotation.y += adjustedSpeed * 0.14 * dt * spinDamp;
-      else spinRef.current.rotation.z += adjustedSpeed * 0.12 * dt * spinDamp;
+      else spinRef.current.rotation.z += adjustedSpeed * (isArchimedes ? 0.07 : 0.12) * dt * spinDamp;
     }
 
     // Per-blade detach state with stagger
@@ -157,8 +157,14 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
         <meshPhongMaterial color={nacelleColor} />
       </mesh>
       <group ref={spinRef} position={[0, towerHeight, nacelleSize * 0.52]} scale={scale}>
-        {Array.from({ length: preset.geometry.nBlades }).map((_, i) => (
-          <group key={i} rotation={[0, 0, (i * Math.PI * 2) / preset.geometry.nBlades]}
+        {isArchimedes && (
+          <mesh rotation={[Math.PI / 2, 0, 0]} position={[0, 0, preset.geometry.tipRadius * 0.62]}>
+            <cylinderGeometry args={[preset.geometry.tipRadius * 0.05, preset.geometry.tipRadius * 0.05, preset.geometry.tipRadius * 1.3, 12]} />
+            <meshStandardMaterial color={nacelleColor} metalness={0.5} roughness={0.4} />
+          </mesh>
+        )}
+        {Array.from({ length: n }).map((_, i) => (
+          <group key={i} rotation={[0, 0, (i * Math.PI * 2) / n]}
                  ref={el => { bladeRefs.current[i] = el; }}>
             <mesh geometry={mesh} castShadow receiveShadow>
               {bladeMaterialJSX('#eef5f2')}
@@ -169,3 +175,38 @@ export const BladePresetTurbine3D: React.FC<Props> = ({
     </>
   );
 };
+
+/**
+ * Liam-F1 style blade: a conical helicoid along +Z (upwind nose at z=0, wide
+ * rear at z=L). Radius grows toward the rear; blade wraps `turns` revolutions.
+ * Three copies rotated 120° about Z form the full rotor.
+ */
+function buildArchimedesConeGeometry(R: number, L: number, turns: number) {
+  const nT = 64, nS = 10;
+  const pos: number[] = [], col: number[] = [], idx: number[] = [];
+  for (let i = 0; i <= nT; i++) {
+    const t = i / nT;
+    const a = t * turns * Math.PI * 2;
+    const r = R * (0.12 + 0.88 * Math.pow(t, 0.65));
+    const z = t * L;
+    for (let j = 0; j <= nS; j++) {
+      const s = 0.06 + 0.94 * (j / nS);
+      // slight forward cupping of the outer edge (shell curvature)
+      const cup = -Math.sin(s * Math.PI * 0.5) * R * 0.08 * t;
+      pos.push(s * r * Math.cos(a), s * r * Math.sin(a), z + cup);
+      const shade = 0.75 + 0.25 * s;
+      col.push(0.85 * shade, 0.95 * shade, 0.92 * shade);
+    }
+  }
+  const row = nS + 1;
+  for (let i = 0; i < nT; i++) for (let j = 0; j < nS; j++) {
+    const a = i * row + j, b = a + row;
+    idx.push(a, b, a + 1, a + 1, b, b + 1);
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}

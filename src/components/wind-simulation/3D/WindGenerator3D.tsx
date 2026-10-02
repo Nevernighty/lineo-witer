@@ -14,7 +14,7 @@ import { useGeneratorFocus, setHoveredGenerator, togglePinnedGenerator, clearPin
 /** A Blade Lab preset only replaces generators of the same rotor family. */
 function presetFitsSubtype(preset: ReturnType<typeof useActiveBladePreset>, subtype: GeneratorSubtype) {
   if (!preset || !preset.geometry || !(preset.geometry.tipRadius > 0) || !(preset.geometry.nBlades > 0)) return false;
-  const presetVertical = preset.rotorType !== 'hawt';
+  const presetVertical = preset.rotorType !== 'hawt' && preset.rotorType !== 'vawt-archimedes';
   return presetVertical === (GENERATOR_SUBTYPES[subtype].axis === 'vertical');
 }
 
@@ -437,7 +437,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         position={[0, rotorCenterY, 0]}
         radius={rotorRadius}
         height={towerHeight * 0.2}
-        density={isSelected || isHovered ? 'full' : 'compact'}
+        density={isSelected || isHovered || isPinned ? 'full' : 'off'}
         pinned={isPinned}
         onClose={clearPinnedGenerator}
         label={activePreset ? `Blade Lab · ${activePreset.nameUA}` : specs.nameUa}
