@@ -251,7 +251,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         cz: baseZ + Math.cos(rotationY) * nacelleOffset,
         rotorRadius,
         rotorHalfHeight: isVAWT ? o.height * scale * (subtype === 'savonius' ? 0.225 : 0.3) : rotorRadius,
-        attractRadius: Math.max(rotorRadius * 3, isVAWT ? o.height * scale * 0.5 : 0),
+        attractRadius: Math.max(rotorRadius * (isVAWT ? 3 : 8), isVAWT ? o.height * scale * 0.5 : 0),
         normalX: Math.sin(rotationY),
         normalZ: Math.cos(rotationY),
         cp: specs.cp,
@@ -392,7 +392,25 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             const induction = discWeight * axialWeight;
             targetSpeedX *= 1 - gen.speedReduction * induction * 0.38;
             targetSpeedZ *= 1 - gen.speedReduction * induction * 0.38;
-            targetSpeedY += (-dy / Math.max(1, gen.rotorRadius)) * effectiveSpeed * induction * 0.045;
+            // Streamtube: upstream expansion around disc, downstream slow wake
+            // with rotor-induced swirl (angular momentum, opposite to rotor).
+            const radialSafe = Math.max(0.2, radial);
+            if (axial < 0) {
+              const expand = discWeight * axialWeight * effectiveSpeed * 0.06;
+              targetSpeedX += (lateralX / radialSafe) * expand;
+              targetSpeedZ += (lateralZ / radialSafe) * expand;
+              targetSpeedY += (-dy / radialSafe) * -expand;
+            } else {
+              const wakeLen = gen.rotorRadius * 8;
+              const wakeW = Math.max(0, 1 - radial / (gen.rotorRadius * (1 + axial / wakeLen))) * Math.max(0, 1 - axial / wakeLen);
+              targetSpeedX *= 1 - gen.speedReduction * wakeW * 0.3;
+              targetSpeedZ *= 1 - gen.speedReduction * wakeW * 0.3;
+              // tangent = normal × radial
+              const rx = lateralX / radialSafe, ry = dy !== 0 ? -dy / radialSafe : 0, rz = lateralZ / radialSafe;
+              const tx = ry * gen.normalZ, ty = rz * gen.normalX - rx * gen.normalZ, tz = -ry * gen.normalX;
+              const swirl = effectiveSpeed * wakeW * 0.22 * Math.min(1, radial / Math.max(0.5, gen.rotorRadius * 0.4));
+              targetSpeedX += tx * swirl; targetSpeedY += ty * swirl; targetSpeedZ += tz * swirl;
+            }
           }
 
           // VAWT: cylindrical absorption zone (horizontal distance + height check)
