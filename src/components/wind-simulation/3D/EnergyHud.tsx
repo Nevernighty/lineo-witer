@@ -10,8 +10,8 @@ import { useAudioPrefs, toggleAudioMuted, setAudioVolume } from '@/utils/sounds'
 import type { Lang } from '@/utils/i18n';
 
 const L = {
-  ua: { gen: 'Генерація', power: 'Потужність', energy: 'Енергія', live: 'Живий графік', reset: 'Скинути', close: 'Закрити', volume: 'Гучність' },
-  en: { gen: 'Generation', power: 'Power', energy: 'Energy', live: 'Live chart', reset: 'Reset', close: 'Close', volume: 'Volume' },
+  ua: { gen: 'Захоплений потік', power: 'Потужність', energy: 'Енергія', live: 'Живий графік', reset: 'Скинути', close: 'Закрити', volume: 'Гучність' },
+  en: { gen: 'Captured flow', power: 'Power', energy: 'Energy', live: 'Live chart', reset: 'Reset', close: 'Close', volume: 'Volume' },
 };
 
 /** Ease a displayed number toward its target so commits read as motion. */
@@ -182,6 +182,7 @@ export const EnergyHud: React.FC<{ lang: Lang }> = ({ lang }) => {
           title={t.live}
         >
           <Activity className="h-3.5 w-3.5 text-primary" />
+          <span className="text-[10px] text-muted-foreground">{t.gen}</span>
           <span className="font-mono text-[11px] text-primary">{formatPower(power)}</span>
           <span className="text-[10px] text-muted-foreground">·</span>
           <span className="font-mono text-[11px] text-cyan-400">{formatEnergy(total)}</span>
