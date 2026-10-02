@@ -58,7 +58,7 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
   });
 
   const anchorPos = useMemo<[number, number, number]>(
-    () => [position[0] + side * (radius + 1.2), position[1] - radius * 0.35, position[2]],
+    () => [position[0] + side * (radius * 1.5 + 2), position[1] - radius * 0.35, position[2]],
     [position, side, radius, height],
   );
 
@@ -72,7 +72,7 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
       style={{ pointerEvents: pinned ? "auto" : "none", opacity, transition: "opacity .25s" }}>
       <div
         className={`rounded-lg border bg-background/90 backdrop-blur px-2.5 py-1.5 shadow-lg transition-all duration-200 ${pinned ? "border-primary" : "border-primary/40"}`}
-        style={{ minWidth: expanded ? 196 : 92, whiteSpace: 'nowrap', fontFamily: "ui-monospace, monospace", fontSize: 10, lineHeight: 1.35, transform: `translateX(${side < 0 ? "-100%" : "0"})` }}
+        style={{ minWidth: expanded ? 216 : 92, whiteSpace: 'nowrap', fontFamily: "ui-monospace, monospace", fontSize: 10, lineHeight: 1.35, transform: `translateX(${side < 0 ? "-100%" : "0"})` }}
       >
         <div className="mb-0.5 flex items-center gap-1">
           {label && <span className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>}
@@ -86,9 +86,9 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
         {expanded && (
           <>
             <div className="my-1 border-t border-border/40" />
-            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
-              <M l="tracer P" v={fmtW(measured)} />
-              <M l="tracer E" v={fmtJ(data.measuredEnergy ?? 0)} />
+            <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-[9px]">
+              <M l="P₍tr₎" v={fmtW(measured)} />
+              <M l="E₍tr₎" v={fmtJ(data.measuredEnergy ?? 0)} />
               <M l="v₍hub₎" v={fmt(data.hubSpeed, 1)} />
               <M l="v₍flow₎" v={fmt(data.flowSpeed, 1)} />
               <M l="hits/s" v={fmt(data.hitsPerSec, 1)} />
