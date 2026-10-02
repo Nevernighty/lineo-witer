@@ -10,8 +10,8 @@ import { useAudioPrefs, toggleAudioMuted, setAudioVolume } from '@/utils/sounds'
 import type { Lang } from '@/utils/i18n';
 
 const L = {
-  ua: { gen: 'Генерація', power: 'Потужність', energy: 'Енергія', live: 'Живий графік', reset: 'Скинути', close: 'Закрити', volume: 'Гучність' },
-  en: { gen: 'Generation', power: 'Power', energy: 'Energy', live: 'Live chart', reset: 'Reset', close: 'Close', volume: 'Volume' },
+  ua: { gen: 'Захоплений потік', power: 'Потужність', energy: 'Енергія', live: 'Живий графік', reset: 'Скинути', close: 'Закрити', volume: 'Гучність' },
+  en: { gen: 'Captured flow', power: 'Power', energy: 'Energy', live: 'Live chart', reset: 'Reset', close: 'Close', volume: 'Volume' },
 };
 
 /** Ease a displayed number toward its target so commits read as motion. */
@@ -57,7 +57,7 @@ const ChartWindow: React.FC<ChartWindowProps> = ({ lang, onClose }) => {
   const t = L[lang] ?? L.ua;
   const energy = useEnergyState();
   const [pos, setPos] = useState({ x: 24, y: 90 });
-  const [size, setSize] = useState({ w: 380, h: 240 });
+  const [size, setSize] = useState({ w: 400, h: 330 });
   const drag = useRef<{ dx: number; dy: number } | null>(null);
   const resize = useRef<{ x: number; y: number; w: number; h: number } | null>(null);
 
@@ -102,7 +102,7 @@ const ChartWindow: React.FC<ChartWindowProps> = ({ lang, onClose }) => {
   const powerSeries = energy.history.map(h => h.power);
   const energySeries = energy.history.map(h => h.total);
   const chartW = size.w - 28;
-  const chartH = Math.max(50, (size.h - 118) / 2);
+  const chartH = Math.max(40, (size.h - 118 - (Object.keys(energy.generators).length ? 100 : 0)) / 2);
 
   return (
     <div
@@ -134,6 +134,25 @@ const ChartWindow: React.FC<ChartWindowProps> = ({ lang, onClose }) => {
           </div>
           <Sparkline points={energySeries} color="#22d3ee" width={chartW} height={chartH} />
         </div>
+        {Object.keys(energy.generators).length > 0 && (
+          <div className="max-h-24 space-y-0.5 overflow-auto border-t border-primary/20 pt-1.5 text-[10px]">
+            {Object.entries(energy.generators)
+              .sort((a, b) => b[1].energy - a[1].energy)
+              .map(([id, g], idx) => {
+                const share = energy.total > 0 ? g.energy / energy.total : 0;
+                return (
+                  <div key={id} className="flex items-center gap-2">
+                    <span className="w-14 truncate text-muted-foreground" title={id}>{idx + 1}. {id.replace(/^obstacle-/, '#').slice(0, 10)}</span>
+                    <div className="h-1 flex-1 overflow-hidden rounded bg-muted">
+                      <div className="h-full bg-primary transition-all duration-700" style={{ width: `${(share * 100).toFixed(1)}%` }} />
+                    </div>
+                    <span className="w-16 text-right font-mono text-primary">{formatPower(g.power)}</span>
+                    <span className="w-16 text-right font-mono text-muted-foreground">{formatEnergy(g.energy)}</span>
+                  </div>
+                );
+              })}
+          </div>
+        )}
       </div>
 
       <div
@@ -163,6 +182,7 @@ export const EnergyHud: React.FC<{ lang: Lang }> = ({ lang }) => {
           title={t.live}
         >
           <Activity className="h-3.5 w-3.5 text-primary" />
+          <span className="text-[10px] text-muted-foreground">{t.gen}</span>
           <span className="font-mono text-[11px] text-primary">{formatPower(power)}</span>
           <span className="text-[10px] text-muted-foreground">·</span>
           <span className="font-mono text-[11px] text-cyan-400">{formatEnergy(total)}</span>

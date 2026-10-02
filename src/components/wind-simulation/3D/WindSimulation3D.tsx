@@ -18,6 +18,7 @@ import { getTerrainYOffset } from '@/simulation/terrainModel';
 import { SCENARIO_PRESETS, type ScenarioPreset } from '@/data/scenarios';
 import { playPlaceSound, playRotateSound, playClearSound, playScaleSound, setWindAmbience, stopWindAmbience, ambienceForSpeed } from '@/utils/sounds';
 import { EnergyHud } from './EnergyHud';
+import { getGeneratorFocus } from '@/store/useGeneratorFocus';
 
 import { Crosshair, MousePointer, Map as MapIcon, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -329,6 +330,8 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent) => {
     if (e.altKey) return;
+    // Clicking a turbine opens its live data card instead of placing an object.
+    if (getGeneratorFocus().hoveredId) return;
     if (interactionMode === 'select') {
       if (ghostPosition) {
         // Find what we clicked

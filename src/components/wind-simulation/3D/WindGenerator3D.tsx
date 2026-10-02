@@ -346,6 +346,9 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const telemetry = energy.generators[generatorId];
   const isHovered = focus.hoveredId === generatorId;
   const isPinned = focus.pinnedId === generatorId;
+  // Generated electrical energy, integrated from rotor power over sim time.
+  const generatedRef = useRef(0);
+  const [generatedJ, setGeneratedJ] = useState(0);
 
   const power = useMemo(() => {
     const presetPower = calculateBladePresetPower(activePreset, config.airDensity, config.windSpeed, towerHeight + obstacle.y, config.referenceHeight, config.surfaceRoughness);
@@ -369,9 +372,12 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
   const rotorOffset = isVertical ? 0 : subtype === 'micro' ? 0.8 : nacelleSize * (subtype === 'hawt2' ? 0.4 : 0.5);
   const rotorCenterY = towerHeight * (subtype === 'darrieus' ? 0.5 : subtype === 'savonius' ? 0.75 : 1);
 
-  useFrame((state) => {
-    if (!wobbleRef.current) return;
+  useFrame((state, rawDt) => {
     const time = state.clock.elapsedTime;
+    const dt = Math.min(rawDt, 0.05);
+    generatedRef.current += power * dt;
+    if (Math.floor(time * 2) !== Math.floor((time - dt) * 2)) setGeneratedJ(generatedRef.current);
+    if (!wobbleRef.current) return;
     const windStrength = Math.min(config.windSpeed / 20, 1);
     const wobbleIntensity = windStrength * 0.02;
     wobbleRef.current.rotation.x = Math.sin(time * 1.2 + wobblePhase.current) * wobbleIntensity * 0.4;
@@ -437,6 +443,7 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         label={activePreset ? `Blade Lab · ${activePreset.nameUA}` : specs.nameUa}
         data={{
           power,
+          generatedEnergy: generatedJ,
           measuredPower: telemetry?.power ?? 0,
           measuredEnergy: telemetry?.energy ?? 0,
           hitsPerSec: telemetry?.hitsPerSecond ?? 0,
