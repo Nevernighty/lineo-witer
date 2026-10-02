@@ -142,7 +142,7 @@ const ChartWindow: React.FC<ChartWindowProps> = ({ lang, onClose }) => {
                 const share = energy.total > 0 ? g.energy / energy.total : 0;
                 return (
                   <div key={id} className="flex items-center gap-2">
-                    <span className="w-5 text-muted-foreground">#{idx + 1}</span>
+                    <span className="w-14 truncate text-muted-foreground" title={id}>{idx + 1}. {id.replace(/^obstacle-/, '#').slice(0, 10)}</span>
                     <div className="h-1 flex-1 overflow-hidden rounded bg-muted">
                       <div className="h-full bg-primary transition-all duration-700" style={{ width: `${(share * 100).toFixed(1)}%` }} />
                     </div>

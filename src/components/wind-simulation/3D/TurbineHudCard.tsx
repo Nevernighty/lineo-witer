@@ -51,12 +51,12 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
     if (nextSide !== side) setSide(nextSide);
     anchor.current.set(...position);
     const d = camera.position.distanceTo(anchor.current);
-    const next = pinned ? 1 : THREE.MathUtils.clamp(1 - Math.max(0, d - radius * 9) / Math.max(1, radius * 12), 0.25, 1);
+    const next = pinned || density === 'full' ? 1 : THREE.MathUtils.clamp(1 - Math.max(0, d - radius * 9) / Math.max(1, radius * 12), 0.25, 1);
     if (Math.abs(next - opacity) > 0.04) setOpacity(next);
   });
 
   const anchorPos = useMemo<[number, number, number]>(
-    () => [position[0] + side * (radius + 1.2), position[1] + height * 0.3, position[2]],
+    () => [position[0] + side * (radius + 1.2), position[1] - radius * 0.35, position[2]],
     [position, side, radius, height],
   );
 
@@ -70,7 +70,7 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
       style={{ pointerEvents: pinned ? "auto" : "none", opacity, transition: "opacity .25s" }}>
       <div
         className={`rounded-lg border bg-background/90 backdrop-blur px-2.5 py-1.5 shadow-lg transition-all duration-200 ${pinned ? "border-primary" : "border-primary/40"}`}
-        style={{ minWidth: expanded ? 170 : 92, fontFamily: "ui-monospace, monospace", fontSize: 10, lineHeight: 1.35, transform: `translateX(${side < 0 ? "-100%" : "0"})` }}
+        style={{ minWidth: expanded ? 196 : 92, whiteSpace: 'nowrap', fontFamily: "ui-monospace, monospace", fontSize: 10, lineHeight: 1.35, transform: `translateX(${side < 0 ? "-100%" : "0"})` }}
       >
         <div className="mb-0.5 flex items-center gap-1">
           {label && <span className="truncate text-[9px] uppercase tracking-wider text-muted-foreground">{label}</span>}
@@ -84,10 +84,10 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
         {expanded && (
           <>
             <div className="my-1 border-t border-border/40" />
-            <div className="grid grid-cols-2 gap-x-2 gap-y-0.5 text-[9px]">
-              <M l="Betz·Cp" v={fmtW(data.power)} />
-              <M l="v hub" v={`${fmt(data.hubSpeed, 1)} m/s`} />
-              <M l="v flow" v={`${fmt(data.flowSpeed, 1)} m/s`} />
+            <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
+              <M l="P₍Cp₎" v={fmtW(data.power)} />
+              <M l="v₍hub₎" v={fmt(data.hubSpeed, 1)} />
+              <M l="v₍flow₎" v={fmt(data.flowSpeed, 1)} />
               <M l="hits/s" v={fmt(data.hitsPerSec, 1)} />
               <M l="RPM" v={fmt(data.rpm, 0)} />
               <M l="TSR" v={fmt(data.tsr, 1)} />
@@ -106,7 +106,7 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
 }
 
 function Spark({ samples }: { samples: EnergySample[] }) {
-  const w = 160, h = 38;
+  const w = 176, h = 38;
   if (samples.length < 2) return <div className="mt-1 text-[9px] text-muted-foreground"><Activity size={9} className="mr-1 inline" />collecting…</div>;
   const max = Math.max(...samples.map(s => s.power), 1e-6);
   const d = samples.map((s, i) => `${i ? "L" : "M"}${((i / (samples.length - 1)) * w).toFixed(1)},${(h - (s.power / max) * (h - 4) - 2).toFixed(1)}`).join(" ");
