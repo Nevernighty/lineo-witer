@@ -6,12 +6,14 @@ import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useMemo, useRef, useState } from "react";
 import * as THREE from "three";
-import { Wind, Zap, Activity, Pin, X } from "lucide-react";
+import { Zap, Activity, Pin, X } from "lucide-react";
 import type { EnergySample } from "@/store/useEnergyStore";
 
 export interface TurbineHudDatum {
   /** Analytic (Betz/Cp) power at hub height, W. */
   power: number;
+  /** Generated energy integrated from rotor power, J. */
+  generatedEnergy?: number;
   /** Measured power from captured air parcels, W. */
   measuredPower?: number;
   /** Measured cumulative energy, J. */
@@ -79,13 +81,14 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
             <button onClick={onClose} className="text-muted-foreground hover:text-destructive" aria-label="close"><X size={10} /></button>
           )}
         </div>
-        <Row icon={<Zap size={9} />} value={fmtW(measured)} unit="" tint />
-        <Row icon={<Wind size={9} />} value={fmtJ(data.measuredEnergy ?? 0)} unit="" />
+        <Row icon={<Zap size={9} />} value={fmtW(data.status === 'ok' ? data.power : 0)} unit="" tint />
+        <Row icon={<Activity size={9} />} value={fmtJ(data.generatedEnergy ?? 0)} unit="" />
         {expanded && (
           <>
             <div className="my-1 border-t border-border/40" />
             <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
-              <M l="P₍Cp₎" v={fmtW(data.power)} />
+              <M l="tracer P" v={fmtW(measured)} />
+              <M l="tracer E" v={fmtJ(data.measuredEnergy ?? 0)} />
               <M l="v₍hub₎" v={fmt(data.hubSpeed, 1)} />
               <M l="v₍flow₎" v={fmt(data.flowSpeed, 1)} />
               <M l="hits/s" v={fmt(data.hitsPerSec, 1)} />
