@@ -66,7 +66,7 @@ export function TurbineHudCard({ position, radius, height, data, density = "comp
   const statusColor = data.status === "cutout" ? "text-destructive" : data.status === "low" ? "text-accent-foreground" : "text-primary";
 
   return (
-    <Html position={anchorPos} center distanceFactor={expanded ? 11 : 14} zIndexRange={[20, 0]}
+    <Html position={anchorPos} center zIndexRange={[20, 0]}
       style={{ pointerEvents: pinned ? "auto" : "none", opacity, transition: "opacity .25s" }}>
       <div
         className={`rounded-lg border bg-background/90 backdrop-blur px-2.5 py-1.5 shadow-lg transition-all duration-200 ${pinned ? "border-primary" : "border-primary/40"}`}
