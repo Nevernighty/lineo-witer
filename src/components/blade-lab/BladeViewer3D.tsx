@@ -86,6 +86,7 @@ function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity, turns, radiusFact
     return g;
   }), [nBlades]);
   const base = useMemo(() => new THREE.Color(color), [color]);
+  const objs = useMemo(() => lines.map(g => new THREE.Line(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))), [lines]);
   const t0 = useRef(0);
   useFrame((_, dt) => {
     t0.current += Math.min(dt, 0.05);
@@ -118,10 +119,7 @@ function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity, turns, radiusFact
   });
   return (
     <group>
-      {lines.map((g, i) => (
-        <primitive key={i} object={new THREE.Line(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))} />
-      ))}
-      {/* Wake boundary ring at the far plane for scale */}
+      {objs.map((o, i) => <primitive key={i} object={o} />)}
     </group>
   );
 }
