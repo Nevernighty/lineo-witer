@@ -443,87 +443,63 @@ export function buildSavoniusBucketGeometry(
 
 
 /**
- * Archimedes-spiral rotor blade: a helical ribbon wrapped around the vertical axis
- * with the inner edge close to the shaft and outer edge at radius R. Real Archimedes
- * urban turbines (e.g. Liam F1) use 2–3 such ribbons stacked at 120°.
+ * Archimedes (Liam F1) blade: one petal of a conical spiral shell around the
+ * HORIZONTAL wind axis (+Z = downwind). The narrow nose faces the wind (-Z),
+ * the shell widens to radius R downstream. Callers clone it 3× around Z (120°).
  */
 export function buildArchimedesBladeGeometry(
   g: BladeGeometry,
   viewMode: ViewMode,
   opts: { nStations?: number; height?: number; turns?: number; innerRatio?: number; taper?: number } = {}
 ): BuiltBlade {
-  const nStations = opts.nStations ?? 96;
-  const height = opts.height ?? g.tipRadius * 2 * 1.8;
-  const turns = opts.turns ?? 1.15;
-  const innerRatio = opts.innerRatio ?? 0.08;
-  const taper = opts.taper ?? 0.55;      // outer radius shrinks by this fraction top→bottom
+  const nT = opts.nStations ?? 72;
+  const nS = 12;
   const R = g.tipRadius;
-  const shellT = Math.max(0.01, R * 0.035);
-
+  const L = R * 1.15;                       // axial length of the cone
+  const turns = Math.max(0.35, (opts.turns ?? 1) * 0.55);
+  const innerRatio = opts.innerRatio ?? 0.06;
+  const shellT = Math.max(0.006, R * 0.018);
   const positions: number[] = [];
   const colors: number[] = [];
   const indices: number[] = [];
-
-  // Per station 4 vertices: inner-bottom, inner-top, outer-bottom, outer-top.
-  // Thickness axis = world Y (small band); the ribbon itself spirals in θ
-  // AND tapers in radius, producing the Liam-F1 nautilus silhouette.
-  for (let s = 0; s <= nStations; s++) {
-    const tN = s / nStations;
-    const yMid = -height / 2 + tN * height;
-    const ang = tN * turns * Math.PI * 2;
-    const outerR = R * (1 - taper * tN);
-    const innerR = R * innerRatio;
-    const cosA = Math.cos(ang), sinA = Math.sin(ang);
-    const col = vawtColorAt(viewMode, tN, false, -0.4);
-    const colDark: [number, number, number] = [col.r * 0.72, col.g * 0.72, col.b * 0.72];
-
-    // inner-bottom
-    positions.push(innerR * cosA, yMid - shellT * 0.5, innerR * sinA);
-    colors.push(...colDark);
-    // inner-top
-    positions.push(innerR * cosA, yMid + shellT * 0.5, innerR * sinA);
-    colors.push(col.r, col.g, col.b);
-    // outer-bottom
-    positions.push(outerR * cosA, yMid - shellT * 0.5, outerR * sinA);
-    colors.push(...colDark);
-    // outer-top
-    positions.push(outerR * cosA, yMid + shellT * 0.5, outerR * sinA);
-    colors.push(col.r, col.g, col.b);
-  }
-
-  const rowLen = 4;
-  for (let s = 0; s < nStations; s++) {
-    const a = s * rowLen;      // this station: [iB, iT, oB, oT]
-    const b = (s + 1) * rowLen; // next station
-    const iB = a, iT = a + 1, oB = a + 2, oT = a + 3;
-    const iB2 = b, iT2 = b + 1, oB2 = b + 2, oT2 = b + 3;
-    // top face (facing +Y-ish, upstream)
-    indices.push(iT, oT, iT2,   oT, oT2, iT2);
-    // bottom face (facing -Y-ish, downstream) — reversed winding
-    indices.push(iB, iB2, oB,   oB, iB2, oB2);
-    // outer rim
-    indices.push(oT, oB, oT2,   oB, oB2, oT2);
-    // inner rim
-    indices.push(iT, iT2, iB,   iB, iT2, iB2);
-  }
-
-  // End caps at leading and trailing edges so it doesn't look like an open ribbon.
-  const closeCap = (base: number, flip: boolean) => {
-    const iB = base, iT = base + 1, oB = base + 2, oT = base + 3;
-    if (flip) indices.push(iB, oT, iT,  iB, oB, oT);
-    else      indices.push(iB, iT, oT,  iB, oT, oB);
+  const pushLayer = (off: number, dark: number) => {
+    for (let i = 0; i <= nT; i++) {
+      const t = i / nT;
+      const a = t * turns * Math.PI * 2;
+      const r = R * (0.1 + 0.9 * Math.pow(t, 0.65));
+      const z = -L / 2 + t * L;
+      for (let j = 0; j <= nS; j++) {
+        const s = innerRatio + (1 - innerRatio) * (j / nS);
+        const cup = -Math.sin(s * Math.PI * 0.5) * R * 0.1 * t; // shell curvature toward wind
+        positions.push(s * r * Math.cos(a), s * r * Math.sin(a), z + cup + off);
+        const c = vawtColorAt(viewMode, t, false, -0.4);
+        const k = dark * (0.78 + 0.22 * s);
+        colors.push(c.r * k, c.g * k, c.b * k);
+      }
+    }
   };
-  closeCap(0, true);
-  closeCap(nStations * rowLen, false);
-
+  pushLayer(-shellT / 2, 1);
+  pushLayer(shellT / 2, 0.75);
+  const row = nS + 1, layer = (nT + 1) * row;
+  for (let i = 0; i < nT; i++) for (let j = 0; j < nS; j++) {
+    const a = i * row + j, b = a + row;
+    indices.push(a, b, a + 1, a + 1, b, b + 1);
+    const a2 = a + layer, b2 = b + layer;
+    indices.push(a2, a2 + 1, b2, a2 + 1, b2 + 1, b2);
+  }
+  // outer + inner rims
+  for (let i = 0; i < nT; i++) {
+    for (const j of [0, nS]) {
+      const a = i * row + j, b = a + row, a2 = a + layer, b2 = b + layer;
+      if (j === nS) indices.push(a, a2, b, b, a2, b2); else indices.push(a, b, a2, b, b2, a2);
+    }
+  }
   const geom = new THREE.BufferGeometry();
   geom.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   geom.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geom.setIndex(indices);
   geom.computeVertexNormals();
-
-  const avgR = R * (1 - taper * 0.5);
-  const volume = Math.PI * (avgR * avgR - (R * innerRatio) ** 2) * shellT * turns;
+  const volume = Math.PI * R * R * 0.4 * shellT * turns;
   return { geometry: geom, stations: [], volume, helicalTwistDeg: turns * 360 };
 }
 

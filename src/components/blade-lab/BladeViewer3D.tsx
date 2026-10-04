@@ -69,36 +69,57 @@ interface Props {
 
 }
 
+/**
+ * Convected tip-vortex filaments (Helmholtz): each blade tip sheds a helix that is
+ * carried downstream at V(1-a). Its pitch = 2π·V(1-a)/Ω, the wake expands toward
+ * √((1-a)/(1-2a))·R and circulation decays Γ(z)=Γ0·e^{-z/τ} (rendered as fade).
+ * The pattern is advected every frame — not spun as a rigid tube.
+ */
 function TipVortexHAWT({ R, nBlades, V, tsr, color, intensity, turns, radiusFactor, decay }:
   { R: number; nBlades: number; V: number; tsr: number; color: string; intensity: number; turns: number; radiusFactor: number; decay: number }) {
-  const ref = useRef<THREE.Group>(null);
+  const N = 220;
+  const len = R * Math.max(1.5, turns * 0.9);
+  const lines = useMemo(() => Array.from({ length: nBlades }, () => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
+    return g;
+  }), [nBlades]);
+  const base = useMemo(() => new THREE.Color(color), [color]);
+  const objs = useMemo(() => lines.map(g => new THREE.Line(g, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }))), [lines]);
+  const t0 = useRef(0);
   useFrame((_, dt) => {
-    if (ref.current) ref.current.rotation.z += dt * Math.min(2.5, (tsr * V) / Math.max(1, R)) * 0.25;
-  });
-  const tubes = useMemo(() => {
-    const out: THREE.BufferGeometry[] = [];
-    const len = R * 2.8;
-    const R0 = R * radiusFactor;
-    for (let b = 0; b < nBlades; b++) {
-      const phase0 = (b * 2 * Math.PI) / nBlades;
-      const pts: THREE.Vector3[] = [];
-      for (let i = 0; i <= 80; i++) {
-        const tt = i / 80;
-        const angle = phase0 + tt * turns * Math.PI * 2;
-        const rr = R0 * (1 - tt * decay);
-        pts.push(new THREE.Vector3(Math.cos(angle) * rr, Math.sin(angle) * rr, tt * len));
+    t0.current += Math.min(dt, 0.05);
+    const a = 1 / 3; // Betz induction
+    const Vw = Math.max(0.5, V) * (1 - a);
+    const omega = (tsr * Math.max(0.5, V)) / Math.max(0.1, R);
+    const visOmega = Math.min(omega, 3);      // visual time-scaling
+    const visV = Vw * (visOmega / Math.max(1e-3, omega)) * 1.0;
+    const rFar = R * radiusFactor * Math.sqrt((1 - a) / (1 - 2 * a + 1e-3)) ;
+    const tau = len * (0.35 + (0.6 - decay));
+    for (let bI = 0; bI < nBlades; bI++) {
+      const pos = lines[bI].attributes.position.array as Float32Array;
+      const col = lines[bI].attributes.color.array as Float32Array;
+      const phase0 = (bI * 2 * Math.PI) / nBlades + visOmega * t0.current;
+      for (let i = 0; i < N; i++) {
+        const z = (i / (N - 1)) * len;
+        const age = z / Math.max(1e-3, visV);
+        const ang = phase0 - visOmega * age;
+        const ex = 1 - Math.exp(-z / (R * 0.6));
+        const rr = R * radiusFactor + (Math.min(rFar, R * 1.45) - R * radiusFactor) * ex;
+        pos[i * 3] = Math.cos(ang) * rr;
+        pos[i * 3 + 1] = Math.sin(ang) * rr;
+        pos[i * 3 + 2] = z;
+        const f = Math.exp(-z / tau) * Math.min(1, intensity);
+        col[i * 3] = base.r * f; col[i * 3 + 1] = base.g * f; col[i * 3 + 2] = base.b * f;
       }
-      out.push(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 140, Math.max(0.015, R * 0.011), 6, false));
+      lines[bI].attributes.position.needsUpdate = true;
+      lines[bI].attributes.color.needsUpdate = true;
     }
-    return out;
-  }, [R, nBlades, turns, radiusFactor, decay]);
+  });
   return (
-    <group ref={ref}>
-      {tubes.map((g, i) => (
-        <mesh key={i} geometry={g}>
-          <meshBasicMaterial color={color} transparent opacity={Math.min(0.7, 0.38 * intensity)} />
-        </mesh>
-      ))}
+    <group>
+      {objs.map((o, i) => <primitive key={i} object={o} />)}
     </group>
   );
 }
@@ -315,7 +336,7 @@ export function BladeViewer3D({
   rotorType = 'hawt', heightOverDiameter, failureLevel = 0,
   bgTint, turbulence = 0, reactionSpeed = 1, recoverySpeed = 1, vfx, cinema,
 }: Props) {
-  const isVAWT = rotorType !== 'hawt';
+  const isVAWT = rotorType !== 'hawt' && rotorType !== 'vawt-archimedes';
   const R = geometry.tipRadius;
   const H = isVAWT ? R * 2 * (heightOverDiameter ?? 1) : R;
   const groundY = isVAWT ? -H / 2 - R * 0.1 : -R * 1.1;
