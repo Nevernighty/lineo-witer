@@ -166,9 +166,13 @@ const getSpeedColor = (c: THREE.Color, speed: number, hasCollided: boolean, abso
   }
 
   // Default wind: white-grey transparent, subtle speed shift
-  const base = 0.55 + t * 0.25;
-  const blueShift = 0.6 + t * 0.2;
-  c.setRGB(base * 0.95, base * 0.95, blueShift);
+  // Velocity colormap (CFD style): slow/wake = deep blue, nominal = teal,
+  // accelerated = green-yellow, gusts = amber.
+  const u = Math.min(speed / 14, 1);
+  if (u < 0.35) { const k = u / 0.35; c.setRGB(0.10, 0.25 + 0.35 * k, 0.75 + 0.15 * k); }
+  else if (u < 0.65) { const k = (u - 0.35) / 0.3; c.setRGB(0.10 + 0.15 * k, 0.60 + 0.30 * k, 0.90 - 0.45 * k); }
+  else { const k = (u - 0.65) / 0.35; c.setRGB(0.25 + 0.75 * k, 0.90 - 0.25 * k, 0.45 - 0.35 * k); }
+  void t;
 };
 
 export const InstancedParticles: React.FC<InstancedParticlesProps> = ({

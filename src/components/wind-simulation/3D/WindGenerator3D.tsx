@@ -388,8 +388,9 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
     obstacle.x + obstacle.width / 2, obstacle.y, obstacle.z + obstacle.depth / 2
   ];
 
-  const towerColor = isSelected ? '#00ff00' : '#8899aa';
-  const nacelleColor = isSelected ? '#00ff00' : '#ccddee';
+  const focused = isHovered || isPinned;
+  const towerColor = isSelected ? '#00ff00' : focused ? '#5dffa0' : '#8899aa';
+  const nacelleColor = isSelected ? '#00ff00' : focused ? '#b8ffd6' : '#ccddee';
   const isCutOut = adjustedSpeed > specs.cutOut;
   const isCutIn = adjustedSpeed < specs.cutIn;
   const rotationY = ((obstacle.rotation || 0) * Math.PI) / 180;
@@ -421,9 +422,14 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
           </RotorBoundary>
         ) : stock}
         {/* Invisible, generous hit volume so hover works on thin blades too. */}
-        <mesh position={[0, rotorCenterY, rotorOffset]} visible={false}>
+        {/* Transparent (not visible=false, which skips raycasts) hit volumes. */}
+        <mesh position={[0, rotorCenterY, rotorOffset]}>
           <sphereGeometry args={[Math.max(rotorRadius, 2) * 1.1, 12, 8]} />
-          <meshBasicMaterial />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
+        </mesh>
+        <mesh position={[0, towerHeight / 2, 0]}>
+          <cylinderGeometry args={[1.2, 1.2, towerHeight, 8]} />
+          <meshBasicMaterial transparent opacity={0} depthWrite={false} colorWrite={false} />
         </mesh>
       </group>
 
@@ -458,12 +464,49 @@ export const WindGenerator3D: React.FC<WindGenerator3DProps> = ({ obstacle, conf
         }}
       />
 
-      {(isSelected || isHovered || isPinned) && (
+      {(isSelected || focused) && (
+        <>
+          <FocusPulse y={rotorCenterY} z={rotorOffset} r={rotorRadius} vertical={isVertical} color={isSelected ? '#00ffff' : '#39ff14'} />
+          <mesh position={[0, 0.15, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+            <ringGeometry args={[Math.max(2, rotorRadius * 0.5), Math.max(2.4, rotorRadius * 0.58), 48]} />
+            <meshBasicMaterial color="#39ff14" transparent opacity={0.6} depthWrite={false} side={THREE.DoubleSide} />
+          </mesh>
+          <mesh position={[0, towerHeight / 2, 0]}>
+            <cylinderGeometry args={[0.7, 0.9, towerHeight, 12, 1, true]} />
+            <meshBasicMaterial color="#39ff14" transparent opacity={0.18} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+          </mesh>
+        </>
+      )}
+      {(isSelected || focused) && (
         <mesh position={[0, rotorCenterY, rotorOffset]} rotation={isVertical ? [Math.PI / 2, 0, 0] : [0, 0, 0]}>
           <ringGeometry args={[rotorRadius * 1.04, rotorRadius * 1.1, 48]} />
           <meshBasicMaterial color={isSelected ? '#00ffff' : '#39ff14'} transparent opacity={0.55} depthWrite={false} side={THREE.DoubleSide} />
         </mesh>
       )}
+    </group>
+  );
+};
+
+/** Glowing swept-area disc + expanding ring shown while a turbine is focused. */
+const FocusPulse: React.FC<{ y: number; z: number; r: number; vertical: boolean; color: string }> = ({ y, z, r, vertical, color }) => {
+  const ring = useRef<THREE.Mesh>(null);
+  useFrame(({ clock }) => {
+    if (!ring.current) return;
+    const p = (clock.elapsedTime * 0.8) % 1;
+    ring.current.scale.setScalar(1 + p * 0.35);
+    (ring.current.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - p);
+  });
+  const rot: [number, number, number] = vertical ? [Math.PI / 2, 0, 0] : [0, 0, 0];
+  return (
+    <group position={[0, y, z]} rotation={rot}>
+      <mesh>
+        <circleGeometry args={[r, 48]} />
+        <meshBasicMaterial color={color} transparent opacity={0.12} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
+      <mesh ref={ring}>
+        <ringGeometry args={[r * 0.98, r * 1.04, 64]} />
+        <meshBasicMaterial color={color} transparent opacity={0.5} blending={THREE.AdditiveBlending} depthWrite={false} side={THREE.DoubleSide} />
+      </mesh>
     </group>
   );
 };
