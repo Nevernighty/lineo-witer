@@ -315,7 +315,7 @@ export function BladeViewer3D({
   rotorType = 'hawt', heightOverDiameter, failureLevel = 0,
   bgTint, turbulence = 0, reactionSpeed = 1, recoverySpeed = 1, vfx, cinema,
 }: Props) {
-  const isVAWT = rotorType !== 'hawt';
+  const isVAWT = rotorType !== 'hawt' && rotorType !== 'vawt-archimedes';
   const R = geometry.tipRadius;
   const H = isVAWT ? R * 2 * (heightOverDiameter ?? 1) : R;
   const groundY = isVAWT ? -H / 2 - R * 0.1 : -R * 1.1;

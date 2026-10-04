@@ -65,7 +65,7 @@ export function BladeMesh({
 }: Props) {
   const [, setVfxRevision] = useState(0);
   useEffect(() => vfxBus?.subscribe(() => setVfxRevision(v => v + 1)), [vfxBus]);
-  const isVAWT = rotorType !== 'hawt';
+  const isVAWT = rotorType !== 'hawt' && rotorType !== 'vawt-archimedes';
   const isSavonius = rotorType === 'vawt-savonius';
   const isArchimedes = rotorType === 'vawt-archimedes';
   const isMobile = useIsMobile();
