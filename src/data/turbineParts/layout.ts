@@ -61,8 +61,35 @@ export function buildTurbineLayout(turbineId: string, axisKind: 'horizontal' | '
   const items: Item[] = [];
   const ringCount = new Map<PartRole, number>();
   for (const p of parts) if (RING_ROLES.includes(p.role)) ringCount.set(p.role, (ringCount.get(p.role) ?? 0) + 1);
+
+  // HAWT blades printed as sections (Wing01..Wing05): glue end-to-end radially,
+  // then repeat the whole blade nBlades times.
+  const bladeParts = parts.filter(p => p.role === 'blade');
+  const sectioned = axis === 'z' && bladeParts.length > nBlades;
+  const sectionPlaced: PlacedPart[] = [];
+  if (sectioned) {
+    const secs = [...bladeParts].sort((a, b) => a.id.localeCompare(b.id));
+    const hubR = unit * 0.06;
+    for (let b = 0; b < nBlades; b++) {
+      const theta = (b / nBlades) * Math.PI * 2;
+      let r = hubR;
+      for (const s of secs) {
+        const L = Math.max(...s.ext);
+        const rc = r + L / 2;
+        r += L * 0.98;
+        const pos: [number, number, number] = [Math.cos(theta) * rc, Math.sin(theta) * rc, (slots.blade ?? 0) * unit];
+        sectionPlaced.push({
+          key: `${s.id}#${b}`, part: s, copy: b, pos, spin: theta,
+          dir: [Math.cos(theta), Math.sin(theta), 0.1], travel: unit * 0.5, ring: true, orient: 'long-radial',
+        });
+      }
+    }
+  }
+
+  const vawtRatio = spec && spec.rotorH > 0 ? (spec.rotorD / 2) / spec.rotorH : 0.45;
   for (const p of parts) {
-    if (RING_ROLES.includes(p.role) && p.role !== 'tool') {
+    if (sectioned && p.role === 'blade') continue;
+    if (RING_ROLES.includes(p.role)) {
       const distinct = ringCount.get(p.role) ?? 1;
       const copies = distinct >= nBlades ? 1 : Math.max(1, Math.round(nBlades / distinct));
       for (let c = 0; c < copies; c++) items.push({ p, copy: c });
