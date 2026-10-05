@@ -73,20 +73,20 @@ export function RealTurbineExplorer({ lang, onSendToLab }: Props) {
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col lg:flex-row bg-background">
-      {/* Library */}
-      <aside className="lg:w-56 xl:w-64 shrink-0 border-b lg:border-b-0 lg:border-r border-border/40 overflow-y-auto scrollbar-thin">
-        <div className="px-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0 bg-background/95 backdrop-blur z-10">
+    <div className="h-full min-h-0 flex flex-col md:flex-row bg-background">
+      {/* Library: horizontal strip on phones, compact sidebar from md */}
+      <aside className="md:w-52 xl:w-60 shrink-0 border-b md:border-b-0 md:border-r border-border/40 overflow-x-auto md:overflow-x-hidden md:overflow-y-auto scrollbar-thin">
+        <div className="hidden md:block px-2 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground sticky top-0 bg-background/95 backdrop-blur z-10">
           {t.library}
         </div>
-        <div className="p-1.5 space-y-1.5">
+        <div className="p-1.5 flex md:flex-col gap-1.5">
           {REAL_TURBINES.map(rt => {
             const active = rt.id === turbineId;
             return (
               <button
                 key={rt.id}
                 onClick={() => switchTurbine(rt.id)}
-                className={`w-full text-left rounded-md border px-2 py-1.5 transition-colors ${
+                className={`shrink-0 w-44 md:w-full text-left rounded-md border px-2 py-1.5 transition-colors ${
                   active ? 'border-primary/60 bg-primary/10' : 'border-border/40 bg-card/40 hover:bg-card/70'
                 }`}
               >
@@ -104,7 +104,7 @@ export function RealTurbineExplorer({ lang, onSendToLab }: Props) {
       </aside>
 
       {/* Stage */}
-      <main className="relative flex-1 min-h-[46vh] lg:min-h-0">
+      <main className="relative flex-1 min-h-[60vh] md:min-h-0">
         <TurbineExplorer3D
           turbine={turbine}
           explode={explode}
