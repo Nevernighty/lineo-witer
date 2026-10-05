@@ -114,7 +114,7 @@ export function buildTurbineLayout(turbineId: string, axisKind: 'horizontal' | '
       // VAWT blades: sit at rotor radius (from spec, scaled), arms halfway.
       const rotorR = axis === 'z'
         ? long * 0.5 + unit * 0.04
-        : Math.max(unit * 0.22, Math.min(unit * 0.6, (sortedMid(p.ext)) * 0.9));
+        : Math.max(unit * 0.18, long * vawtRatio);
       const r = p.role === 'arm' ? (axis === 'z' ? long * 0.5 : rotorR * 0.5) : rotorR;
       const theta = (idx / total) * Math.PI * 2;
       const cx = Math.cos(theta) * r;
@@ -124,7 +124,7 @@ export function buildTurbineLayout(turbineId: string, axisKind: 'horizontal' | '
       const dir: [number, number, number] = axis === 'y' ? [cx / len, 0.1, cy / len] : [cx / len, cy / len, 0.1];
       return {
         key, part: p, copy, pos, spin: theta, dir, travel: unit * 0.7, ring: true,
-        orient: axis === 'y' ? 'long-axial' : 'long-radial',
+        orient: axis === 'y' && p.role === 'blade' ? 'long-axial' : 'long-radial',
       };
     }
 
@@ -137,6 +137,8 @@ export function buildTurbineLayout(turbineId: string, axisKind: 'horizontal' | '
       : p.role === 'tail' || p.role === 'tool' ? 'none' : 'flat-axial';
     return { key, part: p, copy, pos, spin: 0, dir, travel: unit * (0.6 + idx * 0.1), ring: false, orient };
   });
+
+  placed.push(...sectionPlaced);
 
   // Re-centre on the assembly's bounding box (excluding jigs).
   const core = placed.filter(p => p.part.role !== 'tool');
@@ -154,11 +156,6 @@ export function buildTurbineLayout(turbineId: string, axisKind: 'horizontal' | '
     radius = Math.max(radius, Math.hypot(p.pos[0], p.pos[1], p.pos[2]) + half);
   }
   return { axis, unit, radius, parts: placed };
-}
-
-function sortedMid(e: [number, number, number] | number[]): number {
-  const s = [...e].sort((a, b) => a - b);
-  return s[1];
 }
 
 export const SPINNING_ROLES: PartRole[] = ['blade', 'hub', 'arm'];
