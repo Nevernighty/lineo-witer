@@ -115,7 +115,8 @@ export function buildTurbineLayout(turbineId: string, axisKind: 'horizontal' | '
       const rotorR = axis === 'z'
         ? long * 0.5 + unit * 0.04
         : Math.max(unit * 0.18, long * vawtRatio);
-      const r = p.role === 'arm' ? (axis === 'z' ? long * 0.5 : rotorR * 0.5) : rotorR;
+      // Struts start at the hub and reach outward to the blades.
+      const r = p.role === 'arm' ? long * 0.5 : rotorR;
       const theta = (idx / total) * Math.PI * 2;
       const cx = Math.cos(theta) * r;
       const cy = Math.sin(theta) * r;
