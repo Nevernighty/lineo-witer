@@ -56,7 +56,7 @@ function Framing({ point, radius }: { point: [number, number, number] | null; ra
       const nd = THREE.MathUtils.lerp(d, wantDist, k);
       dirV.current.multiplyScalar(nd / d);
       camera.position.copy(controls.target).add(dirV.current);
-      if (camera.position.y < -1.4) camera.position.y = -1.4;
+      if (camera.position.y < -1.8) camera.position.y = -1.8;
     }
     controls.update();
   });
@@ -118,7 +118,7 @@ export function TurbineExplorer3D({
   }, [activeIds, layout, scale, yOffset]);
 
   const render = (p: PlacedPart) => (
-    <PartBoundary key={p.part.id}>
+    <PartBoundary key={p.key}>
       <PartMesh
         placed={p}
         axis={layout.axis}
@@ -168,10 +168,10 @@ export function TurbineExplorer3D({
       </Suspense>
 
 
-      <ContactShadows position={[0, -1.9, 0]} opacity={0.45} scale={12} blur={2.6} far={5} />
+      <ContactShadows position={[0, -1.95, 0]} opacity={0.45} scale={12} blur={2.6} far={5} />
       <OrbitControls
-        makeDefault enablePan={false} enableDamping dampingFactor={0.08}
-        minDistance={2.4} maxDistance={14} maxPolarAngle={Math.PI * 0.52}
+        makeDefault enablePan screenSpacePanning enableDamping dampingFactor={0.1} rotateSpeed={0.8} zoomSpeed={0.9} target={[0, 0, 0]}
+        minDistance={1.6} maxDistance={16} maxPolarAngle={Math.PI * 0.62}
       />
       <Framing point={focus.point} radius={focus.radius} />
     </Canvas>
