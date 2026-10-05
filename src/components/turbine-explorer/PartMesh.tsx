@@ -37,7 +37,22 @@ export function PartMesh({
   // exported in different units (mm vs m) all share one layout space.
   const { model, fit } = useMemo(() => {
     const c = scene.clone(true);
-    const box = new THREE.Box3().setFromObject(c);
+    // Orient by principal extent so printed-flat STLs stand up correctly.
+    const raw = new THREE.Box3().setFromObject(c).getSize(new THREE.Vector3());
+    const dims = [raw.x, raw.y, raw.z];
+    const unitAx = [new THREE.Vector3(1, 0, 0), new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, 1)];
+    const rotorAx = axis === 'y' ? unitAx[1] : unitAx[2];
+    const longI = dims.indexOf(Math.max(...dims));
+    const shortI = dims.indexOf(Math.min(...dims));
+    let from: THREE.Vector3 | null = null, to: THREE.Vector3 | null = null;
+    if (placed.orient === 'long-axial') { from = unitAx[longI]; to = rotorAx; }
+    else if (placed.orient === 'long-radial') { from = unitAx[longI]; to = unitAx[0]; }
+    else if (placed.orient === 'flat-axial') { from = unitAx[shortI]; to = rotorAx; }
+    const wrap = new THREE.Group();
+    if (from && to && !from.equals(to)) c.quaternion.setFromUnitVectors(from, to);
+    wrap.add(c);
+    wrap.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(wrap);
     const centre = new THREE.Vector3();
     const size = new THREE.Vector3();
     box.getCenter(centre);
@@ -45,8 +60,8 @@ export function PartMesh({
     c.position.sub(centre);
     const measured = Math.max(size.x, size.y, size.z) || 1;
     const wanted = Math.max(...placed.part.ext) || measured;
-    return { model: c, fit: wanted / measured };
-  }, [scene, placed.part.ext]);
+    return { model: wrap, fit: wanted / measured };
+  }, [scene, placed.part.ext, placed.orient, axis]);
 
   const material = useMemo(() => new THREE.MeshStandardMaterial({
     color: new THREE.Color(color),

@@ -93,10 +93,10 @@ export function TurbineExplorer3D({
     [turbine.id, turbine.axis],
   );
 
-  // Normalise any model (mm STLs or cm exports) to a ~3.4 unit tall stage subject.
-  const scale = 3.4 / Math.max(0.001, layout.radius * 2);
-  const camDist = 6.4;
-  const yOffset = turbine.axis === 'vertical' ? -1.4 : 0;
+  // Assembly is centred on the origin; fit it into a ~3.6 unit sphere.
+  const scale = 3.6 / Math.max(0.001, layout.radius * 2);
+  const camDist = 6.2;
+  const yOffset = 0;
 
   const stat = layout.parts.filter(p => !SPINNING_ROLES.includes(p.part.role));
   const rot = layout.parts.filter(p => SPINNING_ROLES.includes(p.part.role));
