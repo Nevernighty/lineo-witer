@@ -369,6 +369,14 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             const vertical = Math.abs(dy);
             const radialBand = Math.abs(horizDist - gen.rotorRadius * 0.72);
             const influence = Math.max(0, 1 - radialBand / Math.max(1, gen.rotorRadius)) * Math.max(0, 1 - vertical / Math.max(1, gen.rotorHalfHeight * 1.6));
+            // Suction into the rotor cylinder from the upwind side.
+            const upwind = -(dx * windDirection.x + dz * windDirection.z); // >0 when particle is upwind
+            if (upwind > 0 && horizDist > gen.rotorRadius * 0.4 && horizDist < gen.rotorRadius * 2.2 && vertical < gen.rotorHalfHeight * 1.4) {
+              const k = (1 - horizDist / (gen.rotorRadius * 2.2)) * effectiveSpeed * 0.3;
+              targetSpeedX -= (dx / horizDist) * k * 0.6;
+              targetSpeedZ -= (dz / horizDist) * k * 0.6;
+              targetSpeedY -= Math.sign(particle.y - gen.cy) * k * 0.25;
+            }
             if (influence > 0 && horizDist > 0.05) {
               const tangentSign = gen.subtype === 'savonius' ? 1 : -1;
               const tangentX = (-dz / horizDist) * tangentSign;
@@ -396,10 +404,16 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             // with rotor-induced swirl (angular momentum, opposite to rotor).
             const radialSafe = Math.max(0.2, radial);
             if (axial < 0) {
-              const expand = discWeight * axialWeight * effectiveSpeed * 0.06;
-              targetSpeedX += (lateralX / radialSafe) * expand;
-              targetSpeedZ += (lateralZ / radialSafe) * expand;
-              targetSpeedY += (-dy / radialSafe) * -expand;
+              // Suction: streamlines converge onto the swept disc ahead of it.
+              const reach = gen.rotorRadius * 1.8;
+              const conv = Math.max(0, 1 - radial / reach) * Math.max(0, 1 + axial / (gen.rotorRadius * 3));
+              const pull = conv * effectiveSpeed * 0.35 * Math.min(1, radial / Math.max(0.3, gen.rotorRadius * 0.5));
+              targetSpeedX -= (lateralX / radialSafe) * pull;
+              targetSpeedZ -= (lateralZ / radialSafe) * pull;
+              targetSpeedY += (-dy / radialSafe) * pull;
+              // Slight acceleration toward the disc (pressure drop ahead of rotor).
+              targetSpeedX += gen.normalX * conv * effectiveSpeed * 0.12;
+              targetSpeedZ += gen.normalZ * conv * effectiveSpeed * 0.12;
             } else {
               const wakeLen = gen.rotorRadius * 8;
               const wakeW = Math.max(0, 1 - radial / (gen.rotorRadius * (1 + axial / wakeLen))) * Math.max(0, 1 - axial / wakeLen);
