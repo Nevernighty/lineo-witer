@@ -432,16 +432,16 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <Target className="w-3 h-3 text-orange-400" />
           <span className="text-[9px] font-semibold text-orange-400 uppercase tracking-wide">{t('analysisLayers', lang)}</span>
         </div>
-        <div className="grid grid-cols-1 gap-px">
+        <div className="grid grid-cols-1 gap-1">
           {[
             { checked: showHotspots, toggle: onToggleHotspots, label: t('collisionHotspots', lang), borderColor: 'border-orange-500/50', checkedBg: 'data-[state=checked]:bg-orange-500 data-[state=checked]:border-orange-500' },
             { checked: showWakeZones, toggle: onToggleWakeZones, label: t('wakeZones', lang), borderColor: 'border-cyan-500/50', checkedBg: 'data-[state=checked]:bg-cyan-500 data-[state=checked]:border-cyan-500' },
             { checked: showLocalHits, toggle: onToggleLocalHits, label: t('localHits', lang), borderColor: 'border-yellow-500/50', checkedBg: 'data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500' },
           ].map((item, i) => (
-            <label key={i} className="flex items-center gap-1.5 h-6 px-1 cursor-pointer group rounded hover:bg-background/50 transition-colors">
+            <label key={i} className={`flex items-center gap-2 min-h-8 px-2 py-1 cursor-pointer group rounded-md border transition-colors ${item.checked ? 'bg-background/60 ' + item.borderColor : 'border-transparent hover:bg-background/40'}`}>
               <Checkbox checked={item.checked} onCheckedChange={item.toggle}
-                className={`h-3 w-3 ${item.borderColor} ${item.checkedBg}`} />
-              <span className="text-[10px] leading-none truncate text-muted-foreground group-hover:text-foreground transition-colors">{item.label}</span>
+                className={`h-3.5 w-3.5 shrink-0 ${item.borderColor} ${item.checkedBg}`} />
+              <span className={`text-[11px] leading-tight ${item.checked ? 'text-foreground' : 'text-muted-foreground'} group-hover:text-foreground transition-colors`}>{item.label}</span>
             </label>
           ))}
         </div>

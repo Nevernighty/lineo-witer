@@ -370,12 +370,12 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
             const radialBand = Math.abs(horizDist - gen.rotorRadius * 0.72);
             const influence = Math.max(0, 1 - radialBand / Math.max(1, gen.rotorRadius)) * Math.max(0, 1 - vertical / Math.max(1, gen.rotorHalfHeight * 1.6));
             // Suction into the rotor cylinder from the upwind side.
-            const upwind = -(dx * windDirection.x + dz * windDirection.z); // >0 when particle is upwind
+            const upwind = dx * windDirection.x + dz * windDirection.z; // >0 when particle is upwind (dx points to rotor)
             if (upwind > 0 && horizDist > gen.rotorRadius * 0.4 && horizDist < gen.rotorRadius * 2.2 && vertical < gen.rotorHalfHeight * 1.4) {
               const k = (1 - horizDist / (gen.rotorRadius * 2.2)) * effectiveSpeed * 0.3;
-              targetSpeedX -= (dx / horizDist) * k * 0.6;
-              targetSpeedZ -= (dz / horizDist) * k * 0.6;
-              targetSpeedY -= Math.sign(particle.y - gen.cy) * k * 0.25;
+              targetSpeedX += (dx / horizDist) * k * 0.6;
+              targetSpeedZ += (dz / horizDist) * k * 0.6;
+              targetSpeedY += Math.sign(dy) * k * 0.25;
             }
             if (influence > 0 && horizDist > 0.05) {
               const tangentSign = gen.subtype === 'savonius' ? 1 : -1;
