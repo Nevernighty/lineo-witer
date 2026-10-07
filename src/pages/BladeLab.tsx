@@ -132,6 +132,10 @@ export default function BladeLab() {
   const [turbulenceBoost, setTurbulenceBoost] = useState(0);
   const [failureBoost, setFailureBoost] = useState(0);
   const [mode, setMode] = useState<'aero' | 'real'>('aero');
+  const [customName, setCustomName] = useState<string>(() => {
+    try { return localStorage.getItem('lineo.customName') ?? ''; } catch { return ''; }
+  });
+  useEffect(() => { try { localStorage.setItem('lineo.customName', customName); } catch {} }, [customName]);
   const navigate = useNavigate();
 
   // Load a real 3D-printed turbine's rotor family + size into the aero lab.
@@ -220,11 +224,12 @@ export default function BladeLab() {
 
   const applyToSimulation = useCallback((silent = false, originEl?: HTMLElement | null) => {
     const p = PRESETS.find(x => x.id === presetId);
-    const name = p?.[lang === 'ua' ? 'nameUA' : 'nameEN'] ?? suggestedName();
+    const own = customName.trim();
+    const name = own || (p?.[lang === 'ua' ? 'nameUA' : 'nameEN'] ?? suggestedName());
     setActiveBladePreset({
       id: presetId || 'custom',
-      nameUA: p?.nameUA || name,
-      nameEN: p?.nameEN || name,
+      nameUA: own || p?.nameUA || name,
+      nameEN: own || p?.nameEN || name,
       geometry, materialId, rotorType,
       heightOverDiameter, helicalTwistDeg: helicalDeg,
       bendThresholdPct, fractureThresholdPct,
@@ -368,6 +373,13 @@ export default function BladeLab() {
             <div className="bl-title leading-tight truncate max-w-[28vw]">{t.title}</div>
             <div className="bl-meta truncate hidden md:block">{t.sub}</div>
           </div>
+          <input
+            value={customName}
+            onChange={e => setCustomName(e.target.value.slice(0, 48))}
+            placeholder={suggestedName()}
+            title={lang === 'ua' ? 'Назва вашого вітряка' : 'Your turbine name'}
+            className="ml-1 h-7 w-36 sm:w-48 rounded-md border border-border/50 bg-background/60 px-2 text-xs focus:outline-none focus:border-primary"
+          />
 
           <div className="hidden md:block ml-2 min-w-0 flex-1">
             <Menubar className="h-7 border-border/40 bg-transparent p-0 gap-0">
