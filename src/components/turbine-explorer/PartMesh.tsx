@@ -51,6 +51,14 @@ export function PartMesh({
     const wrap = new THREE.Group();
     if (from && to && !from.equals(to)) c.quaternion.setFromUnitVectors(from, to);
     wrap.add(c);
+    // VAWT blades: chord must lie tangent to the rotor circle, so the thinnest
+    // horizontal extent faces radially (local X), plus a small toe-in.
+    if (placed.ring && placed.part.role === 'blade' && placed.orient === 'long-axial') {
+      wrap.updateMatrixWorld(true);
+      const s = new THREE.Box3().setFromObject(wrap).getSize(new THREE.Vector3());
+      const yaw = (s.x > s.z ? Math.PI / 2 : 0) + THREE.MathUtils.degToRad(3.5);
+      c.quaternion.premultiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw));
+    }
     wrap.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(wrap);
     const centre = new THREE.Vector3();
