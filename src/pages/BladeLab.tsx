@@ -254,7 +254,7 @@ export default function BladeLab() {
       toast({ title: t.appliedToast });
       setTimeout(() => navigate('/'), 1500);
     }
-  }, [presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate, lang, user, logHistory, suggestedName, windSpeed, tsr, siteId]);
+  }, [customName, presetId, geometry, materialId, rotorType, heightOverDiameter, helicalDeg, bendThresholdPct, fractureThresholdPct, t.appliedToast, navigate, lang, user, logHistory, suggestedName, windSpeed, tsr, siteId]);
 
 
   useEffect(() => { applyToSimulation(true); }, [applyToSimulation]);
