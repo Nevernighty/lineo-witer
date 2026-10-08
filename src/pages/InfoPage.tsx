@@ -9,6 +9,7 @@ import { WindEnergyFundamentals } from '@/components/info/WindEnergyFundamentals
 import { TurbineCategories } from '@/components/info/TurbineCategories';
 import { PrintableComponents } from '@/components/info/PrintableComponents';
 import { UkraineWindPotential } from '@/components/info/UkraineWindPotential';
+import { BetzCalculator } from '@/components/info/BetzCalculator';
 import { TechnicalSpecs } from '@/components/info/TechnicalSpecs';
 import { PrintingConsiderations } from '@/components/info/PrintingConsiderations';
 import { type Lang, t } from '@/utils/i18n';
@@ -41,7 +42,7 @@ const InfoPage = () => {
       case 'turbines': return <TurbineCategories lang={lang} />;
       case 'printing': return <PrintingConsiderations lang={lang} />;
       case 'components': return <PrintableComponents lang={lang} />;
-      case 'technical': return <TechnicalSpecs lang={lang} />;
+      case 'technical': return <div className="space-y-4"><BetzCalculator lang={lang} /><TechnicalSpecs lang={lang} /></div>;
       default: return null;
     }
   };

@@ -1,5 +1,5 @@
 import { Wind, Gauge, Droplets, BookOpen, Wifi, WifiOff, Layers, ZoomIn, BarChart3 } from "lucide-react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { t, type Lang } from '@/utils/i18n';
 import { motion } from 'framer-motion';
 
@@ -396,6 +396,7 @@ export const WeatherDisplay = ({ location: geoLocation, lang = 'ua', onApplyToSi
 
   return (
     <div className="space-y-4">
+      {cityPicker}
 
       {/* Windy.com Map — larger */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
