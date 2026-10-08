@@ -1,5 +1,5 @@
 import { Wind, Gauge, Droplets, BookOpen, Wifi, WifiOff, Layers, ZoomIn, BarChart3 } from "lucide-react";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { t, type Lang } from '@/utils/i18n';
 import { motion } from 'framer-motion';
 
@@ -342,7 +342,29 @@ const WPDClassBar = ({ wpd, lang }: { wpd: number; lang: 'ua' | 'en' }) => {
   );
 };
 
-export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: WeatherDisplayProps) => {
+const UA_CITIES = [
+  { ua: 'Моя локація', en: 'My location', lat: NaN, lon: NaN },
+  { ua: 'Київ', en: 'Kyiv', lat: 50.45, lon: 30.52 },
+  { ua: 'Львів', en: 'Lviv', lat: 49.84, lon: 24.03 },
+  { ua: 'Одеса', en: 'Odesa', lat: 46.48, lon: 30.72 },
+  { ua: 'Харків', en: 'Kharkiv', lat: 49.99, lon: 36.23 },
+  { ua: 'Дніпро', en: 'Dnipro', lat: 48.46, lon: 35.05 },
+  { ua: 'Запоріжжя', en: 'Zaporizhzhia', lat: 47.84, lon: 35.14 },
+  { ua: 'Карпати (Говерла)', en: 'Carpathians', lat: 48.16, lon: 24.5 },
+];
+
+export const WeatherDisplay = ({ location: geoLocation, lang = 'ua', onApplyToSimulation }: WeatherDisplayProps) => {
+  const [cityIdx, setCityIdx] = useState(0);
+  const location = React.useMemo(() => {
+    const c = UA_CITIES[cityIdx];
+    return cityIdx === 0 ? geoLocation : { lat: c.lat, lon: c.lon };
+  }, [cityIdx, geoLocation]);
+  const cityPicker = (
+    <select value={cityIdx} onChange={e => setCityIdx(+e.target.value)}
+      className="mb-2 h-8 w-full rounded-md border border-border/50 bg-background/70 px-2 text-xs">
+      {UA_CITIES.map((c, i) => <option key={i} value={i}>{lang === 'ua' ? c.ua : c.en}</option>)}
+    </select>
+  );
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [hoveredBar, setHoveredBar] = useState<number | null>(null);
   const [windyOverlay, setWindyOverlay] = useState('wind');
@@ -360,7 +382,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
   }, [location]);
 
   if (!location || !weather) {
-    return <div className="text-muted-foreground">{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
+    return <div className="text-muted-foreground">{cityPicker}{lang === 'ua' ? 'Визначення локації...' : 'Acquiring location...'}</div>;
   }
 
   const pot = potentialNames[weather.potentialClass as keyof typeof potentialNames];
@@ -374,6 +396,7 @@ export const WeatherDisplay = ({ location, lang = 'ua', onApplyToSimulation }: W
 
   return (
     <div className="space-y-4">
+      {cityPicker}
 
       {/* Windy.com Map — larger */}
       <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}
