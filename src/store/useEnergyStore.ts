@@ -85,6 +85,7 @@ export function reportAbsorbedEnergy(joules: number, generatorId = 'all', flowSp
     delete pendingHits[k];
     delete pendingFlow[k];
   }
+  addLifetime(pending, power);
   pending = 0;
 
   const history = [...state.history, { t: now, power, total }].slice(-MAX_HISTORY);
