@@ -9,6 +9,8 @@ import { lovable } from "@/integrations/lovable/index";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { ActivitySparkline } from "@/components/profile/ActivitySparkline";
+import { EnergyDashboard } from "@/components/profile/EnergyDashboard";
+import { useActiveBladePreset } from "@/store/useBladePresetStore";
 import type { Lang } from "@/utils/i18n";
 
 const L = {
@@ -35,6 +37,7 @@ export default function Profile() {
   const [history, setHistory] = useState<any[]>([]);
   const [settings, setSettings] = useState<{ lang?: string; wind_speed?: number }>({});
   const t = L[lang];
+  const activePreset = useActiveBladePreset();
 
   useEffect(() => {
     if (!user) return;
@@ -160,10 +163,17 @@ export default function Profile() {
 
   if (!user) {
     return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 gap-4">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6 pt-14 gap-4">
         <Link to="/" className="absolute top-4 left-4 flex items-center gap-2 text-sm text-muted-foreground hover:text-primary">
           <ArrowLeft className="w-4 h-4" /> {t.back}
         </Link>
+        <div className="w-full max-w-3xl"><EnergyDashboard lang={lang} /></div>
+        {activePreset && (
+          <div className="w-full max-w-3xl rounded-lg border border-primary/30 bg-card/40 p-3 text-sm">
+            <div className="text-[11px] text-muted-foreground">{lang === "ua" ? "Активний вітряк (збережено на цьому пристрої)" : "Active rotor (this device)"}</div>
+            <div className="font-medium">{activePreset.nameUA} · {String(activePreset.rotorType).toUpperCase()} · R{Number(activePreset.geometry?.tipRadius ?? 0).toFixed(1)} м</div>
+          </div>
+        )}
         <UserIcon className="w-14 h-14 text-primary/60" />
         <div className="text-center max-w-sm">
           <div className="text-lg font-semibold">{t.title}</div>
@@ -210,6 +220,8 @@ export default function Profile() {
             {memberSince && <div className="text-[11px] text-muted-foreground mt-0.5">{t.memberSince} {memberSince}</div>}
           </div>
         </motion.section>
+
+        <EnergyDashboard lang={lang} />
 
         {/* Activity sparkline */}
         <section>

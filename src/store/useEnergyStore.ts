@@ -85,6 +85,7 @@ export function reportAbsorbedEnergy(joules: number, generatorId = 'all', flowSp
     delete pendingHits[k];
     delete pendingFlow[k];
   }
+  addLifetime(pending, power);
   pending = 0;
 
   const history = [...state.history, { t: now, power, total }].slice(-MAX_HISTORY);
@@ -120,3 +121,26 @@ export function formatPower(w: number): string {
   if (w >= 1000) return `${(w / 1000).toFixed(2)} кВт`;
   return `${w.toFixed(1)} Вт`;
 }
+
+// ── Lifetime accounting (persisted across sessions, read by /profile) ──
+const LIFE_KEY = 'lineo.energyLifetime.v1';
+export interface LifetimeEnergy { totalJ: number; peakW: number; seconds: number; sessions: number; daily: Record<string, number>; }
+export function getLifetimeEnergy(): LifetimeEnergy {
+  try { const r = localStorage.getItem(LIFE_KEY); if (r) return { daily: {}, ...JSON.parse(r) }; } catch {}
+  return { totalJ: 0, peakW: 0, seconds: 0, sessions: 0, daily: {} };
+}
+let sessionCounted = false;
+function addLifetime(j: number, w: number) {
+  if (typeof localStorage === 'undefined') return;
+  const l = getLifetimeEnergy();
+  if (!sessionCounted) { l.sessions += 1; sessionCounted = true; }
+  l.totalJ += Math.max(0, j);
+  l.peakW = Math.max(l.peakW, Number.isFinite(w) ? w : 0);
+  l.seconds += COMMIT_MS / 1000;
+  const day = new Date().toISOString().slice(0, 10);
+  l.daily[day] = (l.daily[day] ?? 0) + Math.max(0, j);
+  const keys = Object.keys(l.daily).sort();
+  while (keys.length > 30) delete l.daily[keys.shift()!];
+  try { localStorage.setItem(LIFE_KEY, JSON.stringify(l)); } catch {}
+}
+export function resetLifetimeEnergy() { try { localStorage.removeItem(LIFE_KEY); } catch {} }
