@@ -13,6 +13,7 @@ import {
   computeSeparationBubble,
 } from './WindPhysicsEngine';
 import { playAbsorbSound } from '@/utils/sounds';
+import { buildFlowChannels, sampleChannelSpeedup } from '@/simulation/channelFlow';
 
 interface WindParticle {
   x: number; y: number; z: number;
@@ -108,6 +109,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
     const angleRad = (config.windAngle * Math.PI) / 180;
     return { x: Math.cos(angleRad), z: Math.sin(angleRad) };
   }, [config.windAngle]);
+  const flowChannels = useMemo(() => buildFlowChannels(obstacles, windDirection.x, windDirection.z), [obstacles, windDirection]);
 
   useEffect(() => {
     const angleRad = (config.windAngle * Math.PI) / 180;
@@ -235,6 +237,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       const isVAWT = specs.axis === 'vertical';
       const scale = o.scale || 1;
       const rotationY = ((o.rotation || 0) * Math.PI) / 180;
+      const normalSign = Math.sin(rotationY) * windDirection.x + Math.cos(rotationY) * windDirection.z < 0 ? -1 : 1;
       const baseX = o.x + o.width / 2;
       const baseZ = o.z + o.depth / 2;
       // Must mirror WindGenerator3D model dimensions exactly.
@@ -252,8 +255,8 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         rotorRadius,
         rotorHalfHeight: isVAWT ? o.height * scale * (subtype === 'savonius' ? 0.225 : 0.3) : rotorRadius,
         attractRadius: Math.max(rotorRadius * (isVAWT ? 3 : 8), isVAWT ? o.height * scale * 0.5 : 0),
-        normalX: Math.sin(rotationY),
-        normalZ: Math.cos(rotationY),
+        normalX: Math.sin(rotationY) * normalSign,
+        normalZ: Math.cos(rotationY) * normalSign,
         cp: specs.cp,
         subtype,
         isVAWT,
@@ -285,6 +288,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
       let targetSpeedX = Math.cos(angleRad) * Math.cos(elevationRad) * effectiveSpeed + turbX * turbulenceMagnitude;
       let targetSpeedY = Math.sin(elevationRad) * effectiveSpeed * 0.5 + turbY * turbulenceMagnitude * 0.3;
       let targetSpeedZ = Math.sin(angleRad) * Math.cos(elevationRad) * effectiveSpeed + turbZ * turbulenceMagnitude;
+      const channelSpeedup = sampleChannelSpeedup(flowChannels,
+        particle.x * windDirection.x + particle.z * windDirection.z,
+        -particle.x * windDirection.z + particle.z * windDirection.x, particle.y);
+      targetSpeedX *= channelSpeedup;
+      targetSpeedZ *= channelSpeedup;
 
       if (config.terrainSlopeX !== 0 || config.terrainSlopeZ !== 0) {
         const slopeSpeedupX = Math.sin((config.terrainSlopeX * Math.PI) / 180) * effectiveSpeed * 0.3;
@@ -315,9 +323,9 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
           targetSpeedX *= wake.velocityFactor;
           targetSpeedZ *= wake.velocityFactor;
           const wakeTurbulence = physics.turbulenceGeneration * wake.tiBoost * effectiveSpeed * 0.28;
-          targetSpeedX += (Math.random() - 0.5) * wakeTurbulence;
-          targetSpeedY += (Math.random() - 0.5) * wakeTurbulence * 0.8;
-          targetSpeedZ += (Math.random() - 0.5) * wakeTurbulence;
+          targetSpeedX += turbX * wakeTurbulence * 0.5;
+          targetSpeedY += turbY * wakeTurbulence * 0.4;
+          targetSpeedZ += turbZ * wakeTurbulence * 0.5;
           // Recirculation core: streamwise reversal plus upward entrainment.
           if (wake.recirculation > 0.01) {
             const rev = wake.recirculation * effectiveSpeed * 0.35;
@@ -336,6 +344,7 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
         if (speedup > 1.001) {
           targetSpeedX *= speedup;
           targetSpeedZ *= speedup;
+          targetSpeedY += (speedup - 1) * effectiveSpeed * 0.35;
         }
 
         // Roof separation bubble: flow detaches behind the leading edge.
@@ -407,13 +416,11 @@ export const AdvancedParticleSystem: React.FC<AdvancedParticleSystemProps> = ({
               // Suction: streamlines converge onto the swept disc ahead of it.
               const reach = gen.rotorRadius * 1.8;
               const conv = Math.max(0, 1 - radial / reach) * Math.max(0, 1 + axial / (gen.rotorRadius * 3));
-              const pull = conv * effectiveSpeed * 0.35 * Math.min(1, radial / Math.max(0.3, gen.rotorRadius * 0.5));
+              const pull = conv * effectiveSpeed * 0.18 * Math.min(1, radial / Math.max(0.3, gen.rotorRadius * 0.5));
               targetSpeedX -= (lateralX / radialSafe) * pull;
               targetSpeedZ -= (lateralZ / radialSafe) * pull;
-              targetSpeedY += (-dy / radialSafe) * pull;
-              // Slight acceleration toward the disc (pressure drop ahead of rotor).
-              targetSpeedX += gen.normalX * conv * effectiveSpeed * 0.12;
-              targetSpeedZ += gen.normalZ * conv * effectiveSpeed * 0.12;
+              targetSpeedY += (dy / radialSafe) * pull;
+              // A power-extracting rotor slows the approaching flow; it is not a fan.
             } else {
               const wakeLen = gen.rotorRadius * 8;
               const wakeW = Math.max(0, 1 - radial / (gen.rotorRadius * (1 + axial / wakeLen))) * Math.max(0, 1 - axial / wakeLen);

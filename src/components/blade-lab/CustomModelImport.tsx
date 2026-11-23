@@ -8,6 +8,8 @@ import { unzipSync } from 'fflate';
 import { Upload, X, Check } from 'lucide-react';
 import type { RotorType } from '@/aero/buildBladeGeometry';
 import type { Lang } from '@/utils/i18n';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 
 export interface ModelAnalysis {
   name: string;
@@ -24,8 +26,8 @@ export interface ModelAnalysis {
 }
 
 const T = {
-  ua: { upload: 'Завантажити модель', title: 'Власна модель', drop: 'Перетягни .glb / .stl / .zip або натисни', apply: 'Застосувати до ротора', parts: 'Частин', tris: 'Трикутників', units: 'Одиниці', size: 'Габарит', axis: 'Вісь обертання', type: 'Розпізнаний тип', R: 'Радіус', blades: 'Лопатей (оцінка)', conf: 'Впевненість', err: 'Не вдалося прочитати файл' },
-  en: { upload: 'Upload model', title: 'Custom model', drop: 'Drop .glb / .stl / .zip or click', apply: 'Apply to rotor', parts: 'Parts', tris: 'Triangles', units: 'Units', size: 'Size', axis: 'Spin axis', type: 'Detected type', R: 'Radius', blades: 'Blades (est.)', conf: 'Confidence', err: 'Could not read file' },
+  ua: { upload: 'Завантажити модель', title: 'Власна модель', drop: 'Перетягни .glb / .stl / .zip або натисни', apply: 'Застосувати оцінені параметри', parts: 'Частин', tris: 'Трикутників', units: 'Одиниці', size: 'Габарит', axis: 'Вісь обертання', type: 'Тип (оцінка)', R: 'Радіус', blades: 'Лопатей (оцінка)', conf: 'Подібність габаритів', err: 'Не вдалося прочитати файл' },
+  en: { upload: 'Upload model', title: 'Custom model', drop: 'Drop .glb / .stl / .zip or click', apply: 'Apply estimated parameters', parts: 'Parts', tris: 'Triangles', units: 'Units', size: 'Size', axis: 'Spin axis', type: 'Type (estimate)', R: 'Radius', blades: 'Blades (est.)', conf: 'Dimension similarity', err: 'Could not read file' },
 };
 
 const TYPE_LABEL: Record<RotorType, string> = {
@@ -157,23 +159,22 @@ export function CustomModelImport({ lang, onApply, compact }: {
     if (!f) return;
     setBusy(true); setErr(null);
     try { const o = await loadAny(f); setObj(o); setInfo(analyse(o, f.name)); }
-    catch { setErr(t.err); }
+    catch { setObj(null); setInfo(null); setErr(t.err); }
     finally { setBusy(false); }
   };
   useEffect(() => { if (!open) { setErr(null); } }, [open]);
 
   return (
     <>
-      <button onClick={() => setOpen(true)} title={t.upload}
+      <Button variant="outline" size="sm" onClick={() => setOpen(true)} title={t.upload} aria-label={t.upload}
         className="h-7 px-2 rounded bg-card/50 hover:bg-card text-muted-foreground hover:text-foreground border border-border/40 flex items-center gap-1 flex-shrink-0 bl-text">
         <Upload className="w-3.5 h-3.5" />{!compact && <span className="hidden lg:inline">{t.upload}</span>}
-      </button>
-      {open && (
-        <div className="fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm flex items-center justify-center p-2 sm:p-6" onClick={() => setOpen(false)}>
-          <div className="w-full max-w-3xl max-h-[92dvh] overflow-y-auto rounded-xl border border-primary/25 bg-card/95 shadow-2xl" onClick={e => e.stopPropagation()}>
+      </Button>
+      <Dialog open={open} onOpenChange={setOpen}>
+          <DialogContent className="isolate z-[200] w-[95vw] max-w-3xl max-h-[92dvh] overflow-y-auto rounded-lg border border-primary/25 bg-card p-0 shadow-2xl">
             <div className="flex items-center justify-between px-3 py-2 border-b border-border/40">
-              <span className="bl-title">{t.title}</span>
-              <button onClick={() => setOpen(false)} className="p-1 rounded hover:bg-primary/10"><X className="w-4 h-4" /></button>
+              <DialogTitle className="bl-title">{t.title}</DialogTitle>
+              <DialogDescription className="sr-only">{t.drop}</DialogDescription>
             </div>
             <div className="grid md:grid-cols-[1fr_240px] gap-0">
               <div
@@ -221,21 +222,20 @@ export function CustomModelImport({ lang, onApply, compact }: {
                       </div>
                     ))}
                     <div className="flex gap-1.5 pt-2">
-                      <button onClick={() => input.current?.click()} className="flex-1 h-8 rounded border border-border/50 hover:bg-card">
+                      <Button variant="outline" size="icon" aria-label={t.upload} disabled={busy} onClick={() => input.current?.click()} className="h-9 w-9 shrink-0">
                         <Upload className="w-3.5 h-3.5 inline" />
-                      </button>
-                      <button onClick={() => { onApply(info); setOpen(false); }}
-                        className="flex-[3] h-8 rounded bg-primary text-primary-foreground font-medium flex items-center justify-center gap-1">
+                      </Button>
+                      <Button disabled={busy} onClick={() => { onApply(info); setOpen(false); }}
+                        className="flex-1 min-w-0 h-auto min-h-9 whitespace-normal text-xs">
                         <Check className="w-3.5 h-3.5" />{t.apply}
-                      </button>
+                      </Button>
                     </div>
                   </>
                 )}
               </div>
             </div>
-          </div>
-        </div>
-      )}
+          </DialogContent>
+      </Dialog>
     </>
   );
 }

@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
+import { WindCompass } from './WindCompass';
 import { Slider } from '@/components/ui/slider';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Wind, Waves, Thermometer, Mountain, RotateCcw, Target, Info } from 'lucide-react';
+import { Wind, Waves, Thermometer, Mountain, RotateCcw, Target, Info, ChevronUp, ChevronDown } from 'lucide-react';
 import { WindPhysicsConfig, DEFAULT_WIND_PHYSICS, calculateAirDensity, calculateWindShear } from './WindPhysicsEngine';
 import { OBSTACLE_CATEGORIES, ObstacleType, GeneratorSubtype, GENERATOR_SUBTYPES } from '../types';
 import { t, getObstacleLabel, type Lang } from '@/utils/i18n';
@@ -129,7 +130,9 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   particlePreset = 'standard', onParticlePresetChange,
   windType = 'custom', onWindTypeChange
 }) => {
+  const [collapsed, setCollapsed] = useState(false);
   const updateConfig = (key: keyof WindPhysicsConfig, value: number) => {
+    onWindTypeChange?.('custom');
     const newConfig = { ...config, [key]: value };
     if (key === 'altitude' || key === 'temperature') {
       newConfig.airDensity = parseFloat(calculateAirDensity(
@@ -140,7 +143,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
     onConfigChange(newConfig);
   };
 
-  const resetToDefaults = () => onConfigChange(DEFAULT_WIND_PHYSICS);
+  const resetToDefaults = () => { onWindTypeChange?.('custom'); onConfigChange(DEFAULT_WIND_PHYSICS); };
 
   const heightProfile = useMemo(() => {
     return [10, 30, 50, 80, 100].map(h => ({
@@ -150,14 +153,24 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
   }, [config.windSpeed, config.referenceHeight, config.surfaceRoughness]);
 
   return (
-    <div className="bg-[#0d1117]/95 backdrop-blur-md rounded-lg border border-primary/40 shadow-[0_0_20px_rgba(57,255,20,0.15)]" style={{ overflow: 'visible' }}>
-      <Tabs defaultValue="turb" className="w-full">
+    <div className="bg-background/95 backdrop-blur-md rounded-lg border border-primary/40 shadow-lg">
+      <div className="flex items-center justify-between gap-2 px-2 py-1 border-b border-primary/20">
+        <span className="flex items-center gap-2 text-xs font-mono text-primary tabular-nums"><Wind className="h-4 w-4" />{config.windSpeed.toFixed(1)} m/s · {config.windAngle}°</span>
+        <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={() => setCollapsed(v => !v)}
+          aria-expanded={!collapsed} aria-controls="wind-controls-body" aria-label={lang === 'ua' ? (collapsed ? 'Розгорнути налаштування' : 'Згорнути налаштування') : (collapsed ? 'Expand wind controls' : 'Collapse wind controls')}
+          title={lang === 'ua' ? (collapsed ? 'Розгорнути' : 'Згорнути') : (collapsed ? 'Expand' : 'Collapse')}>
+          {collapsed ? <ChevronDown /> : <ChevronUp />}
+        </Button>
+      </div>
+      <div id="wind-controls-body" className={`grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`} inert={collapsed ? '' : undefined}>
+      <div className="min-h-0 overflow-hidden">
+      <Tabs defaultValue="wind" className="w-full">
         <TabsList className="w-full grid grid-cols-4 h-9 rounded-none bg-background/40 border-b border-primary/30 p-0">
           {(['wind', 'turb', 'atmo', 'terrain'] as const).map((tab, i) => {
             const icons = [Wind, Waves, Thermometer, Mountain];
             const Icon = icons[i];
             return (
-              <TabsTrigger key={tab} value={tab}
+              <TabsTrigger key={tab} value={tab} aria-label={t(tab === 'wind' ? 'wind' : tab === 'turb' ? 'intensity' : tab === 'atmo' ? 'temperature' : 'terrainSlopeX', lang)} title={lang === 'ua' ? ['Вітер', 'Турбулентність', 'Атмосфера', 'Рельєф'][i] : ['Wind', 'Turbulence', 'Atmosphere', 'Terrain'][i]}
                 className="rounded-none border-r border-primary/20 last:border-r-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_hsl(var(--primary))] transition-all">
                 <Icon className="w-4 h-4" />
               </TabsTrigger>
@@ -169,9 +182,8 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           <GlowSlider value={config.windSpeed} onChange={(v) => updateConfig('windSpeed', v)}
             min={0} max={30} step={0.5} label={t('speed', lang)} displayValue={`${config.windSpeed.toFixed(1)} m/s`}
             infoText={t('infoSpeed', lang)} />
-          <GlowSlider value={config.windAngle} onChange={(v) => updateConfig('windAngle', v)}
-            min={0} max={360} step={5} label={t('direction', lang)} displayValue={`${config.windAngle}°`}
-            infoText={t('infoDirection', lang)} />
+          <WindCompass value={config.windAngle} onChange={v => updateConfig('windAngle', v)} lang={lang} />
+          <div className="flex justify-between text-xs text-muted-foreground"><span>ρ</span><span className="font-mono text-primary">{config.airDensity.toFixed(3)} kg/m³</span></div>
           <GlowSlider value={config.windElevation} onChange={(v) => updateConfig('windElevation', v)}
             min={-45} max={45} step={5} label={t('elevation', lang)} displayValue={`${config.windElevation}°`}
             infoText={t('infoElevation', lang)} />
@@ -463,6 +475,8 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
       <p className="text-[9px] text-muted-foreground/70 text-center py-1.5 border-t border-primary/10 bg-background/10">
         {t('footerHint', lang)}
       </p>
+      </div>
+      </div>
     </div>
   );
 };

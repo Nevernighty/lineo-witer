@@ -1,6 +1,9 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind, AlertTriangle, Activity } from 'lucide-react';
+import { ArrowLeft, Download, RotateCcw, SlidersHorizontal, Wind, AlertTriangle, Activity, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import type { ImperativePanelHandle } from 'react-resizable-panels';
+import { CustomModelImport } from '@/components/blade-lab/CustomModelImport';
 import { toast } from '@/components/ui/use-toast';
 import { setActiveBladePreset } from '@/store/useBladePresetStore';
 import type { RotorType } from '@/aero/buildBladeGeometry';
@@ -132,6 +135,19 @@ export default function BladeLab() {
   const [turbulenceBoost, setTurbulenceBoost] = useState(0);
   const [failureBoost, setFailureBoost] = useState(0);
   const [mode, setMode] = useState<'aero' | 'real'>('aero');
+  const leftPanel = useRef<ImperativePanelHandle>(null);
+  const rightPanel = useRef<ImperativePanelHandle>(null);
+  const layoutRef = useRef<HTMLDivElement>(null);
+  const [leftCollapsed, setLeftCollapsed] = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
+  const [layoutWidth, setLayoutWidth] = useState(1188);
+  useEffect(() => {
+    const node = layoutRef.current;
+    if (!node) return;
+    const observer = new ResizeObserver(([entry]) => { if (entry.contentRect.width > 0) setLayoutWidth(entry.contentRect.width); });
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
   const [customName, setCustomName] = useState<string>(() => {
     try { return localStorage.getItem('lineo.customName') ?? ''; } catch { return ''; }
   });
@@ -365,7 +381,7 @@ export default function BladeLab() {
   return (
     <div className="h-[100dvh] w-screen flex flex-col bg-background text-foreground overflow-hidden blade-lab-shell">
       <header className="border-b border-border/40 bg-card/70 backdrop-blur-md">
-        <div className="flex items-center gap-2 px-2 py-1.5">
+        <div className="flex flex-wrap items-center gap-2 px-2 py-1.5">
           <Link to="/" className="p-1 rounded hover:bg-primary/10 flex-shrink-0" title={t.back}>
             <ArrowLeft className="w-4 h-4" />
           </Link>
@@ -378,8 +394,17 @@ export default function BladeLab() {
             onChange={e => setCustomName(e.target.value.slice(0, 48))}
             placeholder={suggestedName()}
             title={lang === 'ua' ? 'Назва вашого вітряка' : 'Your turbine name'}
-            className="ml-1 h-7 w-36 sm:w-48 rounded-md border border-border/50 bg-background/60 px-2 text-xs focus:outline-none focus:border-primary"
+            className="ml-1 h-7 w-28 sm:w-40 min-w-0 rounded-md border border-border/50 bg-background/60 px-2 text-xs focus:outline-none focus:border-primary"
           />
+          <CustomModelImport lang={lang} compact onApply={a => {
+            setCustomName(a.name.replace(/\.[^.]+$/, '').slice(0, 48));
+            setPresetId(''); setRotorType(a.rotorType); setMode('aero');
+            setHeightOverDiameter(Math.max(0.2, Math.min(4, a.heightOverDiameter)));
+            setHelicalDeg(a.rotorType === 'vawt-helical' ? 90 : 0);
+            setTsr(a.rotorType === 'hawt' ? 7 : a.rotorType === 'vawt-savonius' ? 0.9 : 2.5);
+            setGeometry(g => clampGeometry({ ...g, tipRadius: a.radius, rootRadius: Math.max(0.02, a.radius * 0.1), nBlades: a.bladesGuess, chordRoot: Math.max(0.02, a.radius * 0.2), chordTip: Math.max(0.01, a.radius * 0.1) }));
+            toast({ title: lang === 'ua' ? 'Оцінені параметри моделі застосовано' : 'Estimated model parameters applied' });
+          }} />
 
           <div className="hidden md:block ml-2 min-w-0 flex-1">
             <Menubar className="h-7 border-border/40 bg-transparent p-0 gap-0">
@@ -556,9 +581,9 @@ export default function BladeLab() {
       )}
 
       {/* Desktop */}
-      <div className={`${mode === 'real' ? 'hidden' : 'hidden md:block'} flex-1 min-h-0`}>
-        <ResizablePanelGroup direction="horizontal" autoSaveId="blade-lab-layout" className="h-full w-full">
-          <ResizablePanel defaultSize={22} minSize={14} maxSize={40} className="min-w-0">
+      <div ref={layoutRef} className={`${mode === 'real' ? 'hidden' : 'hidden md:block'} flex-1 min-h-0`}>
+        <ResizablePanelGroup direction="horizontal" autoSaveId="blade-lab-layout-v2" className="h-full w-full">
+          <ResizablePanel ref={leftPanel} defaultSize={26} minSize={Math.min(34, 260 / layoutWidth * 100)} maxSize={36} collapsible collapsedSize={0} onCollapse={() => setLeftCollapsed(true)} onExpand={() => setLeftCollapsed(false)} className="min-w-0 transition-[flex-grow] duration-200 motion-reduce:transition-none">
             <aside className="h-full overflow-y-auto scrollbar-thin">
               <GeometryPanel
                 geometry={geometry} onChange={setGeometry} lang={lang}
@@ -573,6 +598,8 @@ export default function BladeLab() {
           <ResizablePanel defaultSize={54} minSize={28} className="min-w-0">
             <main className="relative h-full min-w-0">
               <BladeViewer3D {...viewerProps} />
+              <Button variant="outline" size="icon" className="absolute left-1 top-1/2 z-40 h-9 w-7 bg-background/80 backdrop-blur-md" aria-label={lang === 'ua' ? (leftCollapsed ? 'Розгорнути геометрію' : 'Згорнути геометрію') : (leftCollapsed ? 'Expand geometry' : 'Collapse geometry')} title={t.geometry} aria-expanded={!leftCollapsed} onClick={() => leftCollapsed ? leftPanel.current?.expand() : leftPanel.current?.collapse()}>{leftCollapsed ? <ChevronRight /> : <ChevronLeft />}</Button>
+              <Button variant="outline" size="icon" className="absolute right-1 top-1/2 z-40 h-9 w-7 bg-background/80 backdrop-blur-md" aria-label={lang === 'ua' ? (rightCollapsed ? 'Розгорнути аналіз' : 'Згорнути аналіз') : (rightCollapsed ? 'Expand analysis' : 'Collapse analysis')} title={t.analysis} aria-expanded={!rightCollapsed} onClick={() => rightCollapsed ? rightPanel.current?.expand() : rightPanel.current?.collapse()}>{rightCollapsed ? <ChevronLeft /> : <ChevronRight />}</Button>
               {!director.scenario && <CanvasRibbon t={t} windSpeed={windSpeed} setWindSpeed={setWindSpeed} tsr={tsr} setTsr={setTsr} site={site} lang={lang} />}
                {!director.scenario && <HUD geometry={geometry} windSpeed={windSpeed} tsr={tsr} failureLevel={failureLevel} t={t} />}
               {showDiag && <DiagnosticsOverlay lang={lang} onClose={() => setShowDiag(false)} />}
@@ -588,7 +615,7 @@ export default function BladeLab() {
             </main>
           </ResizablePanel>
           <ResizableHandle withHandle className="bl-resize-handle" />
-          <ResizablePanel defaultSize={24} minSize={16} maxSize={44} className="min-w-0">
+          <ResizablePanel ref={rightPanel} defaultSize={26} minSize={Math.min(36, 280 / layoutWidth * 100)} maxSize={38} collapsible collapsedSize={0} onCollapse={() => setRightCollapsed(true)} onExpand={() => setRightCollapsed(false)} className="min-w-0 transition-[flex-grow] duration-200 motion-reduce:transition-none">
             <aside className="h-full overflow-y-auto scrollbar-thin min-w-0">
               <Tabs defaultValue="analysis" className="w-full min-w-0 bl-analysis-surface h-full">
                 <TabsList className="grid w-[calc(100%-8px)] grid-cols-2 h-8 m-1 mb-0 bl-dark-tabs">
