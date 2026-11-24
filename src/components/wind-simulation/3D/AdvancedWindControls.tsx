@@ -162,15 +162,16 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
           {collapsed ? <ChevronDown /> : <ChevronUp />}
         </Button>
       </div>
-      <div id="wind-controls-body" className={`grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`} inert={collapsed ? '' : undefined}>
+      <div id="wind-controls-body" ref={node => node?.toggleAttribute('inert', collapsed)} className={`grid transition-[grid-template-rows] duration-200 motion-reduce:transition-none ${collapsed ? 'grid-rows-[0fr]' : 'grid-rows-[1fr]'}`}>
       <div className="min-h-0 overflow-hidden">
+      <div className="max-h-[calc(100dvh-280px)] sm:max-h-[calc(100dvh-180px)] overflow-y-auto overscroll-contain">
       <Tabs defaultValue="wind" className="w-full">
         <TabsList className="w-full grid grid-cols-4 h-9 rounded-none bg-background/40 border-b border-primary/30 p-0">
           {(['wind', 'turb', 'atmo', 'terrain'] as const).map((tab, i) => {
             const icons = [Wind, Waves, Thermometer, Mountain];
             const Icon = icons[i];
             return (
-              <TabsTrigger key={tab} value={tab} aria-label={t(tab === 'wind' ? 'wind' : tab === 'turb' ? 'intensity' : tab === 'atmo' ? 'temperature' : 'terrainSlopeX', lang)} title={lang === 'ua' ? ['Вітер', 'Турбулентність', 'Атмосфера', 'Рельєф'][i] : ['Wind', 'Turbulence', 'Atmosphere', 'Terrain'][i]}
+              <TabsTrigger key={tab} value={tab} aria-label={lang === 'ua' ? ['Вітер', 'Турбулентність', 'Атмосфера', 'Рельєф'][i] : ['Wind', 'Turbulence', 'Atmosphere', 'Terrain'][i]} title={lang === 'ua' ? ['Вітер', 'Турбулентність', 'Атмосфера', 'Рельєф'][i] : ['Wind', 'Turbulence', 'Atmosphere', 'Terrain'][i]}
                 className="rounded-none border-r border-primary/20 last:border-r-0 data-[state=active]:bg-primary/20 data-[state=active]:text-primary data-[state=active]:shadow-[inset_0_-2px_0_hsl(var(--primary))] transition-all">
                 <Icon className="w-4 h-4" />
               </TabsTrigger>
@@ -475,6 +476,7 @@ export const AdvancedWindControls: React.FC<AdvancedWindControlsProps> = ({
       <p className="text-[9px] text-muted-foreground/70 text-center py-1.5 border-t border-primary/10 bg-background/10">
         {t('footerHint', lang)}
       </p>
+      </div>
       </div>
       </div>
     </div>

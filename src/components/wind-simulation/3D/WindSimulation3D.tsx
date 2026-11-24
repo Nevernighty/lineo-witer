@@ -20,7 +20,9 @@ import { playPlaceSound, playRotateSound, playClearSound, playScaleSound, setWin
 import { EnergyHud } from './EnergyHud';
 import { getGeneratorFocus } from '@/store/useGeneratorFocus';
 
-import { Crosshair, MousePointer, Map as MapIcon, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { Crosshair, MousePointer, Map as MapIcon, ChevronDown, ChevronUp, Info, Gauge } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { useActiveBladePreset } from '@/store/useBladePresetStore';
 import * as THREE from 'three';
@@ -393,7 +395,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
   return (
     <div className="sim-ui relative w-full h-full" style={{ isolation: 'isolate' }}>
       {/* Mode toggle + Scenario + Analysis buttons */}
-      <div className="absolute top-3 left-[195px] z-50 flex gap-1" style={{ pointerEvents: 'auto' }}>
+      <div className="absolute top-3 left-2 right-2 sm:right-auto sm:left-[195px] z-50 flex flex-wrap gap-1" style={{ pointerEvents: 'auto' }}>
         <button onClick={() => { setInteractionMode('place'); setSelectedObstacleIndex(null); }}
           className={`flex items-center gap-1 px-2 py-1.5 rounded text-xs font-mono border transition-all ${interactionMode === 'place' ? 'bg-primary/25 border-primary/60 text-primary shadow-[0_0_10px_hsl(var(--primary)/0.3)]' : 'bg-background/90 border-primary/20 text-muted-foreground hover:border-primary/40'}`}>
           <Crosshair className="w-3.5 h-3.5" />{t('placeMode', lang)}
@@ -412,11 +414,20 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           {activeAnalysisCount > 0 && <span className="ml-0.5 px-1 py-0 rounded-full bg-orange-500/30 text-orange-400 text-[8px] font-bold">{activeAnalysisCount}</span>}
           {showAnalysisPanel ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
         </button>
+        <Sheet>
+          <SheetTrigger asChild><Button variant="outline" size="icon" className="sm:hidden h-8 w-8 bg-background/90" aria-label={lang === 'ua' ? 'Вимірювання' : 'Measurements'} title={lang === 'ua' ? 'Вимірювання' : 'Measurements'}><Gauge /></Button></SheetTrigger>
+          <SheetContent side="bottom" className="isolate z-[100] max-h-[80dvh] overflow-y-auto">
+            <SheetHeader><SheetTitle>{lang === 'ua' ? 'Вимірювання' : 'Measurements'}</SheetTitle></SheetHeader>
+            <div className="mt-3 [&>div]:!static [&>div]:w-full [&>div]:grid [&>div]:grid-cols-2 [&>div]:gap-2 [&>div]:space-y-0">
+              <AdvancedMeasurementPanel config={physicsConfig} particleCount={particleCount} obstacles={obstacles} collisionEnergy={collisionEnergy} activeCollisions={obstacles.length} generatorPower={generatorPower} lang={lang} />
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
 
       {/* Compact analysis dropdown */}
       {showAnalysisPanel && (
-        <div className="absolute top-12 left-[195px] z-50 bg-background/95 backdrop-blur-md rounded-lg border border-orange-500/40 p-2 shadow-[0_0_15px_rgba(255,140,0,0.15)] w-64 animate-in fade-in slide-in-from-top-2 duration-200" style={{ pointerEvents: 'auto' }}>
+        <div className="absolute top-12 left-2 sm:left-[195px] z-[60] bg-background/95 backdrop-blur-md rounded-lg border border-orange-500/40 p-2 shadow-lg w-64 max-w-[calc(100%-1rem)] animate-in fade-in slide-in-from-top-2 duration-200" style={{ pointerEvents: 'auto' }}>
           <div className="space-y-1">
             {analysisItems.map(item => (
               <label key={item.key} className={`flex items-center gap-2 cursor-pointer px-2 py-1.5 rounded transition-all hover:bg-primary/10 ${item.checked ? 'bg-primary/10' : ''}`}>
@@ -444,7 +455,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
 
       {/* Scenario picker */}
       {showScenarios && (
-        <div className="absolute top-12 left-[195px] z-50 w-80 bg-background/95 backdrop-blur-md border border-cyan-500/40 rounded-lg shadow-[0_0_25px_rgba(0,200,255,0.2)] overflow-hidden" style={{ pointerEvents: 'auto' }}>
+        <div className="absolute top-12 left-2 sm:left-[195px] z-[60] w-80 max-w-[calc(100%-1rem)] bg-background/95 backdrop-blur-md border border-primary/40 rounded-lg shadow-lg overflow-hidden" style={{ pointerEvents: 'auto' }}>
           <div className="px-3 py-2 border-b border-cyan-500/20 flex items-center gap-2">
             <MapIcon className="w-3.5 h-3.5 text-cyan-400" />
             <span className="text-xs font-semibold text-cyan-400 uppercase tracking-wider">{t('scenarios', lang)}</span>
@@ -646,7 +657,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
         </div>
       )}
 
-      <div className="absolute top-3 right-2 sm:right-3 w-60 sm:w-72 max-w-[calc(100vw-1rem)] z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
+      <div className="absolute top-16 sm:top-3 right-2 sm:right-3 w-[calc(100%-1rem)] sm:w-72 max-w-[calc(100vw-1rem)] z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedWindControls config={physicsConfig} onConfigChange={handleConfigChange}
           selectedObstacleType={selectedObstacleType} onObstacleTypeChange={setSelectedObstacleType}
           selectedGeneratorSubtype={selectedGeneratorSubtype} onGeneratorSubtypeChange={setSelectedGeneratorSubtype}
@@ -663,7 +674,7 @@ export const WindSimulation3D: React.FC<WindSimulation3DProps> = ({
           windType={windType} onWindTypeChange={setWindType} />
       </div>
 
-      <div className="z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
+      <div className="hidden sm:block z-50" style={{ pointerEvents: 'auto', overflow: 'visible' }}>
         <AdvancedMeasurementPanel config={physicsConfig} particleCount={particleCount}
           obstacles={obstacles} collisionEnergy={collisionEnergy}
           activeCollisions={obstacles.length} generatorPower={generatorPower} lang={lang} />
